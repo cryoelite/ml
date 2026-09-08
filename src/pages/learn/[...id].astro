@@ -44,6 +44,7 @@ const components = {
   Cell, Py, M, Aside, Reveal, SideQuest, Stuck, TryThis, Wonder, ConceptMap, Doodle,
 };
 const art = chapterDoodle[entry.id];
+import { withBase } from "../../lib/base";
 ---
 
 <Doc title={d.title} description={d.blurb} current={entry.id} headings={headings}>
@@ -73,7 +74,7 @@ const art = chapterDoodle[entry.id];
         <ul class="extras-grid">
           {related.map((e) => (
             <li>
-              <a class="extra-card" href={`/extras/${e.id}/`}>
+              <a class="extra-card" href={withBase(`/extras/${e.id}/`)}>
                 <span class="extra-card__title">{e.data.title}</span>
                 <span class="extra-card__blurb">{e.data.blurb}</span>
                 <span class="extra-card__meta">
@@ -90,12 +91,12 @@ const art = chapterDoodle[entry.id];
   <nav class="pager" aria-label="Chapter navigation">
     {
       prev ? (
-        <a href={`/learn/${prev.id}/`} class="pager__prev">
+        <a href={withBase(`/learn/${prev.id}/`)} class="pager__prev">
           <span class="pager__dir">Previous</span>
           <span class="pager__title">{prev.data.title}</span>
         </a>
       ) : (
-        <a href="/" class="pager__prev">
+        <a href={withBase("/")} class="pager__prev">
           <span class="pager__dir">Back</span>
           <span class="pager__title">Introduction</span>
         </a>
@@ -103,7 +104,7 @@ const art = chapterDoodle[entry.id];
     }
     {
       next && (
-        <a href={`/learn/${next.id}/`} class="pager__next">
+        <a href={withBase(`/learn/${next.id}/`)} class="pager__next">
           <span class="pager__dir">Next</span>
           <span class="pager__title">{next.data.title}</span>
         </a>

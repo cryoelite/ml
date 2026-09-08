@@ -26,6 +26,11 @@ services:
     build:
       context: .
       dockerfile: Dockerfile
+      args:
+        # Mount point. Empty = domain root (the default, and what local dev
+        # uses). Set to e.g. /ml to serve from https://host/ml. Must be set at
+        # BUILD time — Astro bakes the prefix into every generated URL.
+        SITE_BASE: ${SITE_BASE:-}
     image: gradient-site:1.0.0
     container_name: gradient-site
     ports:

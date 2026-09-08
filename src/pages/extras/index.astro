@@ -15,6 +15,7 @@ const KINDS = [
   { id: "culture", title: "The field as a human thing", gist: "Papers, people, incentives, and the harm this technology is capable of doing." },
 ];
 const total = extras.reduce((n, e) => n + e.data.minutes, 0);
+import { withBase } from "../../lib/base";
 ---
 
 <Doc title="Extras" description="Everything that is worth reading and did not fit in a fortnight.">
@@ -53,7 +54,7 @@ const total = extras.reduce((n, e) => n + e.data.minutes, 0);
           <ul class="extras-grid">
             {items.map((e) => (
               <li>
-                <a class="extra-card" href={`/extras/${e.id}/`}>
+                <a class="extra-card" href={withBase(`/extras/${e.id}/`)}>
                   <span class="extra-card__title">{e.data.title}</span>
                   <span class="extra-card__blurb">{e.data.blurb}</span>
                   <span class="extra-card__meta">

@@ -13,6 +13,7 @@ interface Props { compact?: boolean }
 const { compact = false } = Astro.props;
 const { nodes, edges, width, height } = layout(CONCEPT_MAP);
 const covered = nodes.filter((n) => n.node.chapter).length;
+import { withBase } from "../lib/base";
 ---
 
 <figure class="conceptmap">
@@ -49,7 +50,7 @@ const covered = nodes.filter((n) => n.node.chapter).length;
       </g>
       {
         nodes.map(({ node, x, y, w, h }) => {
-          const href = node.chapter ? `/learn/${node.chapter}/` : undefined;
+          const href = node.chapter ? withBase(`/learn/${node.chapter}/`) : undefined;
           const Tag = href ? "a" : "g";
           return (
             <Tag

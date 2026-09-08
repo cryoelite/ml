@@ -23,6 +23,7 @@ const PARTS = [
   { id: "practice",      title: "Doing it for real",  art: "ship",
     gist: "Reading papers, picking metrics, shipping a model, and knowing when the honest answer is that machine learning isn't the tool." },
 ];
+import { withBase } from "../lib/base";
 ---
 
 <Base title="Gradient">
@@ -37,9 +38,9 @@ const PARTS = [
           not a tour of one library's API.
         </p>
         <div class="home__cta">
-          {first && <a class="btn btn--primary" href={`/learn/${first.id}/`}>Start day one →</a>}
-          <a class="btn btn--ghost" href="/map/">See the whole map</a>
-          <a class="btn btn--ghost" href="/setup/">Set up your machine</a>
+          {first && <a class="btn btn--primary" href={withBase(`/learn/${first.id}/`)}>Start day one →</a>}
+          <a class="btn btn--ghost" href={withBase("/map/")}>See the whole map</a>
+          <a class="btn btn--ghost" href={withBase("/setup/")}>Set up your machine</a>
         </div>
       </div>
       <div class="hero__art"><Doodle name="pipWave" /></div>
@@ -83,7 +84,7 @@ const PARTS = [
               <p>{part.gist}</p>
               <ol>
                 {items.map((c) => (
-                  <li><a href={`/learn/${c.id}/`}>{c.data.title}</a></li>
+                  <li><a href={withBase(`/learn/${c.id}/`)}>{c.data.title}</a></li>
                 ))}
               </ol>
             </div>
@@ -100,7 +101,7 @@ const PARTS = [
     <p>
       Keeping a promise about two weeks means leaving things out, and a lot of
       what got left out is lovely. It lives in
-      <a href="/extras/">{extras.length} extras</a> — the deeper whys, the roads
+      <a href={withBase("/extras/")}>{extras.length} extras</a> — the deeper whys, the roads
       not taken, and the things you only learn by shipping. Nothing in the
       fourteen days depends on any of it, which is exactly what makes it safe to
       write.

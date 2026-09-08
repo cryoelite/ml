@@ -31,10 +31,11 @@ const KIND_LABEL: Record<string, string> = {
   sibling: "a road not taken",
   culture: "the human side",
 };
+import { withBase } from "../../lib/base";
 ---
 
 <Doc title={d.title} description={d.blurb} headings={headings}>
-  <p class="extra-crumb"><a href="/extras/">← Extras</a></p>
+  <p class="extra-crumb"><a href={withBase("/extras/")}>← Extras</a></p>
   <h1>{d.title}</h1>
   <p class="lede">{d.blurb}</p>
   <p class="chapter-meta">
@@ -45,5 +46,5 @@ const KIND_LABEL: Record<string, string> = {
 
   <Content components={components} />
 
-  <p class="extra-back"><a href="/extras/">← All extras</a></p>
+  <p class="extra-back"><a href={withBase("/extras/")}>← All extras</a></p>
 </Doc>

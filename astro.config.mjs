@@ -8,6 +8,7 @@ import rehypeKatex from "rehype-katex";
 import rehypeSlug from "rehype-slug";
 import rehypeAutolinkHeadings from "rehype-autolink-headings";
 import { remarkRunnableCells } from "./src/lib/remark-runnable-cells.mjs";
+import { rehypeBaseLinks } from "./src/lib/rehype-base-links.mjs";
 
 /**
  * Astro 7 defaults to Sätteri, a Rust Markdown/MDX processor that is much
@@ -20,8 +21,20 @@ import { remarkRunnableCells } from "./src/lib/remark-runnable-cells.mjs";
  * (Python execution, popovers, the concept map) is progressive enhancement
  * layered on HTML that is already complete without it.
  */
+/**
+ * Where the site is mounted. Empty (the default) means the domain root, which
+ * is what `bun run dev` and the plain Docker image use.
+ *
+ * Set SITE_BASE=/ml at BUILD time to serve it from a subpath — every generated
+ * link and asset URL then carries the prefix. It has to be a build-time
+ * decision because those URLs are baked into the static HTML; you cannot mount
+ * a root-built site under a subpath with proxy rules alone.
+ */
+const BASE = process.env.SITE_BASE || undefined;
+
 export default defineConfig({
-  site: "https://gradient.local",
+  site: process.env.SITE_URL || "https://gradient.local",
+  base: BASE,
   trailingSlash: "always",
   integrations: [mdx(), sitemap()],
   markdown: {
@@ -41,6 +54,8 @@ export default defineConfig({
             content: { type: "text", value: "#" },
           },
         ],
+        // Last: rewrite hand-written root-absolute links for a subpath deploy.
+        rehypeBaseLinks,
       ],
       syntaxHighlight: "shiki",
       shikiConfig: { theme: "github-light", wrap: false },

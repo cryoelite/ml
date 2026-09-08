@@ -2,6 +2,7 @@
 import Doc from "../layouts/Doc.astro";
 import ConceptMap from "../components/ConceptMap.astro";
 import Doodle from "../components/Doodle.astro";
+import { withBase } from "../lib/base";
 ---
 
 <Doc
@@ -69,7 +70,7 @@ import Doodle from "../components/Doodle.astro";
     The reason to draw them anyway is that you <em>will</em> meet the names, and
     knowing <em>where a name lives</em> is most of what it takes to read a paper
     without drowning. Several of the dashed boxes have a full piece waiting in the
-    <a href="/extras/">extras</a> when you're curious.
+    <a href={withBase("/extras/")}>extras</a> when you're curious.
   </p>
 
   <div class="pip-note">

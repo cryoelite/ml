@@ -15,6 +15,7 @@ const {
   description = "A friendly, ground-up path into machine learning — sixteen chapters, all of them runnable.",
 } = Astro.props;
 const full = title === "Gradient" ? title : `${title} · Gradient`;
+import { withBase } from "../lib/base";
 ---
 
 <!doctype html>
@@ -27,7 +28,7 @@ const full = title === "Gradient" ? title : `${title} · Gradient`;
     <meta name="color-scheme" content="light" />
     <meta name="generator" content={`Gradient ${VERSION}`} />
     <link rel="canonical" href={new URL(Astro.url.pathname, Astro.site)} />
-    <link rel="icon" href="/favicon.svg" type="image/svg+xml" />
+    <link rel="icon" href={withBase("/favicon.svg")} type="image/svg+xml" />
     <meta property="og:title" content={full} />
     <meta property="og:description" content={description} />
     <meta property="og:type" content="article" />
@@ -58,7 +59,7 @@ const full = title === "Gradient" ? title : `${title} · Gradient`;
       <button class="nav-toggle" type="button" aria-expanded="false" aria-label="Toggle chapter list">
         ☰ <span>Chapters</span>
       </button>
-      <a class="masthead__brand" href="/">
+      <a class="masthead__brand" href={withBase("/")}>
         <span class="masthead__mark"><Doodle name="pip" decorative /></span>
         <span class="masthead__name">Gradient</span>
         <span class="masthead__version" title={`Version ${VERSION}`}>{VERSION_LABEL}</span>
@@ -66,11 +67,11 @@ const full = title === "Gradient" ? title : `${title} · Gradient`;
       </a>
       <span class="masthead__spacer"></span>
       <nav class="masthead__links" aria-label="Sections">
-        <a href="/map/">Map</a>
-        <a href="/extras/">Extras</a>
-        <a href="/appendix/python/">Python</a>
-        <a href="/appendix/math/">Maths</a>
-        <a href="/setup/">Setup</a>
+        <a href={withBase("/map/")}>Map</a>
+        <a href={withBase("/extras/")}>Extras</a>
+        <a href={withBase("/appendix/python/")}>Python</a>
+        <a href={withBase("/appendix/math/")}>Maths</a>
+        <a href={withBase("/setup/")}>Setup</a>
       </nav>
       <RuntimeWidget />
     </header>

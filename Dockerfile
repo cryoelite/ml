@@ -27,7 +27,22 @@ COPY . .
 # image is no longer self-contained, so let it fail the build loudly instead.
 RUN bun scripts/vendor-pyodide.mjs
 
+# Where the site will be mounted. Empty = domain root.
+#
+#   docker build --build-arg SITE_BASE=/ml .
+#
+# This has to be set at build time: Astro bakes the prefix into every link and
+# asset URL in the static HTML, so it cannot be applied by a proxy afterwards.
+ARG SITE_BASE=""
+ENV SITE_BASE=$SITE_BASE
+
 RUN bun run build
+
+# Lay the output out at the path it will actually be served from, so nginx can
+# resolve requests directly and no proxy needs to rewrite anything. Stripping a
+# prefix in the proxy instead is the usual approach and the usual source of
+# redirect loops, because nginx's own 301s then carry the stripped path.
+RUN mkdir -p "/out${SITE_BASE}" && cp -a dist/. "/out${SITE_BASE}/"
 
 # --- stage 2: serve ----------------------------------------------------------
 FROM nginx:1.27-alpine AS serve
@@ -35,7 +50,7 @@ FROM nginx:1.27-alpine AS serve
 # Astro emits <path>/index.html (trailingSlash: "always") and a pile of .wasm,
 # .whl and .woff2 that need the right headers. See the config for details.
 COPY docker/nginx.conf /etc/nginx/conf.d/default.conf
-COPY --from=build /app/dist /usr/share/nginx/html
+COPY --from=build /out /usr/share/nginx/html
 
 EXPOSE 80
 

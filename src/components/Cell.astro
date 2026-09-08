@@ -21,6 +21,7 @@ interface Props {
 
 const { code, cellIndex = 0, local = false, title } = Astro.props;
 const n = cellIndex + 1;
+import { withBase } from "../lib/base";
 ---
 
 <div
@@ -62,7 +63,7 @@ const n = cellIndex + 1;
       <p class="cell__hint" hidden>
         This cell needs PyTorch, which has no WebAssembly build. Switch the runtime
         to <strong>Local kernel</strong> in the header, after starting one with{" "}
-        <code>bun run kernel</code>. See <a href="/setup/">Setup</a>.
+        <code>bun run kernel</code>. See <a href={withBase("/setup/")}>Setup</a>.
       </p>
     )
   }

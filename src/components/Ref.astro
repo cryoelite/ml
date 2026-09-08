@@ -47,7 +47,7 @@ const isMath = collection === "math";
 const cardId = `rc-${collection}-${id.replace(/[^a-z0-9]+/gi, "-")}-${Math.random()
   .toString(36)
   .slice(2, 7)}`;
-const href = `/appendix/${isMath ? "math" : "python"}/#${id}`;
+const href = withBase(`/appendix/${isMath ? "math" : "python"}/`) + `#${id}`;
 const text = label?.trim() || data.title;
 
 const tex = (src: string, display = false) =>
@@ -55,6 +55,7 @@ const tex = (src: string, display = false) =>
 
 const formulaHtml = isMath && data.formula ? tex(data.formula, true) : null;
 const symbols: { sym: string; means: string }[] = isMath ? (data.symbols ?? []) : [];
+import { withBase } from "../lib/base";
 ---
 
 <a

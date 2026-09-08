@@ -6,6 +6,7 @@
  * the single most confusing thing about an executable tutorial is not knowing
  * *where* your code is about to execute.
  */
+import { withBase } from "../lib/base";
 ---
 <div class="runtime">
   <button class="runtime__btn" type="button" aria-haspopup="dialog">
@@ -38,7 +39,7 @@
             A real Jupyter kernel over its websocket API — running on
             <strong>your</strong> machine, not this site's server. Full PyTorch and
             Apple MPS. Start one with <code>bun run kernel</code>, or see the
-            <a href="/setup/">setup guide</a> if you have not yet.
+            <a href={withBase("/setup/")}>setup guide</a> if you have not yet.
           </em>
           <span class="runtime__field">
             <input name="url" type="url" aria-label="Jupyter server URL" spellcheck="false" />
@@ -56,7 +57,7 @@
 
     <p>
       <button class="cell__btn runtime__restart" type="button">Restart runtime</button>
-      &nbsp;<a href="/setup/">Setup guide →</a>
+      &nbsp;<a href={withBase("/setup/")}>Setup guide →</a>
     </p>
   </dialog>
 </div>
