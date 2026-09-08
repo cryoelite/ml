@@ -1,3 +1,4 @@
+import { withBase } from "../lib/base";
 /* ============================================================================
    Two Python backends, one interface.
 
@@ -40,7 +41,9 @@ const PYODIDE_VERSION = "314.0.6";
  * fallback for a fresh checkout that has not vendored yet.
  */
 const PYODIDE_INDEXES = [
-  "/pyodide/",
+  // withBase, not a bare "/pyodide/": under a subpath deployment the vendored
+  // copy lives at e.g. /ml/pyodide/ and a root-absolute path 404s.
+  withBase("/pyodide/"),
   `https://cdn.jsdelivr.net/pyodide/v${PYODIDE_VERSION}/full/`,
 ];
 
@@ -173,7 +176,9 @@ class PyodideBackend implements Backend {
   private ensureWorker(): Worker {
     if (this.worker) return this.worker;
     // A module worker: Pyodide ships ESM, and some browsers only allow this kind.
-    const w = new Worker("/pyodide-worker.js", { type: "module" });
+    // Same reason as the index above. A 404 here surfaces to the reader as
+    // "worker failed to start", which says nothing about the real cause.
+    const w = new Worker(withBase("/pyodide-worker.js"), { type: "module" });
     w.onmessage = (e) => this.route(e.data);
     w.onerror = (e) => this.onStatus("error", e.message || "worker failed to start");
     this.worker = w;

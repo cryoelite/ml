@@ -31,7 +31,7 @@ services:
         # uses). Set to e.g. /ml to serve from https://host/ml. Must be set at
         # BUILD time — Astro bakes the prefix into every generated URL.
         SITE_BASE: ${SITE_BASE:-}
-    image: gradient-site:1.0.0
+    image: gradient-site:1.1.0
     container_name: gradient-site
     ports:
       # Static, prerendered documents — nothing here executes on the server,

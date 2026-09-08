@@ -322,6 +322,11 @@ there), `mixed-content` (HTTPS page, plain-HTTP non-loopback target).
   `gradient` user (uid 1000) and runs as it, which is right anyway for a process
   that executes arbitrary Python. `scripts/kernel.sh` also passes `--allow-root`
   when it detects uid 0, as a safety net.
+- **Root-absolute paths in `.ts` bypass the base too.** The subpath sweep
+  originally covered only `href="/…"` in `.astro` files, so
+  `new Worker("/pyodide-worker.js")` and the Pyodide index in
+  `src/scripts/runtime.ts` shipped broken. The reader saw only "worker failed to
+  start", which names nothing. `bun run check:subpath` now catches this class.
 - **Healthchecks must use `127.0.0.1`, not `localhost`.** Inside the container
   `localhost` resolves to `::1` as well, busybox wget tries IPv6 first, and
   nginx listens only on `0.0.0.0` — so the check reports "connection refused"
@@ -358,6 +363,35 @@ Expected: **39 pages · 253 cells all passing · 2274 links resolve · 0 type er
   without it they are skipped.
 - **`check_links.py`** walks `dist/` and verifies every internal link *and
   anchor*, which is how appendix-id typos get caught.
+
+### Subpath deployments
+
+The site can be mounted at a subpath (`projects.itscryo.com/ml`) by building
+with `SITE_BASE=/ml`. Two mechanisms make that work, because Astro's `base`
+alone does not:
+
+- `src/lib/rehype-base-links.mjs` prefixes root-absolute links in rendered
+  Markdown — 61 of them across the content.
+- `src/lib/base.ts` exports `withBase()` for hand-written links in `.astro` and
+  `.ts`. **Astro's `base` only rewrites URLs Astro generates**; a literal
+  `href="/setup/"` or `new Worker("/pyodide-worker.js")` is just a string and
+  survives the build untouched.
+
+Guard it with:
+
+```bash
+bun run check:subpath        # builds with SITE_BASE=/ml and verifies
+```
+
+That fails the build if any emitted HTML URL falls outside the base, or if a
+runtime-fetched asset is missing. Both regressions were reproduced and confirmed
+to exit 1 before the check was accepted.
+
+**Not scanned: string literals in the built JavaScript.** Correct code is
+`withBase("/pyodide-worker.js")`, and the raw root-absolute string is still in
+the bundle because the prefixing happens at runtime — a literal scan cannot tell
+that apart from the broken version and would fail on correct code. The
+`RUNTIME_ASSETS` list in `check_links.py` is the honest substitute.
 
 ### ⚠ The checker does not verify prose
 
