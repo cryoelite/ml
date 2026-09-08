@@ -19,10 +19,10 @@
 # See kernel/compose.yaml and the README.
 # =============================================================================
 
-#name: gradient
+name: gradient
 
 services:
-  site:
+  gradient-site:
     build:
       context: .
       dockerfile: Dockerfile
