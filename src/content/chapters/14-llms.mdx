@@ -1,0 +1,388 @@
+---
+title: "Large language models"
+blurb: "From next-token prediction to something that answers your question: tokenisation, scaling laws, the three training stages, and exactly what temperature does."
+order: 14
+day: 14
+part: frontier
+minutes: 100
+introduces: ["rlhf", "scaling"]
+---
+
+A language model does one thing: given some text, predict what comes next. Every
+capability you have seen — answering, translating, refactoring, refusing — is
+that one operation, scaled up and then shaped.
+
+## Tokens
+
+Models do not see characters or words. They see **tokens**, produced by a
+compression algorithm fitted to a corpus.
+
+```python run setup title="byte-pair encoding, implemented"
+import numpy as np, matplotlib.pyplot as plt
+from collections import Counter
+
+def train_bpe(text, n_merges=60):
+    """Repeatedly merge the most frequent adjacent pair. That is the whole algorithm."""
+    tokens = list(text)
+    merges = []
+    for _ in range(n_merges):
+        pairs = Counter(zip(tokens, tokens[1:]))
+        if not pairs:
+            break
+        best, count = pairs.most_common(1)[0]
+        if count < 2:
+            break
+        merged, i = [], 0
+        while i < len(tokens):
+            if i < len(tokens) - 1 and (tokens[i], tokens[i + 1]) == best:
+                merged.append(tokens[i] + tokens[i + 1]); i += 2
+            else:
+                merged.append(tokens[i]); i += 1
+        tokens, _ = merged, merges.append("".join(best))
+    return tokens, merges
+
+corpus = """the model predicts the next token, and the next token after that.
+a model that predicts well has learned something about the text it read.
+the objective is prediction; the capability is a side effect of the objective.
+tokens are not words. tokens are whatever the compressor found worth naming.
+a token is a unit of text that appeared often enough to deserve its own symbol.
+the tokenizer is fitted to a corpus before the model is trained on that corpus.
+prediction over trillions of tokens is expensive, and the expense is the point.
+the model reads text, the model writes text, and nothing in between is magic.
+what the model learns is a distribution over the next token given the previous.
+learning a distribution is not the same as learning the truth of a sentence.
+"""
+tokens, merges = train_bpe(corpus)
+print("first merges learned:", merges[:12])
+print(f"\n{len(corpus)} characters -> {len(tokens)} tokens "
+      f"({len(corpus) / len(tokens):.2f} chars per token)")
+```
+
+Nothing linguistic happened. The algorithm found that `th`, `he`, `the ` are
+frequent and made them single units — and *the*, *token* and *prediction* became
+tokens because they were common, not because they are words.
+
+```python run title="what this means in practice"
+vocab = sorted(set(tokens), key=len, reverse=True)
+print("longest learned tokens:", vocab[:8])
+print("\nEnglish is ~4 chars/token. Consequences:")
+for label, chars in [("English prose", 4.0), ("code (whitespace)", 2.8),
+                     ("rare proper nouns", 1.6), ("non-Latin scripts", 1.2)]:
+    print(f"  {label:20s} ~{chars:.1f} chars/token  -> {4.0 / chars:.1f}x the tokens per character")
+```
+
+<Aside type="nice">
+This explains several things that otherwise look like magic.
+
+**Why models are bad at spelling and arithmetic.** "strawberry" may be two or
+three tokens; the model never sees the letters, so counting the r's is genuinely
+hard for it. Likewise, `1234` might be one token and `1235` another, with no
+structural relationship — digit-by-digit tokenisation, which newer models use, is
+a direct fix for exactly this.
+
+**Why some languages cost more.** A vocabulary fitted mostly to English spends
+more tokens per character on other scripts, so the same content costs more and
+consumes more context. That is a real equity issue and an active area of work.
+
+**Why token counts are not word counts.** Roughly 0.75 words per token for
+English, and much worse for code and structured data.
+</Aside>
+
+## The objective
+
+```python run title="the entire training signal"
+words = "the cat sat on the mat and the cat purred".split()
+for i in range(1, 6):
+    print(f"  context {' '.join(words[:i]):28s} -> predict '{words[i]}'")
+```
+
+That is it. <M id="cross-entropy">Cross-entropy</M> on the next token, over
+trillions of tokens. Because the label is part of the input, no human labels
+anything, and every document ever written becomes training data. This is the
+self-supervision from [Chapter 3](/learn/03-the-shape-of-problems/), and it is
+why this approach won: **it made data free.**
+
+```python run title="a next-token model, from counts"
+def build_bigram(text):
+    ws = text.split()
+    counts = {}
+    for a, b in zip(ws, ws[1:]):
+        counts.setdefault(a, Counter())[b] += 1
+    return counts
+
+bg = build_bigram(corpus)
+print("after 'the', the distribution is:")
+for w, c in bg["the"].most_common():
+    print(f"   {w:14s} {c / sum(bg['the'].values()):.3f}")
+```
+
+A bigram model is a language model — a terrible one, because its context is a
+single word. A transformer is this with a context of a hundred thousand tokens
+and a learned representation instead of a count table. The *objective* is
+identical.
+
+## Sampling: what temperature actually does
+
+The model outputs a probability for every token in the vocabulary. Turning that
+into text is a separate decision, and it is the one you control at the API.
+
+```python run title="temperature, precisely"
+def softmax(z, T=1.0):
+    z = np.asarray(z, float) / T
+    z = z - z.max()
+    e = np.exp(z)
+    return e / e.sum()
+
+logits = [3.2, 2.9, 2.1, 0.4, -1.0]
+labels = ["cat", "dog", "bird", "rock", "xylophone"]
+
+print(f"{'token':12s}" + "".join(f"{f'T={t}':>10s}" for t in [0.2, 0.7, 1.0, 1.5]))
+for i, lab in enumerate(labels):
+    row = "".join(f"{softmax(logits, t)[i]:10.3f}" for t in [0.2, 0.7, 1.0, 1.5])
+    print(f"{lab:12s}{row}")
+```
+
+Temperature divides the logits before <M id="softmax">softmax</M>. Low
+temperature exaggerates the differences and concentrates all the mass on the
+favourite; high temperature flattens the distribution and gives unlikely tokens a
+real chance.
+
+```python run title="see the distributions"
+plt.figure(figsize=(5.6, 3))
+for t in [0.2, 0.7, 1.0, 2.0]:
+    plt.plot(labels, softmax(logits, t), "o-", label=f"T={t}")
+plt.ylabel("probability"); plt.legend(); plt.title("temperature reshapes, it does not re-rank")
+plt.tight_layout()
+```
+
+<Aside type="key">
+Temperature never changes the *ranking*, only how sharply the model commits to
+it. `T -> 0` is greedy decoding — always the argmax, fully deterministic, and
+prone to repetitive loops. `T = 1` is the model's actual learned distribution.
+
+**Top-k** keeps only the k most likely tokens; **top-p** (nucleus) keeps the
+smallest set whose probabilities sum to p. Both exist to cut off the long tail of
+tokens that are individually implausible but collectively probable — the tail is
+where most obviously wrong output comes from.
+</Aside>
+
+```python run title="greedy decoding gets stuck"
+rng = np.random.default_rng(0)
+
+def generate(counts, start, n=14, T=1.0, seed=0):
+    r = np.random.default_rng(seed)
+    out = [start]
+    for _ in range(n):
+        nxt = counts.get(out[-1])
+        if not nxt:
+            break
+        opts, cts = zip(*nxt.items())
+        p = softmax(np.log(np.array(cts, float)), T)
+        out.append(opts[int(np.argmax(p))] if T < 0.05 else opts[r.choice(len(opts), p=p)])
+    return " ".join(out)
+
+print("greedy (T→0):", generate(bg, "the", T=0.01))
+print("sampled (T=1):", generate(bg, "the", T=1.0))
+```
+
+The greedy version loops. That is not a bug in this toy — it is exactly why
+production decoding samples, and why repetition penalties exist.
+
+## Scaling laws
+
+The finding that justified the money.
+
+```python run title="loss falls predictably with compute"
+# Illustrative power law of the shape reported by Kaplan et al. (2020)
+compute = np.logspace(0, 9, 60)
+loss = 2.0 + 12.0 * compute ** -0.08
+
+plt.figure(figsize=(5.4, 3))
+plt.loglog(compute, loss)
+plt.xlabel("training compute (arbitrary units)"); plt.ylabel("test loss")
+plt.title("a straight line on log-log axes, over 9 orders of magnitude")
+plt.grid(alpha=.3, which="both"); plt.tight_layout()
+```
+
+Loss falls as a **power law** in compute, parameters and data — a straight line
+on log-log axes, holding over many orders of magnitude. That is remarkable and
+was not obvious in advance.
+
+Its practical consequence is that you can run small experiments and *predict* the
+loss of a model a thousand times larger, before spending the money. That is what
+turned frontier training from a gamble into a capital-allocation decision.
+
+<Aside type="nice">
+The **Chinchilla** result (Hoffmann et al., 2022) corrected an important error.
+Earlier practice made models as large as the budget allowed and undertrained
+them; Chinchilla showed the compute-optimal ratio is roughly **20 tokens per
+parameter**, meaning most models of the era were far too big for their data.
+
+The follow-on point is more useful still: compute-optimal is not
+*deployment*-optimal. If a model will serve billions of requests, it is worth
+training a smaller model far past its compute-optimal point, because you pay
+training once and inference forever. That reasoning is why small,
+heavily-overtrained models became the norm.
+</Aside>
+
+## Three stages
+
+A base model trained purely on next-token prediction does not answer questions.
+It *continues text* — ask it a question and a plausible continuation is three
+more questions, because that is what documents containing questions look like.
+
+<div class="table-scroll">
+
+| Stage | Data | What it produces |
+|---|---|---|
+| **1. Pretraining** | trillions of tokens of raw text | a base model: knows the world, follows no instructions |
+| **2. Supervised fine-tuning** | ~10⁴–10⁶ curated (instruction, response) pairs | a model that answers rather than continues |
+| **3. Preference tuning** | human rankings of pairs of responses | a model tuned for helpfulness, tone and refusal |
+
+</div>
+
+Stage 1 is essentially all of the compute and where the capability comes from.
+Stages 2 and 3 are comparatively tiny and determine almost everything you
+*experience* — the format, the tone, the willingness to say "I don't know".
+
+**RLHF** is the classical form of stage 3: train a reward model to predict which
+of two responses a human preferred, then optimise the language model against it
+with reinforcement learning. **DPO** achieves a similar result by deriving a loss
+that skips the separate reward model, which is simpler and now more common.
+
+<Aside type="key">
+The most useful mental correction: **the base model already has the knowledge**.
+Fine-tuning mostly changes behaviour, not facts. This is why "fine-tune it on our
+documentation" so often disappoints — you wanted retrieval and you bought a style
+transfer.
+
+If the goal is "answer using our documents", the right architecture is almost
+always retrieval ([Chapter 12](/learn/12-embeddings-and-tabular/)): embed the
+documents, find the relevant ones, put them in the prompt. Fine-tune when you
+want a *format* or a *behaviour* the model does not have.
+</Aside>
+
+## In-context learning
+
+The genuinely unexpected result: put a few examples in the prompt and the model
+does the task, with no gradient updates at all.
+
+```python run title="the shape of a few-shot prompt"
+prompt = """Translate to French:
+sea otter -> loutre de mer
+cheese -> fromage
+plush giraffe ->"""
+print(prompt)
+print("\nNo weights changed. The pattern in the context is doing the work.")
+```
+
+Nobody designed this. It emerged from scale, and it is a large part of why
+language models are useful as general tools rather than as trained classifiers.
+
+Current understanding points at **induction heads** — attention heads that look
+back for a previous occurrence of the current token and copy what followed it,
+exactly the "look at a specific earlier position" mechanism you built by hand
+[yesterday](/learn/13-attention-and-transformers/). Their appearance during
+training coincides with a sharp jump in in-context ability.
+
+## What they cannot do
+
+Worth being precise about, because the failure modes are structural rather than
+incidental.
+
+**They have no separate notion of truth.** The objective is plausibility, and a
+fluent falsehood scores well on it. "Hallucination" is not a malfunction; it is
+the objective working as specified.
+
+**Their knowledge has a cut-off and no timestamp.** The weights are frozen at
+training time. Anything newer must come through the context window.
+
+**Fixed computation per token.** A transformer does the same amount of work for
+"2+2" and for a hard proof. Chain-of-thought works partly because writing out
+intermediate steps *buys more forward passes*, which is a genuinely mechanical
+explanation for a technique that looks psychological.
+
+**Context is bounded and quadratic.** See
+[yesterday's table](/learn/13-attention-and-transformers/). Long context is
+expensive, and models attend unevenly across it.
+
+<Aside type="warn">
+The engineering consequence, and it is the one that matters if you build on these:
+**treat a model call like a request to an unreliable third-party service that
+returns confident, well-formatted output regardless of whether it is right.**
+
+You already know how to program against that: validate the response, constrain
+the output shape, keep the arithmetic in code, retrieve rather than recall, and
+never let it be the only check on something expensive.
+</Aside>
+
+## Exercise
+
+```python run title="your turn"
+# 1. Run train_bpe with n_merges = 5, 20, 100. Plot compression ratio
+#    against merge count. Where does it flatten, and why?
+#
+# 2. At what temperature does 'rock' (logit 0.4) first exceed 5% probability?
+#    Find it by bisection.
+#
+# 3. Implement top-p sampling: keep the smallest set of tokens whose
+#    probabilities sum to >= p, renormalise, sample from that.
+
+print("replace me")
+```
+
+<Reveal title="Solutions" kind="deep">
+
+```python run
+ratios = []
+merge_counts = [0, 10, 25, 50, 100, 200, 400]
+for m in merge_counts:
+    t, _ = train_bpe(corpus, n_merges=m)
+    ratios.append(len(corpus) / len(t))
+plt.figure(figsize=(5, 2.8))
+plt.plot(merge_counts, ratios, "o-")
+plt.xlabel("merges"); plt.ylabel("chars per token"); plt.tight_layout()
+print("compression:", [round(r, 2) for r in ratios])
+```
+
+It rises steeply and then stops dead — on this corpus, at 110 merges, because the
+loop exits once no adjacent pair occurs twice. There is simply nothing left worth
+merging.
+
+The same shape holds at real scale, for the same reason: early merges capture
+genuinely frequent pairs, later ones capture increasingly rare ones, and the
+return per merge falls away. That is why production vocabularies sit around
+30k–200k tokens rather than millions. Past the knee, each additional entry buys
+almost no compression while costing an entire row of the embedding table *and* an
+entire row of the output projection — for a 4096-dimensional model, about 32 KB
+of parameters per token, forever.
+
+```python run
+lo, hi = 0.05, 20.0
+for _ in range(50):
+    mid = (lo + hi) / 2
+    if softmax(logits, mid)[3] < 0.05: lo = mid
+    else: hi = mid
+print(f"'rock' crosses 5% at T = {hi:.3f}   (p = {softmax(logits, hi)[3]:.4f})")
+
+def top_p_sample(logits, p=0.9, T=1.0, seed=0):
+    probs = softmax(logits, T)
+    order = np.argsort(probs)[::-1]
+    cum = np.cumsum(probs[order])
+    keep = order[:np.searchsorted(cum, p) + 1]
+    renorm = probs[keep] / probs[keep].sum()
+    return int(np.random.default_rng(seed).choice(keep, p=renorm)), keep
+
+for p in [0.5, 0.9, 0.99]:
+    _, keep = top_p_sample(logits, p=p)
+    print(f"top-p {p}: keeps {len(keep)} tokens -> {[labels[i] for i in keep]}")
+```
+
+Note how strongly top-p interacts with temperature. At high temperature the
+distribution flattens, so the nucleus grows and admits more of the tail — which is
+precisely when you least want it. That is why APIs expose both and why setting
+both aggressively usually produces worse output than setting either alone.
+</Reveal>
+
+Tomorrow: the branches this path did not take — and how to keep learning without
+one.

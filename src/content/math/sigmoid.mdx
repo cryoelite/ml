@@ -1,0 +1,28 @@
+---
+title: 'Sigmoid'
+summary: 'Squashes any real number into (0, 1). Turns an unbounded score into something readable as a probability.'
+formula: '\sigma(z) = \frac{1}{1 + e^{-z}}'
+docs: 'https://en.wikipedia.org/wiki/Sigmoid_function'
+docsLabel: 'Wikipedia ↗'
+symbols:
+  - sym: '\sigma'
+    means: '''sigma'' — the conventional name for this function'
+  - sym: 'z'
+    means: 'the ''logit'': the raw, unbounded score from a linear model'
+  - sym: 'e'
+    means: 'Euler''s number, about 2.718'
+---
+
+$\sigma(0) = 0.5$, $\sigma(2) \approx 0.88$, $\sigma(-2) \approx 0.12$, and it
+never quite reaches 0 or 1. Large positive scores saturate near 1, large
+negative near 0.
+
+A linear model plus a sigmoid is logistic regression, which despite the name
+is a classifier and remains the correct first thing to try on a binary
+problem.
+
+Its derivative is the delightfully compact $\sigma(z)(1 - \sigma(z))$ — but
+notice that this is at most $0.25$, and near-zero once saturated. Multiply a
+few of those through the chain rule and the gradient dies. That is the
+vanishing-gradient problem, and it is why hidden layers now use
+[ReLU](/appendix/math/#relu) instead.

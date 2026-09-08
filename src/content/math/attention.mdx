@@ -1,0 +1,36 @@
+---
+title: 'Scaled dot-product attention'
+summary: 'Every position looks at every other and takes a weighted average of what it finds relevant.'
+formula: '\text{Attention}(Q,K,V) = \text{softmax}\!\left(\frac{QK^{\top}}{\sqrt{d_k}}\right)V'
+docs: 'https://arxiv.org/abs/1706.03762'
+docsLabel: 'Attention Is All You Need ↗'
+symbols:
+  - sym: 'Q'
+    means: 'queries: what each position is looking for'
+  - sym: 'K'
+    means: 'keys: what each position offers'
+  - sym: 'V'
+    means: 'values: what each position actually contributes'
+  - sym: 'K^{\top}'
+    means: 'K transposed, so QK-transpose is every query against every key'
+  - sym: '\sqrt{d_k}'
+    means: 'a scale factor keeping the dot products from growing with dimension'
+---
+
+Read it right to left, and it stops being intimidating.
+
+$QK^{\top}$ is every query dotted with every key — a square grid of "how
+relevant is position j to position i". Dividing by $\sqrt{d_k}$ keeps those
+numbers from growing with the embedding size, which would push softmax into
+its saturated region where gradients vanish. Softmax turns each row into
+weights that sum to one. Multiplying by $V$ takes the corresponding weighted
+average.
+
+So: *each position produces a query, compares it against every key, and mixes
+the values in proportion to how well they matched.* That is the whole
+mechanism, and it is the load-bearing idea of every model you currently think
+of as AI.
+
+The cost is that the grid is $n \times n$: doubling the context length
+quadruples the work. Nearly all research on long context is an attack on that
+one quadratic.

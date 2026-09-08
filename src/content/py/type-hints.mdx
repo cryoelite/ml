@@ -1,0 +1,23 @@
+---
+title: 'type hints'
+lib: 'stdlib'
+since: 'Python 3.5'
+summary: 'Annotations describing expected types. Documentation and tooling only — never checked at runtime.'
+signature: 'def f(x: np.ndarray, k: int = 3) -> float: ...'
+example: |-
+  def accuracy(pred: np.ndarray, true: np.ndarray) -> float:
+      return float((pred == true).mean())
+rust: 'They look like Rust''s types and behave nothing like them. Nothing verifies them unless you run a separate checker (mypy, pyright, ty). The runtime will happily pass a string where you annotated `int`.'
+rustCode: 'fn accuracy(pred: &[u8], truth: &[u8]) -> f64 { /* checked at compile time */ }'
+docs: 'https://docs.python.org/3.14/library/typing.html'
+docsLabel: 'typing docs ↗'
+---
+
+Worth writing anyway, because in this field the interesting type is the
+*shape* — and no annotation captures that. The convention that actually helps
+is a comment naming the dimensions:
+
+```python
+def forward(x):          # x: (batch, features)
+    return x @ self.w    # -> (batch, out)
+```

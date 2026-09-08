@@ -1,0 +1,27 @@
+---
+title: 'np.exp / np.log'
+lib: 'numpy'
+summary: 'Elementwise exponential and natural logarithm. The two functions that turn scores into probabilities and back.'
+signature: 'np.exp(a)   |   np.log(a)   |   np.log1p(a)'
+example: |-
+  z = np.array([2.0, 1.0, 0.1])
+  np.exp(z) / np.exp(z).sum()
+output: 'array([0.65900114, 0.24243297, 0.09856589])'
+rust: '`f64::exp` and `f64::ln`, mapped over a slice. The overflow hazard below is identical in both languages.'
+rustCode: 'let p: Vec<f64> = z.iter().map(|x| x.exp()).collect();'
+docs: 'https://numpy.org/doc/stable/reference/generated/numpy.exp.html'
+docsLabel: 'numpy.exp ↗'
+---
+
+The snippet above is a softmax, and it is also numerically dangerous:
+`np.exp(1000)` is `inf`, and `inf / inf` is `nan`. The standard fix is to
+subtract the maximum first, which cannot change the answer because
+$e^{z-c}/\sum e^{z-c}$ equals $e^{z}/\sum e^{z}$:
+
+```python
+z = z - z.max()
+p = np.exp(z) / np.exp(z).sum()
+```
+
+Every real implementation does this. It is the single most common piece of
+defensive numerics in machine learning.

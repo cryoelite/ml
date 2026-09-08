@@ -1,0 +1,69 @@
+---
+import { getCollection, render } from "astro:content";
+import Doc from "../../layouts/Doc.astro";
+import Cell from "../../components/Cell.astro";
+import Py from "../../components/Py.astro";
+import M from "../../components/M.astro";
+import Aside from "../../components/Aside.astro";
+import Reveal from "../../components/Reveal.astro";
+import ConceptMap from "../../components/ConceptMap.astro";
+
+export async function getStaticPaths() {
+  const chapters = (await getCollection("chapters", ({ data }) => !data.draft)).sort(
+    (a, b) => a.data.order - b.data.order,
+  );
+  return chapters.map((entry, i) => ({
+    params: { id: entry.id },
+    props: {
+      entry,
+      prev: chapters[i - 1] ?? null,
+      next: chapters[i + 1] ?? null,
+    },
+  }));
+}
+
+const { entry, prev, next } = Astro.props;
+const { Content, headings } = await render(entry);
+const d = entry.data;
+
+// Every component the Markdown may reach for, including `Cell`, which the
+// remark plugin injects from ```python run fences.
+const components = { Cell, Py, M, Aside, Reveal, ConceptMap };
+---
+
+<Doc title={d.title} description={d.blurb} current={entry.id} headings={headings}>
+  <h1>{d.title}</h1>
+  <p class="lede">{d.blurb}</p>
+
+  <p class="chapter-meta">
+    <span class="pill">Day {d.day}</span>
+    <span>{d.minutes} min read + play</span>
+    <span>Chapter {d.order}</span>
+  </p>
+
+  <Content components={components} />
+
+  <nav class="pager" aria-label="Chapter navigation">
+    {
+      prev ? (
+        <a href={`/learn/${prev.id}/`} class="pager__prev">
+          <span class="pager__dir">Previous</span>
+          <span class="pager__title">{prev.data.title}</span>
+        </a>
+      ) : (
+        <a href="/" class="pager__prev">
+          <span class="pager__dir">Back</span>
+          <span class="pager__title">Introduction</span>
+        </a>
+      )
+    }
+    {
+      next && (
+        <a href={`/learn/${next.id}/`} class="pager__next">
+          <span class="pager__dir">Next</span>
+          <span class="pager__title">{next.data.title}</span>
+        </a>
+      )
+    }
+  </nav>
+</Doc>

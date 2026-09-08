@@ -1,0 +1,54 @@
+---
+import Doc from "../layouts/Doc.astro";
+import ConceptMap from "../components/ConceptMap.astro";
+---
+
+<Doc
+  title="The map"
+  current="map"
+  description="The whole field on one page: what machine learning is a branch of, and what branches off it."
+>
+  <h1>The map</h1>
+  <p class="lede">
+    A book has to pick an order, and any order hides the shape of the field. This
+    page is the antidote. Read it once now — you will not understand most of it —
+    then come back after every few chapters and watch it fill in.
+  </p>
+
+  <p>
+    Three things hang off <em>machine learning</em>, and confusing them is the
+    single most common source of early bewilderment. They are not three items on
+    one list; they answer three different questions, and every project answers
+    all three at once.
+  </p>
+
+  <ol>
+    <li><strong>What feedback do you get?</strong> Supervised, unsupervised, self-supervised, reinforcement. This decides what data you have to go and collect.</li>
+    <li><strong>What shape is the learned function?</strong> Linear model, tree, neural network. This decides your accuracy ceiling and your compute bill.</li>
+    <li><strong>What makes the fitting work?</strong> Losses, gradients, backpropagation, validation. You need all of it whatever you picked above.</li>
+  </ol>
+
+  <p>
+    So &ldquo;supervised learning with gradient-boosted trees, tuned against a
+    validation split&rdquo; is one answer from each column — not a single thing
+    with a long name.
+  </p>
+
+  <ConceptMap />
+
+  <p>
+    Solid boxes are taught here and link to the chapter. Dashed boxes are real,
+    used in production somewhere today, and deliberately out of scope — they are
+    the <em>nice to know</em> tier. Hover any box for a one-line description.
+  </p>
+
+  <h2>What this map is not</h2>
+  <p>
+    It is not a history and it is not a hierarchy of importance. A dashed box
+    such as <em>Gaussian processes</em> is not a lesser idea than a solid one; it
+    is an idea that a two-week path cannot reach without cutting something better
+    spent. The point of drawing them is that you will meet the names, and knowing
+    <em>where a name lives</em> is most of what it takes to read a paper without
+    drowning.
+  </p>
+</Doc>

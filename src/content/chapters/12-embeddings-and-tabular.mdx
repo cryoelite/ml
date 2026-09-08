@@ -1,0 +1,343 @@
+---
+title: "Embeddings: giving categories a geometry"
+blurb: "How 'user 84113' becomes something a model can reason about — and why the same trick underlies word vectors, recommendation, and every vector database you have heard of."
+order: 12
+day: 12
+part: frontier
+minutes: 90
+introduces: ["embed"]
+---
+
+[Chapter 3](/learn/03-the-shape-of-problems/) left a loose end. One-hot encoding
+turns *k* categories into *k* columns, which is fine for three districts and
+absurd for fifty thousand product IDs. Today, the fix — and it turns out to be
+one of the most important ideas in the field.
+
+## The problem, concretely
+
+```python run setup title="one-hot does not scale"
+import numpy as np, matplotlib.pyplot as plt
+
+for n_categories in [3, 500, 50_000, 30_000_000]:
+    hidden = 128
+    print(f"{n_categories:>11,} categories -> one-hot -> dense({hidden}): "
+          f"{n_categories * hidden:>15,} weights")
+```
+
+The last row is a vocabulary of thirty million products, and it needs four
+billion parameters in the first layer alone.
+
+There is a second, deeper problem. One-hot vectors are all **equidistant**.
+
+```python run title="one-hot destroys every relationship"
+words = ["cat", "kitten", "dog", "bulldozer"]
+onehot = np.eye(len(words))
+
+print("cosine similarity between one-hot vectors:")
+for i, a in enumerate(words):
+    print("  ", " ".join(f"{float(onehot[i] @ onehot[j]):.0f}" for j in range(len(words))), " ", a)
+```
+
+Under one-hot, *cat* is exactly as similar to *kitten* as it is to *bulldozer*.
+Every pair is orthogonal. The encoding has thrown away the only interesting thing
+about the categories, which is how they relate to each other.
+
+## An embedding is a learned lookup table
+
+Give each category a short vector of learned numbers. Instead of 50,000 columns
+of zeros, 32 columns of meaningful floats.
+
+```python run title="the mechanism, which is a row lookup"
+rng = np.random.default_rng(0)
+vocab, dim = 8, 4
+table = rng.normal(0, 0.5, (vocab, dim))     # the embedding matrix
+
+ids = np.array([3, 0, 7, 3])                 # a batch of category ids
+print("lookup by index:\n", table[ids].round(2))
+print("\nsame as one-hot @ table:", np.allclose(np.eye(vocab)[ids] @ table, table[ids]))
+```
+
+That equivalence is the whole trick. **A one-hot vector times a matrix is just
+selecting a row of that matrix** — so instead of materialising the one-hot vector
+and doing a 50,000-wide matrix multiply, you index. Same maths, a rounding error
+of the cost.
+
+<Aside type="rust">
+An embedding table is `Vec<[f32; D]>` indexed by an enum discriminant, and lookup
+is `table[id as usize]`. What makes it interesting is that the payload is not
+written by you — it is a parameter, so
+[backpropagation](/learn/09-backpropagation/) fills it in.
+
+The gradient is sparse and beautifully simple: only the rows actually used in a
+batch receive a gradient. Everything else is untouched. That is what makes a
+thirty-million-row table trainable at all.
+</Aside>
+
+```python run title="parameter count, revisited"
+for n_categories in [500, 50_000, 30_000_000]:
+    print(f"{n_categories:>11,} categories:  one-hot+dense(128) {n_categories * 128:>14,}"
+          f"   embedding(dim 32) {n_categories * 32:>13,}")
+```
+
+## What the numbers become
+
+The remarkable part is not the compression. It is that the learned coordinates
+turn out to be *meaningful*, because training pushes categories used in similar
+ways to similar positions.
+
+```python run title="learning an embedding from co-occurrence"
+# Twelve items, three latent groups. Nothing tells the model about the groups.
+items = ["cat", "kitten", "dog", "puppy", "hamster",
+         "guitar", "piano", "violin", "drums",
+         "python", "rust", "haskell"]
+groups = [0, 0, 0, 0, 0, 1, 1, 1, 1, 2, 2, 2]
+n = len(items)
+
+# A co-occurrence matrix: items in the same group appear together more often.
+rng = np.random.default_rng(1)
+co = np.zeros((n, n))
+for i in range(n):
+    for j in range(n):
+        co[i, j] = rng.poisson(28 if groups[i] == groups[j] else 2)
+np.fill_diagonal(co, 0)
+co = (co + co.T) / 2                      # co-occurrence is symmetric
+
+# Factorise it: find a low-dimensional E with E @ E.T ~ log(1 + co).
+target = np.log1p(co)
+E = rng.normal(0, 0.1, (n, 2))
+for step in range(4000):
+    E -= 0.01 * 2 * (E @ E.T - target) @ E
+
+print(f"reconstruction error: {np.abs(E @ E.T - target).mean():.3f}")
+
+# Every raw embedding shares one big common component — the matrix is entirely
+# non-negative, so every vector points roughly the same way. Centring removes it,
+# and is standard practice on real embeddings for exactly this reason.
+E = E - E.mean(axis=0)
+```
+
+```python run title="the groups appear on their own"
+plt.figure(figsize=(5.4, 4))
+colours = ["#1c6b58", "#9c4526", "#55467f"]
+for i, (name, g) in enumerate(zip(items, groups)):
+    plt.scatter(E[i, 0], E[i, 1], c=colours[g], s=40)
+    plt.annotate(name, (E[i, 0], E[i, 1]), fontsize=8,
+                 xytext=(4, 3), textcoords="offset points")
+plt.title("2-D embedding, learned from co-occurrence alone")
+plt.xticks([]); plt.yticks([]); plt.tight_layout()
+```
+
+Nobody told the model that *cat* and *kitten* are related, or that *python* and
+*rust* belong together. It saw only which items co-occur, and the geometry fell
+out. Similar items ended up near each other because *that is what makes the
+reconstruction error small*.
+
+<Aside type="key">
+This is the whole idea, and it generalises further than it looks. **Meaning
+becomes distance.** Once categories live in a vector space, "similar" is a
+computation rather than a lookup — and every downstream trick, from
+recommendation to retrieval to analogy, is geometry.
+</Aside>
+
+## Word vectors, and the famous analogy
+
+The same procedure on text, at scale, was **word2vec** (2013) and **GloVe**
+(2014). Train a model to predict a word from its neighbours, throw away the
+model, and keep the embedding table.
+
+```python run title="similarity is a dot product"
+def cosine(a, b):
+    return float(a @ b / (np.linalg.norm(a) * np.linalg.norm(b)))
+
+for a, b in [(0, 1), (0, 5), (0, 10), (9, 10), (5, 6)]:
+    print(f"{items[a]:8s} ~ {items[b]:9s} {cosine(E[a], E[b]):+.3f}")
+```
+
+<M id="dot-product">Cosine similarity</M> is a dot product with the lengths
+divided out — large when two vectors point the same way, negative when they
+oppose. Within a group it is near +1; across groups it is negative. That single
+operation is the engine of every semantic search system in production today.
+
+The centring step in the previous cell was not cosmetic. A co-occurrence matrix
+is entirely non-negative, so its leading component is "how common is this item at
+all" — a direction every vector shares, which drags every cosine toward +1 and
+drowns the signal. Subtracting the mean spends nothing and recovers the
+structure. Real embedding pipelines do the same thing, sometimes under the name
+"all-but-the-top".
+
+<Aside type="nice">
+Word2vec's celebrated result was that
+`vec("king") − vec("man") + vec("woman")` lands near `vec("queen")` — the vector
+space had apparently learned a "gender" direction and a "royalty" direction,
+without anyone specifying either.
+
+Two caveats that the popular retelling omits. The result is real but fragile:
+it holds for a curated set of analogies and often fails outside it, and the
+standard evaluation excludes the query words themselves from the answer, which
+does a lot of the work.
+
+And the same mechanism reproduces every bias in the training corpus, with the
+same confidence. `doctor − man + woman` returning `nurse` is not a bug in the
+algorithm; it is an accurate summary of how the words were used in the text. This
+is the clearest, most concrete example of a general truth: **a model learns the
+distribution it was shown, including the parts you wish were not there.**
+</Aside>
+
+## Embeddings for tabular data
+
+Now back to the spreadsheet. The technique that made neural networks competitive
+on tabular data — pioneered for a Kaggle competition on retail sales forecasting,
+and adopted by fastai — is: **one embedding table per categorical column,
+concatenated with the continuous columns, into an ordinary dense network.**
+
+```python run local setup title="entity embeddings"
+import torch, torch.nn as nn
+
+class TabularNet(nn.Module):
+    """Embeddings for categories, plain numbers for the rest, dense on top."""
+    def __init__(self, cardinalities, n_continuous, hidden=64, n_out=1):
+        super().__init__()
+        # Rule of thumb (fastai): dim = min(50, (cardinality + 1) // 2)
+        self.embeds = nn.ModuleList([
+            nn.Embedding(card, min(50, (card + 1) // 2)) for card in cardinalities
+        ])
+        emb_total = sum(e.embedding_dim for e in self.embeds)
+        self.body = nn.Sequential(
+            nn.Linear(emb_total + n_continuous, hidden), nn.ReLU(), nn.Dropout(0.1),
+            nn.Linear(hidden, n_out),
+        )
+
+    def forward(self, x_cat, x_cont):
+        parts = [emb(x_cat[:, i]) for i, emb in enumerate(self.embeds)]
+        return self.body(torch.cat([*parts, x_cont], dim=1))
+
+model = TabularNet(cardinalities=[7, 12, 400], n_continuous=3)
+print(model)
+print("parameters:", sum(p.numel() for p in model.parameters()))
+```
+
+```python run local title="a forward pass"
+torch.manual_seed(0)
+batch = 16
+x_cat  = torch.stack([torch.randint(0, c, (batch,)) for c in [7, 12, 400]], dim=1)
+x_cont = torch.randn(batch, 3)
+out = model(x_cat, x_cont)
+print("cat input ", tuple(x_cat.shape), " cont input", tuple(x_cont.shape))
+print("output    ", tuple(out.shape))
+print("\nembedding dims:", [e.embedding_dim for e in model.embeds])
+```
+
+Day-of-week gets 4 dimensions, month gets 6, store-id gets 50. The network learns
+that certain stores behave alike, that December resembles November more than it
+resembles June — relationships that one-hot encoding makes structurally
+impossible to express.
+
+<Aside type="warn">
+This is genuinely useful and it did **not** dethrone gradient boosting. On most
+tabular problems, `HistGradientBoostingRegressor` with sensible categorical
+handling still matches or beats an embedding network, in a fraction of the time
+and with far fewer decisions to get wrong.
+
+Where embeddings win: very high-cardinality categories (millions of users),
+when you want to *reuse* the learned representation elsewhere, and when the
+tabular data sits alongside text or images in one model. Those are real
+situations. They are not the common case, and
+[Chapter 7](/learn/07-the-model-zoo/) still stands.
+</Aside>
+
+## Where this goes: retrieval
+
+Embeddings plus <M id="dot-product">cosine similarity</M> plus an index is a
+**vector database**, and it is most of what "semantic search" and the retrieval
+half of RAG amount to.
+
+```python run title="retrieval, in six lines"
+def nearest(query_idx, table, k=3):
+    q = table[query_idx]
+    sims = table @ q / (np.linalg.norm(table, axis=1) * np.linalg.norm(q) + 1e-12)
+    order = np.argsort(sims)[::-1]
+    return [(items[i], round(float(sims[i]), 3)) for i in order if i != query_idx][:k]
+
+for q in [0, 6, 10]:
+    print(f"{items[q]:9s} -> {nearest(q, E)}")
+```
+
+That is the entire algorithm. A production vector database adds an approximate
+nearest-neighbour index (HNSW, IVF) so it does not compare against all thirty
+million rows, plus persistence, plus filtering. The retrieval itself is
+<Py id="matmul">a matrix multiply</Py> and an
+<Py id="argmax">argsort</Py>.
+
+<Aside type="key">
+Modern embeddings come from a transformer rather than a co-occurrence matrix, and
+they embed whole sentences rather than single words. The idea is identical:
+**learn a map from things to vectors such that useful similarity becomes
+geometric proximity.** Everything after that is indexing.
+</Aside>
+
+## Exercise
+
+```python run title="your turn"
+# 1. Re-run the co-occurrence factorisation with dim=1 instead of 2.
+#    Can three groups be separated on a line? What does that tell you
+#    about choosing embedding dimension?
+#
+# 2. Add a fourth group that overlaps with an existing one (share some
+#    co-occurrence). Where does it land?
+#
+# 3. Normalise every row of E to unit length, then recompute the nearest
+#    neighbours. Does the ranking change? Should it?
+
+print("replace me")
+```
+
+<Reveal title="Solutions" kind="deep">
+
+```python run
+def factorise(dim, steps=4000, lr=0.01, seed=1):
+    r = np.random.default_rng(seed)
+    Ed = r.normal(0, 0.1, (n, dim))
+    for _ in range(steps):
+        Ed -= lr * 2 * (Ed @ Ed.T - target) @ Ed
+    return Ed, np.abs(Ed @ Ed.T - target).mean()
+
+for dim in [1, 2, 3, 5, 10]:
+    _, err = factorise(dim)
+    print(f"dim {dim:2d}   reconstruction error {err:.4f}")
+
+E1, _ = factorise(1)
+E1 = E1 - E1.mean(0)
+print("\n1-D positions:")
+for name, g, v in sorted(zip(items, groups, E1.ravel()), key=lambda t: t[2]):
+    print(f"  {v:+.2f}  {name:9s} (group {g})")
+```
+
+**Question 1** is the point of the exercise. One dimension can order the items but
+cannot express "three mutually distant clusters" — a line has only two directions
+of separation, so one group is always stuck between the other two. Two dimensions
+suffice for three clusters; more dimensions keep helping until they do not.
+
+That is the whole story of choosing an embedding dimension: too small and
+distinct things are forced to collide; too large and you are spending parameters
+and inviting overfitting. The fastai rule of thumb
+`min(50, (cardinality + 1) // 2)` is not theory, it is a shape that has worked
+across many datasets — and the honest method is still to try three values and
+look at your validation score.
+
+```python run
+# 3. Normalising (E is already centred)
+En = E / np.linalg.norm(E, axis=1, keepdims=True)
+print("raw       :", nearest(0, E))
+print("normalised:", nearest(0, En))
+```
+
+The ranking is unchanged, and it must be: cosine similarity already divides out
+the magnitudes, so normalising first changes nothing. It matters for a different
+reason — if you *pre*-normalise your table, cosine similarity becomes a plain dot
+product, which is a single matrix multiply and enormously faster at scale. That
+is why real vector databases store normalised vectors, and why their similarity
+metric is usually called "inner product".
+</Reveal>
+
+Tomorrow: attention — how a model decides which parts of its input to look at,
+and the architecture that ate the field.

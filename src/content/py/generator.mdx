@@ -1,0 +1,23 @@
+---
+title: 'generator'
+lib: 'stdlib'
+summary: 'A function containing `yield` returns a lazy iterator: values are produced on demand, not up front.'
+signature: |-
+  def gen():
+      yield value
+example: |-
+  def batches(xs, n):
+      for i in range(0, len(xs), n):
+          yield xs[i:i + n]
+rust: 'An `Iterator` implementation, but written as a function whose local state is preserved between `next()` calls — closest in spirit to a generator block or `async` state machine. Lazy in exactly the same way.'
+rustCode: |-
+  fn batches(xs: &[f32], n: usize) -> impl Iterator<Item = &[f32]> {
+      xs.chunks(n)
+  }
+docs: 'https://docs.python.org/3.14/reference/expressions.html#yield-expressions'
+docsLabel: 'Python reference ↗'
+---
+
+This is how data loaders work. A dataset of 200 GB of images is never a list;
+it is a generator that reads and decodes one batch at a time, so peak memory
+depends on batch size rather than dataset size.

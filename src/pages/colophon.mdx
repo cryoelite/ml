@@ -1,0 +1,258 @@
+---
+layout: ../layouts/Doc.astro
+title: "Colophon"
+current: colophon
+description: "What this is built from, every decision that shaped it, and what was deliberately left out."
+---
+
+import Aside from "../components/Aside.astro";
+import Reveal from "../components/Reveal.astro";
+
+# Colophon
+
+You are about to spend two weeks reading something. It seems only fair to tell
+you what it is trying to do, what it decided not to do, and where it is built on
+opinions rather than facts.
+
+## The brief
+
+One reader: a backend engineer who writes Rust, can pick up Python, and wants to
+learn machine learning properly in a fortnight — not to build new architectures,
+but to use the field effectively, know where every piece sits, and be able to
+read a paper without drowning.
+
+Everything below follows from that.
+
+## Six decisions
+
+### 1. Results first, then mechanism
+
+[Chapter 1](/learn/01-where-this-fits/) trains a working classifier in its first
+eight lines, before defining a single term. Only then does it take the model
+apart.
+
+This is fastai's philosophy and it is right. The alternative — three chapters of
+linear algebra before anything runs — loses people who would have been perfectly
+capable, because motivation is a resource and abstraction spends it. The
+compromise everywhere here: **show it working, then show why, then show what
+breaks.**
+
+### 2. Build it by hand, then throw it away
+
+Chapters 8 and 9 build a neural network and its backward pass in NumPy, with
+gradient checking. Chapter 10 replaces the lot with eleven lines of PyTorch.
+
+That looks wasteful and it is the most deliberate choice on the site. You cannot
+debug `nan` loss, a silently-zero gradient, or a layer that will not learn if the
+library is a black box. Two days of derivation buys a year of not guessing.
+
+### 3. Depth is available, never compulsory
+
+The spine is meant to read straight through without opening a single collapsed
+section. Every derivation, every "but why is it like that", every historical
+detour is folded away behind a **derivation** or **deep dive** toggle.
+
+This is the direct answer to *depth tied to relevance*. The reader who wants the
+chain rule worked out symbol by symbol can have it; the reader who wants to know
+what backpropagation *is* does not have to scroll past it.
+
+### 4. Classified asides
+
+Colour is used to classify, never to decorate. Five kinds, and they are load-bearing:
+
+<Aside type="key">**Worth remembering** — the sentence to keep from a section.</Aside>
+<Aside type="nice">**Nice to know** — a sibling idea, a dead end, some history. Skippable on purpose.</Aside>
+<Aside type="rust">**Coming from Rust** — the bridge to what you already know.</Aside>
+<Aside type="warn">**Where people get hurt** — a real failure mode, usually a silent one.</Aside>
+
+The point of the second one is the *nice to know* tier you asked for: things that
+exist, that you can leave without, and that you now have a name for.
+
+### 5. The map, not just the table of contents
+
+A linear book has to pick an order, and any order hides the shape of the field.
+[The map](/map/) is the antidote — 51 nodes, solid where the tutorial teaches
+them and dashed where it does not, so the boundary of the two weeks is visible
+rather than implied.
+
+Its most important content is structural: three axes hang off machine learning
+(*what feedback*, *what function shape*, *what fitting machinery*) and conflating
+them is the single largest source of early confusion. That is very hard to say in
+a list and obvious in a tree.
+
+### 6. Every code block runs
+
+Not a screenshot, not a fence you copy elsewhere. 177 cells, executable in place,
+sharing state down the page like a notebook. The exercises have runnable stubs
+and the solutions are collapsed beside them.
+
+<Aside type="key">
+And they are **checked**. `scripts/check_cells.py` extracts every runnable cell
+and executes it in document order in one namespace per chapter — which is exactly
+how you would meet them. It is run before every change lands. Several claims in
+these chapters were wrong until it said so, and the numbers in the prose are the
+numbers the code actually produced.
+</Aside>
+
+## The Rust bridge
+
+You know an ownership model, a type system and an iterator API. Those are exactly
+the concepts that make Python confusing, because Python looks similar and behaves
+differently.
+
+So the Python appendix carries, for each entry, *how a Rust programmer already
+thinks about this* — an **analogy, not a translation**. Half of these have no Rust
+equivalent (broadcasting, `**kwargs`, decorators, autograd) and pretending
+otherwise would mislead you. Where the honest answer is "there isn't one", the
+entry says so.
+
+The four differences that recur, and that cost an hour each if nobody says them:
+no ownership, no `Result`, annotations are not types, and NumPy slices alias like
+`&mut` with no borrow checker to stop you.
+
+## Hover cards
+
+Python constructs and mathematical results are underlined inline and open a card
+on hover with a signature, one sentence, one example, its output, and the Rust
+note. Longer explanations live on the appendix pages, one click away.
+
+The model is the documentation comment: the most useful thing at the top, an
+example immediately, and a link to the real docs — [docs.python.org](https://docs.python.org/3.14/)
+for stdlib, the library's own reference otherwise. Every card degrades to a plain
+link with JavaScript off.
+
+## How Python runs
+
+Two backends behind one interface, because the two goals conflict.
+
+**Browser (default).** Pyodide — CPython 3.14 compiled to WebAssembly — in a
+module worker, vendored into `public/pyodide/` so it works offline and when
+deployed. It ships numpy, pandas, scikit-learn, scipy, matplotlib and sympy,
+which covers everything through hand-built neural networks. That is roughly 70%
+of the curriculum with **zero** prerequisites, for you and for anyone you send a
+link to.
+
+**Local kernel.** A real Jupyter kernel over its standard websocket API, for the
+PyTorch chapters. Full torch, full MPS, your own hardware.
+
+<Reveal title="Why vendored rather than CDN, and why a module worker" kind="deep">
+
+Both were bugs before they were decisions.
+
+The first attempt loaded Pyodide from jsDelivr with `importScripts` in a classic
+worker. It failed twice: some environments block cross-origin `importScripts`
+inside a worker, and some browsers only permit *module* workers, where
+`importScripts` does not exist at all. The fix — a module worker doing a dynamic
+`import()` of `pyodide.mjs` — is also strictly better.
+
+Vendoring followed the same logic. `scripts/vendor-pyodide.mjs` copies the core
+from `node_modules` and downloads the wheel closure for the packages the
+curriculum uses: 56 MB, gitignored, and after that the site needs no network at
+all. A CDN dependency in a local-first tutorial is a contradiction, and the
+failure mode when it breaks is an opaque network error that teaches the reader
+nothing.
+</Reveal>
+
+## What it is built with
+
+<div class="table-scroll">
+
+| Piece | Version | Why |
+|---|---|---|
+| [Astro](https://astro.build) | 7.3 | Content-first, zero JS by default, MDX with real components |
+| [MDX](https://mdxjs.com) | 8.0 | Markdown that can call components — the whole authoring model |
+| [`@astrojs/markdown-remark`](https://www.npmjs.com/package/@astrojs/markdown-remark) | 7.3 | Astro 7 defaults to Sätteri, which runs no remark plugins; this opts back in |
+| [remark-math](https://github.com/remarkjs/remark-math) + [KaTeX](https://katex.org) | 6.0 / 0.18 | Maths rendered at build time, no client-side typesetting |
+| [Shiki](https://shiki.style) | 4.4 | Build-time syntax highlighting, `github-light` |
+| [Pyodide](https://pyodide.org) | 314.0.6 | Python in the browser |
+| [Bun](https://bun.sh) | 1.3 | Package manager and runner |
+| [uv](https://docs.astral.sh/uv/) | 0.12 | The Python side, in `lab/` |
+| [Ruff](https://docs.astral.sh/ruff/) | 0.16 | Linting the Python |
+| Source Serif 4 · Inter · JetBrains Mono | 5.3 | Self-hosted via Fontsource; no font CDN |
+
+</div>
+
+One custom remark plugin, `src/lib/remark-runnable-cells.mjs`, turns a
+` ```python run ` fence into a `<Cell/>` component. That is what keeps the source
+of every chapter plain Markdown instead of hand-written JSX around every snippet.
+
+Total client-side JavaScript, excluding Pyodide: about 14 KB gzipped. Every page
+is complete static HTML; the script only ever adds behaviour.
+
+## Design
+
+Light only, by request. Warm off-white paper, near-black ink, one accent
+(a deep teal) with amber, rust and violet reserved for the aside classes. Body
+text is a serif at 18.5px over a 34rem measure, because you are going to read it
+for two weeks and a serif at a comfortable measure is kinder than a sans at full
+width.
+
+Three columns on a wide screen — chapters, text, and what is on this page —
+collapsing to one on a phone. The nav never reorders: the reading path is the
+product.
+
+<Aside type="nice">
+The influence is [docs.fast.ai](https://docs.fast.ai), by your reference, with the
+density lowered and the type given room. The other influences are book-shaped
+rather than docs-shaped: *Crafting Interpreters* for the "build it and then
+explain it" rhythm, and the Rust Book for the discipline of putting the failure
+modes in the main text instead of a footnote.
+</Aside>
+
+## Sources
+
+The mathematics and the from-scratch implementations were checked against **Seth
+Weidman, *Deep Learning from Scratch: Building with Python from First Principles*
+(O'Reilly, 2019)**, which is what you actually attached — the file was labelled as
+the fastai book but contains Weidman's. It is a good book and a better fit for the
+derivations here than the label would have been.
+
+The teaching philosophy is **fastai's** — Howard and Gugger, *Deep Learning for
+Coders with fastai and PyTorch* — whose top-down, get-it-working-first approach
+this borrows and inverts in places. The [fastbook notebooks](https://github.com/fastai/fastbook)
+are free.
+
+Specific results are cited where they appear: Cybenko and Hornik on universal
+approximation, Vaswani et al. on attention, Kaplan et al. and Hoffmann et al. on
+scaling, Belkin et al. on double descent.
+
+## What was left out, and why
+
+- **Reinforcement learning.** A separate discipline with its own vocabulary and
+  failure modes. Two weeks cannot hold both. Named and placed on the map.
+- **Proofs.** Convergence guarantees, VC dimension, PAC learning. Beautiful, and
+  they will not change what you build.
+- **A distributed training chapter.** You would need more than one GPU to follow
+  it.
+- **Prompt engineering.** It moves faster than any document can, and it is
+  downstream of understanding what the model is doing.
+- **Deployment tooling.** Docker, Kubernetes, model registries. You are a backend
+  engineer; a model is a function, and you already know how to ship functions.
+
+<Aside type="key">
+The consistent rule: leave out anything you can pick up in an afternoon *once you
+have the frame*, and keep anything that is hard to acquire later. The frame is
+the deliverable. The details are search results.
+</Aside>
+
+## Where it is opinionated
+
+Three claims here are judgements rather than facts, and you should know which.
+
+**"Gradient boosting usually beats neural networks on tabular data."** Well
+supported and not universal. Contested at the margins, and the margin moves.
+
+**"Build it by hand first."** Plenty of excellent practitioners went top-down and
+never wrote a backward pass. The argument for doing it is debuggability, and it
+is an argument, not a proof.
+
+**"Frame the problem before you model."** The least controversial and the most
+ignored.
+
+## Corrections
+
+The cell checker catches broken code, not wrong prose. If a claim here is wrong,
+it is wrong in a file you can edit: chapters are in
+`src/content/chapters/*.mdx`, the appendices in `src/content/py/` and
+`src/content/math/`, and the map in `src/lib/conceptmap.ts`.
+

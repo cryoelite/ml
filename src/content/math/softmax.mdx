@@ -1,0 +1,26 @@
+---
+title: 'Softmax'
+summary: 'Turns a vector of scores into a probability distribution: all positive, summing to one.'
+formula: '\text{softmax}(z)_i = \frac{e^{z_i}}{\sum_j e^{z_j}}'
+docs: 'https://en.wikipedia.org/wiki/Softmax_function'
+docsLabel: 'Wikipedia ↗'
+symbols:
+  - sym: 'z_i'
+    means: 'the raw score for class i'
+  - sym: 'e^{z_i}'
+    means: 'exponentiated: makes it positive and exaggerates differences'
+  - sym: '\sum_j e^{z_j}'
+    means: 'the normaliser, so the outputs sum to exactly 1'
+---
+
+Sigmoid generalised from two classes to many. Exponentiating makes everything
+positive; dividing by the total makes it sum to one.
+
+The exponential is not decoration — it makes the function *soft-max* rather
+than *mean*. Scores of $[1, 2, 3]$ become roughly $[0.09, 0.24, 0.67]$: the
+largest score takes a share well beyond its arithmetic weight. Divide the
+scores by a temperature first and you control how sharp that is, which is
+exactly the `temperature` parameter you have seen on a language-model API.
+
+Implemented naively it overflows. Every real implementation subtracts the
+maximum score first — see [np.exp](/appendix/python/#exp-log).

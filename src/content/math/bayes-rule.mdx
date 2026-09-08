@@ -1,0 +1,28 @@
+---
+title: 'Bayes'' rule'
+summary: 'How to update a belief when evidence arrives. The foundation of the probabilistic view of learning.'
+formula: 'P(H \mid E) = \frac{P(E \mid H)\, P(H)}{P(E)}'
+docs: 'https://en.wikipedia.org/wiki/Bayes%27_theorem'
+docsLabel: 'Wikipedia ↗'
+symbols:
+  - sym: 'P(H \mid E)'
+    means: '''probability of H given E'' — the posterior, what you believe after seeing evidence'
+  - sym: 'P(E \mid H)'
+    means: 'the likelihood: how well H explains the evidence'
+  - sym: 'P(H)'
+    means: 'the prior: what you believed beforehand'
+  - sym: '\mid'
+    means: '''given'' — read the bar as ''conditional on'''
+---
+
+Not required for anything in this tutorial, and included because the vertical
+bar is everywhere in the literature and is worth being able to read.
+
+It underpins an entire parallel tradition — naive Bayes, Gaussian processes,
+variational inference, Bayesian neural networks — whose selling point is
+calibrated uncertainty: not just a prediction but an honest statement of how
+sure the model is. That tradition lost the scaling race and is very much alive
+wherever data is scarce or being wrong is expensive.
+
+It is also the reason a language model's objective is written
+$P(\text{next token} \mid \text{everything so far})$.

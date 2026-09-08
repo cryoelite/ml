@@ -1,0 +1,24 @@
+---
+title: '@ (matrix multiply)'
+lib: 'numpy'
+since: 'Python 3.5'
+summary: '`A @ B` is matrix multiplication. `A * B` is elementwise — the difference matters enormously.'
+signature: 'A @ B      # (n, k) @ (k, m) -> (n, m)'
+example: |-
+  A = np.ones((2, 3))
+  B = np.ones((3, 4))
+  (A @ B).shape
+output: '(2, 4)'
+rust: 'An overloaded operator with no Rust counterpart in std; `ndarray` spells it `a.dot(&b)`. The inner dimensions must agree, and the error when they do not is the one you will see most often.'
+rustCode: 'let c = a.dot(&b);   // ndarray crate'
+docs: 'https://numpy.org/doc/stable/reference/generated/numpy.matmul.html'
+docsLabel: 'numpy.matmul ↗'
+---
+
+The `@` operator was added to Python in 3.5 for exactly this purpose, after
+the scientific community argued that `A * B` meaning two different things in
+two different libraries was costing real money in real bugs.
+
+Read `(n, k) @ (k, m) -> (n, m)` as: the shared `k` is summed away. If you
+remember only one shape rule, remember that one — the whole of deep learning
+is stacks of it.

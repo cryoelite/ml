@@ -1,0 +1,28 @@
+---
+title: 'Bias and variance'
+summary: 'Two ways to be wrong: too simple to capture the pattern, or so flexible you fit the noise.'
+formula: '\mathbb{E}[(\hat{f} - y)^2] = \underbrace{\text{Bias}^2}_{\text{too simple}} + \underbrace{\text{Var}}_{\text{too twitchy}} + \underbrace{\sigma^2}_{\text{irreducible}}'
+docs: 'https://en.wikipedia.org/wiki/Bias%E2%80%93variance_tradeoff'
+docsLabel: 'Wikipedia ↗'
+symbols:
+  - sym: '\text{Bias}'
+    means: 'error from the model family being unable to represent the truth'
+  - sym: '\text{Var}'
+    means: 'error from the fit changing wildly with a different training sample'
+  - sym: '\sigma^2'
+    means: 'noise in the data itself — no model can beat this'
+---
+
+High bias is a straight line through a curve: it is wrong the same way every
+time, and more data will not save it. High variance is a degree-20 polynomial
+through nine points: it nails the training set and flails between the points,
+and would look completely different given nine other points.
+
+The third term is the honest one. If two identical inputs have different
+labels — and in the real world they routinely do — no model can be right about
+both. Knowing roughly how large $\sigma^2$ is for your problem is what stops
+you burning a fortnight chasing an accuracy that was never available.
+
+Note that very large neural networks visibly break the classical picture of
+this tradeoff, which is an active and genuinely unsettled area. See
+[Generalisation](/learn/06-generalisation/).

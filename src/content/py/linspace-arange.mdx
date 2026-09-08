@@ -1,0 +1,17 @@
+---
+title: 'arange / linspace'
+lib: 'numpy'
+summary: '`arange` counts by step (end exclusive); `linspace` gives n points including both ends.'
+signature: 'np.arange(start, stop, step)   |   np.linspace(start, stop, num)'
+example: 'np.arange(0, 1, 0.25), np.linspace(0, 1, 5)'
+output: '(array([0.  , 0.25, 0.5 , 0.75]), array([0.  , 0.25, 0.5 , 0.75, 1.  ]))'
+rust: '`(0..n).step_by(k)` for `arange`. `linspace` has no std equivalent — you would write `(0..n).map(|i| a + (b - a) * i as f64 / (n - 1) as f64)`.'
+rustCode: 'let xs: Vec<f64> = (0..5).map(|i| i as f64 / 4.0).collect();'
+docs: 'https://numpy.org/doc/stable/reference/generated/numpy.linspace.html'
+docsLabel: 'numpy.linspace ↗'
+---
+
+Use `linspace` for anything you are going to plot, and `arange` for indices.
+`arange` with a float step accumulates rounding error and can produce one
+element more or fewer than you expected; `linspace` cannot, because it is told
+the count.

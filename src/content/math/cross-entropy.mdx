@@ -1,0 +1,28 @@
+---
+title: 'Cross-entropy loss'
+summary: 'The penalty for being confidently wrong. The default loss for classification.'
+formula: 'L = -\sum_{c} y_c \log \hat{y}_c \;=\; -\log \hat{y}_{\text{correct}}'
+docs: 'https://en.wikipedia.org/wiki/Cross-entropy'
+docsLabel: 'Wikipedia ↗'
+symbols:
+  - sym: 'y_c'
+    means: '1 for the true class, 0 for every other — so the sum has one surviving term'
+  - sym: '\hat{y}_c'
+    means: 'the probability the model assigned to class c'
+  - sym: '-\log'
+    means: 'small when the probability is near 1, exploding as it approaches 0'
+---
+
+The right-hand form is the one to hold in your head: **cross-entropy is minus
+the log of the probability you gave to the right answer.** Everything else is
+bookkeeping.
+
+Assign 0.9 to the correct class and you pay $-\log 0.9 = 0.105$. Assign 0.1 and
+you pay $2.30$ — twenty times more. Assign 0.001 and you pay $6.9$. The curve
+goes to infinity as your probability goes to zero, which is precisely the
+desired incentive: a model that is confidently wrong should be punished far
+more than one that was merely unsure.
+
+This is why classifiers output probabilities via
+[softmax](/appendix/math/#softmax) rather than a bare class label. A label
+cannot be graded on how nearly right it was.

@@ -1,0 +1,20 @@
+---
+title: 'df.groupby'
+lib: 'pandas'
+summary: 'Split rows into groups by a key, apply an aggregation to each, and combine the results back into a table.'
+signature: 'df.groupby(''key'')[''col''].agg(''mean'')'
+example: 'df.groupby(''city'')[''age''].mean()'
+rust: '`itertools::into_group_map_by` followed by a fold per group, or a SQL `GROUP BY`. Same split-apply-combine shape; pandas just makes the combine step implicit.'
+rustCode: |-
+  let by_city = rows.into_iter()
+      .into_group_map_by(|r| r.city.clone());
+docs: 'https://pandas.pydata.org/docs/user_guide/groupby.html'
+docsLabel: 'groupby guide ↗'
+---
+
+This is how you find out whether a feature carries signal before you train
+anything. If the mean of your target differs sharply across the groups of a
+column, that column is predictive; if it does not, no model will conjure
+information that is not there.
+
+Ten minutes of `groupby` will regularly save you an afternoon of training.

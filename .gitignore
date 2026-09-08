@@ -34,3 +34,10 @@ yarn-error.log*
 # typescript
 *.tsbuildinfo
 next-env.d.ts
+
+# vendored Python runtime (regenerate with: bun run vendor)
+/public/pyodide/
+
+# astro
+/dist/
+/.astro/

@@ -1,0 +1,20 @@
+---
+title: 'df.loc / df.iloc'
+lib: 'pandas'
+summary: '`loc` selects by label, `iloc` by integer position. Mixing them up is the classic pandas bug.'
+signature: 'df.loc[row_label, col_label]   |   df.iloc[row_pos, col_pos]'
+example: |-
+  df.loc[df['age'] > 30, ['city']]
+  df.iloc[0:2, 0]
+rust: '`iloc` is ordinary slice indexing. `loc` is closer to a `HashMap` lookup that happens to accept a boolean mask, a list of keys, or a range — which is why it is powerful and why it surprises people.'
+docs: 'https://pandas.pydata.org/docs/user_guide/indexing.html'
+docsLabel: 'Indexing guide ↗'
+---
+
+The trap: `loc` slices are **inclusive** of the end label, because labels are
+not necessarily numbers and "up to but not including" is meaningless for
+strings. `iloc` slices are exclusive, like every other Python slice. So
+`df.loc[0:2]` gives three rows and `df.iloc[0:2]` gives two.
+
+Use `loc` with a boolean mask for filtering — `df.loc[df.age > 30]` — and
+reach for `iloc` mainly when you genuinely mean "the first n rows".

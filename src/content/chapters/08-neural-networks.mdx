@@ -1,0 +1,380 @@
+---
+title: "Neural networks, built from matrix multiplies"
+blurb: "A hidden layer and one nonlinearity is the whole idea. Build the forward pass by hand, train it by brute force, and discover exactly why backpropagation had to be invented."
+order: 8
+day: 8
+part: deep-learning
+minutes: 100
+introduces: ["nn", "mlp"]
+---
+
+A neural network is a linear model, then a squashing function, then another
+linear model. That is the entire architectural idea. Everything else —
+convolutions, attention, residual connections — is a constraint bolted onto that
+sandwich.
+
+Today you build one with nothing but <Py id="matmul">`@`</Py> and
+<Py id="ndarray">arrays</Py>.
+
+## The wall a linear model hits
+
+```python run setup title="two crescents"
+import numpy as np, matplotlib.pyplot as plt
+from sklearn.datasets import make_moons
+from sklearn.model_selection import train_test_split
+from sklearn.linear_model import LogisticRegression
+
+X, y = make_moons(n_samples=800, noise=0.22, random_state=0)
+X = (X - X.mean(0)) / X.std(0)                    # standardise, always
+X_tr, X_va, y_tr, y_va = train_test_split(X, y, test_size=0.25, random_state=0, stratify=y)
+
+lin = LogisticRegression().fit(X_tr, y_tr)
+print(f"logistic regression, validation accuracy: {lin.score(X_va, y_va):.3f}")
+```
+
+Eighty-something percent, and no amount of training will improve it. The model
+can only draw a straight line, and the data is not linearly separable. This is
+not an optimisation failure; it is a *representation* failure. The function you
+need is not in the family you chose.
+
+## The obvious fix, and why it fails
+
+Stack two linear layers?
+
+```python run title="two linear layers are one linear layer"
+rng = np.random.default_rng(0)
+W1, W2 = rng.normal(size=(2, 8)), rng.normal(size=(8, 1))
+
+x = rng.normal(size=(4, 2))
+two_layers = (x @ W1) @ W2
+one_layer  = x @ (W1 @ W2)
+print("identical:", np.allclose(two_layers, one_layer))
+print("the 'deep' model is really just this 2x1 matrix:\n", (W1 @ W2).round(3).T)
+```
+
+Matrix multiplication is associative, so a composition of linear maps is a linear
+map. A hundred stacked linear layers is still a straight line, with a hundred
+times the parameters and none of the power.
+
+<Aside type="key">
+**The nonlinearity is not a detail — it is the entire reason depth means
+anything.** Without it, depth is a very expensive way to compute one matrix.
+</Aside>
+
+## One nonlinearity changes everything
+
+```python run title="ReLU"
+relu = lambda z: np.maximum(0, z)
+
+z = np.linspace(-3, 3, 200)
+plt.figure(figsize=(4.6, 2.4))
+plt.plot(z, relu(z)); plt.title("ReLU(z) = max(0, z)")
+plt.axhline(0, c="grey", lw=.5); plt.axvline(0, c="grey", lw=.5)
+plt.tight_layout()
+```
+
+<M id="relu">ReLU</M> is `max(0, z)`. It looks far too simple to matter, and it is
+the most consequential practical detail in the shift to deep networks — because
+its derivative is exactly 1 for positive inputs, so gradients pass through many
+layers without shrinking. Compare <M id="sigmoid">sigmoid</M>, whose derivative
+peaks at 0.25: thirty layers of that multiplies the gradient by $10^{-18}$.
+
+Now the network:
+
+```python run title="the forward pass, entire"
+def init(n_in, n_hidden, n_out, seed=0):
+    rng = np.random.default_rng(seed)
+    # He initialisation: variance 2/n_in keeps activations from shrinking layer
+    # to layer. The 2 is because ReLU discards half the distribution.
+    return {
+        "W1": rng.normal(0, np.sqrt(2 / n_in), (n_in, n_hidden)),
+        "b1": np.zeros(n_hidden),
+        "W2": rng.normal(0, np.sqrt(2 / n_hidden), (n_hidden, n_out)),
+        "b2": np.zeros(n_out),
+    }
+
+def forward(p, X):
+    z1 = X @ p["W1"] + p["b1"]      # (n, hidden)   linear
+    a1 = np.maximum(0, z1)          # (n, hidden)   nonlinear
+    z2 = a1 @ p["W2"] + p["b2"]     # (n, 1)        linear
+    return 1 / (1 + np.exp(-z2))    # (n, 1)        probability
+
+params = init(2, 16, 1)
+forward(params, X_tr[:3]).ravel().round(3)
+```
+
+Five lines. Two <Py id="matmul">matrix multiplies</Py>, two
+<Py id="broadcasting">broadcast</Py> bias additions, one `maximum`. Every
+network in this tutorial is that, repeated.
+
+<Aside type="rust">
+`params` is a `HashMap<&str, Array2<f64>>` because that is the idiom here; you
+would write a struct. The shapes are the type signature, and they are the thing
+worth checking:
+
+```
+X   (n, 2)  @  W1 (2, 16)  ->  (n, 16)  + b1 (16,)   broadcast
+    (n, 16) @  W2 (16, 1)  ->  (n, 1)   + b2 (1,)    broadcast
+```
+
+The inner dimensions cancel; the outer ones survive. When a network throws a
+shape error — and it will — this is the arithmetic to do on paper.
+</Aside>
+
+## Training it, the honest slow way
+
+We have a model and <M id="cross-entropy">a loss</M>. We need gradients. We have
+not derived them yet, so let us get them the brute-force way: nudge each
+parameter, see what happens to the loss.
+
+```python run title="numerical gradients"
+def loss(p, X, y):
+    prob = forward(p, X).ravel()
+    prob = np.clip(prob, 1e-9, 1 - 1e-9)
+    return -(y * np.log(prob) + (1 - y) * np.log(1 - prob)).mean()
+
+def numerical_grad(p, X, y, eps=1e-5):
+    """The definition of a derivative, applied 2x per parameter."""
+    grads = {}
+    for key, mat in p.items():
+        g = np.zeros_like(mat)
+        for idx in np.ndindex(mat.shape):
+            original = mat[idx]
+            mat[idx] = original + eps; hi = loss(p, X, y)
+            mat[idx] = original - eps; lo = loss(p, X, y)
+            mat[idx] = original
+            g[idx] = (hi - lo) / (2 * eps)
+        grads[key] = g
+    return grads
+
+small = init(2, 4, 1)
+g = numerical_grad(small, X_tr[:64], y_tr[:64])
+print("dL/dW1 =\n", g["W1"].round(4))
+```
+
+This is the literal <M id="derivative">definition of a derivative</M> and it is
+completely correct. It is also useless, and it is worth measuring exactly how
+useless.
+
+```python run title="the cost of brute force"
+import time
+
+for hidden in [4, 16, 64]:
+    p = init(2, hidden, 1)
+    n_params = sum(v.size for v in p.values())
+    t = time.perf_counter()
+    numerical_grad(p, X_tr[:64], y_tr[:64])
+    dt = time.perf_counter() - t
+    print(f"hidden={hidden:3d}  {n_params:5d} params  "
+          f"{2 * n_params:6d} forward passes  {dt * 1000:8.1f} ms per gradient")
+```
+
+The cost is **two forward passes per parameter**. Linear in the parameter count,
+and the constant is a whole forward pass.
+
+<Aside type="warn">
+Extrapolate. A small vision model has 10 million parameters, so one gradient step
+would need 20 million forward passes. At a millisecond each that is *five and a
+half hours* — for one step, of the tens of thousands a model needs.
+
+A modern language model has $10^{11}$ parameters. Numerical differentiation is
+not slow here; it is arithmetically impossible, by dozens of orders of magnitude.
+
+**Backpropagation computes the entire gradient — every parameter — for roughly
+the cost of one extra forward pass.** Not one per parameter. One, total. That is
+tomorrow, and that single fact is why this field exists.
+</Aside>
+
+## But it does work
+
+Small enough network, patient enough, and brute force trains it:
+
+```python run title="training with numerical gradients"
+p = init(2, 8, 1, seed=1)
+sub_X, sub_y = X_tr[:200], y_tr[:200]
+history = []
+for step in range(60):
+    grads = numerical_grad(p, sub_X, sub_y)
+    for k in p:
+        p[k] -= 0.5 * grads[k]
+    history.append(loss(p, sub_X, sub_y))
+
+acc = ((forward(p, X_va).ravel() > 0.5).astype(int) == y_va).mean()
+print(f"after 60 brute-force steps: loss {history[-1]:.4f}, validation accuracy {acc:.3f}")
+```
+
+```python run title="what it learned"
+xx, yy = np.meshgrid(np.linspace(-2.2, 2.4, 220), np.linspace(-2.2, 2.4, 220))
+zz = forward(p, np.c_[xx.ravel(), yy.ravel()]).reshape(xx.shape)
+
+fig, ax = plt.subplots(1, 2, figsize=(8.6, 3.2))
+ax[0].plot(history); ax[0].set_xlabel("step"); ax[0].set_ylabel("loss")
+ax[0].set_title("60 steps, each costing 2x145 forward passes")
+ax[1].contourf(xx, yy, zz, levels=20, cmap="coolwarm", alpha=.7)
+ax[1].scatter(X_va[:, 0], X_va[:, 1], c=y_va, s=8, cmap="coolwarm", edgecolors="none")
+ax[1].set_title("a curved boundary"); ax[1].set_xticks([]); ax[1].set_yticks([])
+plt.tight_layout()
+```
+
+A curve. Not a line. Eight hidden units and one `maximum` bought a decision
+boundary that logistic regression could never express — and this is after sixty
+steps of the slowest gradient method available. It is barely ahead of the line so
+far, because sixty steps is nothing. Give it a real optimiser and it reaches 0.96,
+as the last cell of this chapter shows.
+
+## Why a hidden layer can express anything
+
+```python run title="ReLUs are hinges; a sum of hinges is any curve"
+grid = np.linspace(-3, 3, 400)
+rng2 = np.random.default_rng(4)
+W1_, b1_ = rng2.normal(size=(1, 12)) * 3, rng2.normal(size=12) * 2
+W2_ = rng2.normal(size=(12, 1))
+hidden = np.maximum(0, grid.reshape(-1, 1) @ W1_ + b1_)
+
+fig, ax = plt.subplots(1, 2, figsize=(8.6, 2.9))
+ax[0].plot(grid, hidden, lw=.8); ax[0].set_title("12 ReLU units — each a hinge")
+ax[1].plot(grid, hidden @ W2_, c="crimson"); ax[1].set_title("their weighted sum")
+plt.tight_layout()
+```
+
+Each hidden unit is a hinge: flat until its threshold, then a straight ramp. The
+output layer takes a weighted sum of hinges. Enough hinges, placed and scaled
+freely, approximate any continuous function to any accuracy you like.
+
+That statement is the **universal approximation theorem** (Cybenko 1989, Hornik
+1991), and it is worth knowing exactly how little it promises.
+
+<Aside type="nice">
+It says a wide enough single hidden layer *can represent* any continuous function
+on a bounded domain. It does not say how wide — the width can be exponential in
+the input dimension. It does not say you can *find* the weights. And it says
+nothing about generalisation.
+
+So it is a statement about the existence of a needle, in a haystack of unstated
+size, with no method for finding it. It is quoted far more often than it is
+useful.
+
+The practically important observation is different and empirical: **depth is
+exponentially more efficient than width.** Functions that need $2^n$ units in one
+layer often need only $O(n)$ units spread across $n$ layers. That is why the
+field went deep instead of wide, and it is a fact about the world rather than a
+theorem.
+</Aside>
+
+## Width and depth, empirically
+
+```python run title="does more help?"
+def train(hidden_sizes, steps=400, lr=0.5, seed=0):
+    """Analytic gradients — the derivation is tomorrow. Here just to compare shapes."""
+    rng = np.random.default_rng(seed)
+    sizes = [2, *hidden_sizes, 1]
+    Ws = [rng.normal(0, np.sqrt(2 / a), (a, b)) for a, b in zip(sizes, sizes[1:])]
+    bs = [np.zeros(b) for b in sizes[1:]]
+    for _ in range(steps):
+        acts, a = [X_tr], X_tr
+        for i, (W, b) in enumerate(zip(Ws, bs)):
+            z = a @ W + b
+            a = np.maximum(0, z) if i < len(Ws) - 1 else 1 / (1 + np.exp(-z))
+            acts.append(a)
+        delta = (acts[-1].ravel() - y_tr).reshape(-1, 1) / len(y_tr)
+        for i in range(len(Ws) - 1, -1, -1):
+            gW, gb = acts[i].T @ delta, delta.sum(0)
+            if i > 0:
+                delta = (delta @ Ws[i].T) * (acts[i] > 0)
+            Ws[i] -= lr * gW; bs[i] -= lr * gb
+    a = X_va
+    for i, (W, b) in enumerate(zip(Ws, bs)):
+        z = a @ W + b
+        a = np.maximum(0, z) if i < len(Ws) - 1 else 1 / (1 + np.exp(-z))
+    return ((a.ravel() > 0.5).astype(int) == y_va).mean()
+
+for shape in [[2], [8], [32], [128], [16, 16], [16, 16, 16]]:
+    print(f"hidden {str(shape):16s}  validation accuracy {train(shape):.3f}")
+```
+
+Two hidden units gives you back the logistic-regression number almost exactly —
+too little capacity to bend. Eight barely improves on it. Thirty-two reaches
+0.96, and that is the ceiling: 128 units buys nothing, and neither does stacking
+two or three layers. The task is easy and the noise floor has been reached.
+
+That is the honest shape of the result, and it is worth internalising before you
+reach for a bigger model reflexively: **capacity only helps while capacity is the
+constraint.** Past that point, more parameters cost you compute, memory and
+overfitting risk in exchange for nothing at all.
+
+## Exercise
+
+```python run title="your turn"
+# 1. Replace ReLU with the identity in `forward`. Retrain with `train([16, 16])`
+#    modified accordingly. What accuracy do you get, and why exactly that number?
+#
+# 2. Set every weight in `init` to zero instead of random. Train. What happens
+#    to the hidden units, and why? (This is called the symmetry problem.)
+#
+# 3. Multiply the He initialisation by 50. Watch the first-layer activations.
+#
+# 4. How many parameters does a [2, 128, 1] network have? Count by hand,
+#    then verify.
+
+print("replace me")
+```
+
+<Reveal title="Solutions" kind="deep">
+
+```python run
+# 2. All-zero initialisation
+def forward_zero(X, hidden=8, steps=200, lr=0.5):
+    W1, b1 = np.zeros((2, hidden)), np.zeros(hidden)
+    W2, b2 = np.zeros((hidden, 1)), np.zeros(1)
+    for _ in range(steps):
+        a1 = np.maximum(0, X @ W1 + b1)
+        out = 1 / (1 + np.exp(-(a1 @ W2 + b2)))
+        d2 = (out.ravel() - y_tr).reshape(-1, 1) / len(y_tr)
+        d1 = (d2 @ W2.T) * (a1 > 0)
+        W2 -= lr * a1.T @ d2; b2 -= lr * d2.sum(0)
+        W1 -= lr * X.T @ d1;  b1 -= lr * d1.sum(0)
+    return W1
+
+W1_zero = forward_zero(X_tr)
+print("all hidden units identical:", np.allclose(W1_zero, W1_zero[:, :1]))
+print("first three columns:\n", W1_zero[:, :3].round(6))
+
+# 3. Initialisation scale
+for scale in [1, 10, 50]:
+    p = init(2, 64, 1); p["W1"] *= scale
+    a1 = np.maximum(0, X_tr @ p["W1"] + p["b1"])
+    print(f"scale x{scale:3d}   mean activation {a1.mean():9.3f}   "
+          f"dead units {(a1.max(0) == 0).sum():2d}/64")
+
+# 4. Parameter count
+p = init(2, 128, 1)
+print("\nby hand: 2*128 + 128 + 128*1 + 1 =", 2*128 + 128 + 128*1 + 1)
+print("actual  :", sum(v.size for v in p.values()))
+```
+
+**Question 1** gives you the logistic regression number back — around 0.85. Drop
+the nonlinearity and the composition collapses to a single matrix, exactly as the
+second cell of this chapter demonstrated. All the depth evaporates.
+
+**Question 2** is the symmetry problem, and it is why nobody initialises to zero.
+Every hidden unit starts identical, so every unit receives an identical gradient,
+so every unit stays identical forever. A 64-unit layer behaves as a 1-unit layer
+for the entire run. Random initialisation exists to break that symmetry — that is
+its whole job, and it is why He and Xavier initialisation specify a *variance*
+rather than a value.
+
+**Question 3** shows the other failure. Too large an initialisation and ReLU
+units saturate on one side; some die entirely (always negative input, always zero
+output, no gradient, never recover). He initialisation's $\sqrt{2/n_{in}}$ is
+chosen so activation variance is preserved layer to layer, and the 2 is
+specifically because ReLU discards half the distribution.
+
+**Question 4** is 385 parameters. The formula for a dense layer is
+`in * out + out` — one weight per connection, one bias per output. Being able to
+count parameters from an architecture description is a genuinely useful skill; it
+tells you the memory cost and it is the first sanity check when a paper's numbers
+look odd.
+</Reveal>
+
+Tomorrow: how to get every one of those gradients for the price of one forward
+pass.

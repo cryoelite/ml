@@ -1,0 +1,24 @@
+---
+title: 'argmax'
+lib: 'numpy'
+summary: 'Returns the *index* of the largest value, not the value. The bridge from scores to a decision.'
+signature: 'a.argmax(axis=None)'
+example: |-
+  scores = np.array([[0.1, 0.7, 0.2], [0.6, 0.3, 0.1]])
+  scores.argmax(axis=-1)
+output: 'array([1, 0])'
+rust: '`iter().enumerate().max_by(|a, b| a.1.partial_cmp(b.1).unwrap()).map(|(i, _)| i)` — the awkwardness of which is why a dedicated function exists.'
+rustCode: |-
+  let i = xs.iter().enumerate()
+      .max_by(|a, b| a.1.partial_cmp(b.1).unwrap())
+      .map(|(i, _)| i);
+docs: 'https://numpy.org/doc/stable/reference/generated/numpy.argmax.html'
+docsLabel: 'numpy.argmax ↗'
+---
+
+A classifier does not output a class; it outputs a score per class. `argmax`
+along the class axis is the step that turns "0.1, 0.7, 0.2" into "class 1".
+
+Note that this throws away the model's confidence. `0.34, 0.33, 0.33` and
+`0.98, 0.01, 0.01` both argmax to 0, and the difference between them is
+usually the most useful thing the model told you.

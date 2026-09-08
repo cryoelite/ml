@@ -1,0 +1,26 @@
+---
+title: 'slicing'
+lib: 'stdlib'
+since: 'Python 1.4'
+summary: '`seq[start:stop:step]` takes a subsequence. `stop` is exclusive; negatives count from the end.'
+signature: 'seq[start:stop:step]'
+example: |-
+  xs = [0, 1, 2, 3, 4, 5]
+  xs[1:4], xs[-2:], xs[::2]
+output: '([1, 2, 3], [4, 5], [0, 2, 4])'
+rust: 'Closest to `&v[1..4]`, but a list slice **copies** rather than borrowing, so there is no lifetime to worry about and no aliasing rule to break. NumPy slices are the exception — those are views, and they do alias.'
+rustCode: |-
+  let xs = vec![0, 1, 2, 3, 4, 5];
+  let a = &xs[1..4];   // borrow, not a copy
+docs: 'https://docs.python.org/3.14/library/functions.html#slice'
+docsLabel: 'Python docs ↗'
+---
+
+The half-open convention (`stop` excluded) is the same one Rust uses for
+`1..4`, so `len(xs[a:b]) == b - a` holds in both languages, and adjacent
+slices tile without overlap.
+
+The thing to actually internalise for this tutorial: on a Python `list`,
+slicing copies. On a NumPy array it does **not** — `a[1:4]` is a view into the
+same buffer, and writing through it mutates the original. That is a deliberate
+performance decision and the source of a great many confusing bugs.

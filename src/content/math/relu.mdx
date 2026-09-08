@@ -1,0 +1,25 @@
+---
+title: 'ReLU'
+summary: 'Pass positive numbers through unchanged, clamp negatives to zero. The default nonlinearity.'
+formula: '\text{ReLU}(z) = \max(0, z)'
+docs: 'https://en.wikipedia.org/wiki/Rectifier_(neural_networks)'
+docsLabel: 'Wikipedia ↗'
+symbols:
+  - sym: '\max(0, z)'
+    means: 'whichever is larger, zero or z'
+---
+
+It looks too simple to matter, and it is the single most consequential
+practical detail in the move to deep networks.
+
+Its derivative is 1 for positive inputs and 0 for negative — no saturation, no
+shrinking factor, so gradients pass through many layers intact. Compare
+sigmoid's maximum derivative of 0.25 and the difference over thirty layers is
+the difference between training and not training.
+
+It is also almost free to compute: a comparison and a select, against an
+exponential.
+
+The cost is dead units — a neuron whose input is always negative outputs zero
+forever and receives no gradient to recover with. Leaky ReLU, GELU and SiLU
+are the usual patches, and GELU is what transformers actually use.

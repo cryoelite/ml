@@ -1,0 +1,22 @@
+---
+title: 'decorator'
+lib: 'stdlib'
+summary: '`@thing` above a definition replaces it with `thing(definition)`. Syntax for wrapping.'
+signature: |-
+  @decorator
+  def fn(): ...
+example: |-
+  @functools.cache
+  def load(path):
+      return expensive_parse(path)
+rust: 'There is no direct equivalent. A proc-macro attribute like `#[derive(...)]` is the closest *shape*, but a decorator runs at import time and is an ordinary function — you can write one in three lines, and it can return anything at all.'
+rustCode: |-
+  #[derive(Debug)]   // similar shape, wildly different mechanism
+  struct Config;
+docs: 'https://docs.python.org/3.14/glossary.html#term-decorator'
+docsLabel: 'Python glossary ↗'
+---
+
+You mostly consume these rather than write them: `@property`, `@staticmethod`,
+`@functools.cache`, `@dataclass`, and — in fastai — `@patch`, which bolts a
+method onto an existing class after the fact.

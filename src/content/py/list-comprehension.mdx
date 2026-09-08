@@ -1,0 +1,14 @@
+---
+title: "list comprehension"
+summary: "Build a list by transforming and filtering another iterable, in one expression."
+signature: "[expr for item in iterable if condition]"
+example: "squares = [x * x for x in range(6) if x % 2 == 0]"
+output: "[0, 4, 16]"
+rust: "It is `iter().filter().map().collect()` with the collect implied, and it always produces a Vec."
+rustCode: "let squares: Vec<i32> = (0..6).filter(|x| x % 2 == 0).map(|x| x * x).collect();"
+docs: "https://docs.python.org/3/tutorial/datastructures.html#list-comprehensions"
+lib: "stdlib"
+since: "Python 2.0"
+---
+
+The comprehension is the single most common construct in Python data code.

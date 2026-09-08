@@ -1,0 +1,30 @@
+---
+title: 'numpy.ndarray'
+lib: 'numpy'
+summary: 'A fixed-size, fixed-dtype, N-dimensional block of numbers. The single most important object in this field.'
+signature: 'np.array(seq, dtype=None)   |   a.shape, a.dtype, a.ndim'
+example: |-
+  import numpy as np
+  a = np.array([[1., 2., 3.], [4., 5., 6.]])
+  a.shape, a.dtype
+output: '((2, 3), dtype(''float64''))'
+rust: 'Think `Vec<f64>` that cannot be resized, plus a `shape: Vec<usize>` describing how to interpret it, plus operator overloads that work elementwise. It is one contiguous allocation — `ndarray::Array2<f64>` is the direct analogue.'
+rustCode: |-
+  use ndarray::array;
+  let a = array![[1., 2., 3.], [4., 5., 6.]];   // shape (2, 3)
+docs: 'https://numpy.org/doc/stable/reference/generated/numpy.ndarray.html'
+docsLabel: 'ndarray reference ↗'
+---
+
+Two facts do most of the work.
+
+**It is one flat buffer.** A `(2, 3)` array is six contiguous doubles plus the
+metadata `shape=(2,3)`. `reshape` and most slicing therefore cost nothing —
+they hand back a new view over the same memory. This is why you can afford to
+reshape constantly.
+
+**Every element has the same type.** That is what lets the loop live in C
+instead of in the interpreter. A Python `list` of a million floats is a
+million pointers to a million boxed objects; a `float64` array of a million
+elements is eight megabytes and one pointer. The performance gap is roughly
+fifty-fold, and it is the entire reason NumPy exists.

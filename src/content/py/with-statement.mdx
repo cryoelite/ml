@@ -1,0 +1,23 @@
+---
+title: 'with (context manager)'
+lib: 'stdlib'
+summary: 'Runs setup and guaranteed teardown around a block, whatever happens inside it.'
+signature: |-
+  with expression as name:
+      body
+example: |-
+  with open('data.csv') as f:
+      header = f.readline()
+rust: 'RAII, but explicit and scoped to a block rather than to a value''s lifetime. `Drop` runs when the value dies; `__exit__` runs when the block ends. Errors are given to `__exit__`, so it can also act like a `catch`.'
+rustCode: |-
+  {
+      let f = File::open("data.csv")?;  // closed when the block ends
+  }
+docs: 'https://docs.python.org/3.14/reference/compound_stmts.html#the-with-statement'
+docsLabel: 'Python reference ↗'
+---
+
+In PyTorch you will meet `with torch.no_grad():`, which switches off gradient
+tracking for its block. That is not resource cleanup — it is using the same
+mechanism to scope a piece of global state, which is a very common Python
+idiom and worth recognising as one.

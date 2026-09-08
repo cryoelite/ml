@@ -1,0 +1,23 @@
+---
+title: 'seeding randomness'
+lib: 'stdlib'
+summary: 'Fix every random number generator so a run is reproducible — and know that it still may not be.'
+signature: 'np.random.default_rng(0)   |   torch.manual_seed(0)'
+example: |-
+  import numpy as np
+  rng = np.random.default_rng(0)
+  rng.normal(size=3)
+output: 'array([ 0.12573022, -0.13210486,  0.64042265])'
+rust: '`StdRng::seed_from_u64(0)` from `rand`. The discipline is the same: a generator you thread through explicitly beats a hidden global.'
+rustCode: 'let mut rng = StdRng::seed_from_u64(0);'
+docs: 'https://numpy.org/doc/stable/reference/random/generator.html'
+docsLabel: 'NumPy Generator ↗'
+---
+
+Prefer `default_rng` over the legacy `np.random.seed` global: it gives you an
+object you can pass around, which makes it obvious which code consumes
+randomness.
+
+Seeding does not guarantee identical results across machines, library versions
+or GPU kernels. It guarantees that *your* run, on *your* machine, repeats —
+which is enough to tell a real improvement from noise.

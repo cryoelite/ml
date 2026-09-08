@@ -1,0 +1,23 @@
+---
+title: 'Matrix multiplication'
+summary: 'Every entry of the result is the dot product of a row of the left matrix with a column of the right.'
+formula: '(AB)_{ij} = \sum_{k} A_{ik} B_{kj} \qquad (n{\times}k)(k{\times}m) \to (n{\times}m)'
+docs: 'https://en.wikipedia.org/wiki/Matrix_multiplication'
+docsLabel: 'Wikipedia ↗'
+symbols:
+  - sym: 'A_{ik}'
+    means: 'row i, column k of A'
+  - sym: 'k'
+    means: 'the shared inner dimension — it is summed away'
+  - sym: 'n \times m'
+    means: 'the shape of the result'
+---
+
+The shape rule is worth more than the formula: **the inner dimensions must
+match, and they vanish.** $(32, 784) \times (784, 128) \to (32, 128)$ reads as
+"32 examples of 784 features each, through a layer with 128 outputs".
+
+A neural network layer *is* a matrix multiply. The reason deep learning
+arrived when it did is that GPUs happen to be machines built to do this one
+operation extremely fast, for reasons that had nothing to do with machine
+learning.

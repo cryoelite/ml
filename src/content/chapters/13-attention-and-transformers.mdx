@@ -1,0 +1,419 @@
+---
+title: "Attention, and the architecture that ate the field"
+blurb: "One equation, built from scratch in NumPy. Why recurrence lost, what the query/key/value names actually mean, and where the quadratic cost comes from."
+order: 13
+day: 13
+part: frontier
+minutes: 110
+introduces: ["transformer", "encoder", "decoder", "encdec", "rnn", "lstm", "selfsup"]
+---
+
+Sequences are different. A photograph has a fixed size and no order; a sentence
+has neither property. The architecture that solved this is a single equation, and
+today you will build it from nothing.
+
+## What came before, and why it lost
+
+A **recurrent** network processes a sequence one step at a time, carrying a
+hidden state forward.
+
+```python run setup title="an RNN, in five lines"
+import numpy as np, matplotlib.pyplot as plt
+
+def rnn(inputs, W_x, W_h, h0):
+    h = h0
+    states = []
+    for x in inputs:                       # strictly one at a time
+        h = np.tanh(x @ W_x + h @ W_h)
+        states.append(h)
+    return np.array(states)
+
+rng = np.random.default_rng(0)
+seq = rng.normal(size=(12, 4))
+states = rnn(seq, rng.normal(size=(4, 8)) * .5, rng.normal(size=(8, 8)) * .5, np.zeros(8))
+print("processed", len(states), "steps sequentially; final state", states[-1].round(2))
+```
+
+Two fatal problems, and it is worth being precise about which one actually killed
+it.
+
+**The information bottleneck.** Everything the model knows about the first 400
+words must survive in one fixed-size vector. LSTMs (1997) added gates that decide
+what to keep and what to forget, which helped enormously and did not remove the
+bottleneck.
+
+**No parallelism.** Step 12 needs step 11's output. You cannot compute them at the
+same time, on any hardware, ever. Training on a billion documents means a billion
+sequential dependency chains.
+
+<Aside type="key">
+The second problem is the one that mattered. LSTMs worked reasonably well; they
+simply could not be scaled, because a GPU with 10,000 cores cannot help you do
+one thing after another. Attention's decisive advantage is not that it is more
+expressive — it is that **every position can be computed simultaneously.**
+
+That is an argument about hardware, not about intelligence, and it is the single
+most instructive fact in this chapter about how the field actually moves.
+</Aside>
+
+## Attention, derived
+
+Suppose each position could simply *look at* every other position and take what
+it needed. Three questions:
+
+1. What is this position looking for? → a **query** vector
+2. What does each position offer? → a **key** vector
+3. What does it hand over if selected? → a **value** vector
+
+Match queries against keys to get relevance, turn relevance into weights, take
+the weighted average of values.
+
+```python run title="attention, from nothing"
+def softmax(z, axis=-1):
+    z = z - z.max(axis=axis, keepdims=True)      # the overflow guard, always
+    e = np.exp(z)
+    return e / e.sum(axis=axis, keepdims=True)
+
+def attention(Q, K, V, mask=None):
+    d_k = Q.shape[-1]
+    scores = Q @ K.T / np.sqrt(d_k)              # (n_q, n_k) — every query vs every key
+    if mask is not None:
+        scores = np.where(mask, scores, -np.inf) # forbidden positions get zero weight
+    weights = softmax(scores)                    # each row sums to 1
+    return weights @ V, weights                  # weighted average of the values
+
+n, d = 5, 8
+rng = np.random.default_rng(0)
+Q, K, V = (rng.normal(size=(n, d)) for _ in range(3))
+out, w = attention(Q, K, V)
+print("output shape ", out.shape)
+print("weight rows sum to 1:", np.allclose(w.sum(-1), 1))
+```
+
+That is <M id="attention">the whole mechanism</M>. Four lines.
+
+```python run title="what the weights mean"
+plt.figure(figsize=(4.2, 3.4))
+plt.imshow(w, cmap="Blues", vmin=0)
+plt.colorbar(label="attention weight")
+plt.xlabel("key position (looked at)"); plt.ylabel("query position (looking)")
+plt.title("row i = how position i distributes its attention")
+plt.tight_layout()
+```
+
+Each **row** is one position's opinion about where to look, and each row sums to
+one. Position 3 might put 60% of its attention on position 1 and spread the rest.
+
+## Self-attention
+
+In practice Q, K and V all come from the *same* sequence, through three learned
+projections. That is **self-attention**: every position looking at every other
+position of the same input.
+
+```python run title="self-attention on a real-ish sequence"
+d_model, d_head = 16, 16
+X = rng.normal(size=(6, d_model))                # 6 tokens, 16 dims each
+
+W_q, W_k, W_v = (rng.normal(size=(d_model, d_head)) * 0.3 for _ in range(3))
+Q, K, V = X @ W_q, X @ W_k, X @ W_v
+out, w = attention(Q, K, V)
+
+print("input ", X.shape, "-> output", out.shape, " (same shape: it is a mixer, not a resizer)")
+print("\nposition 0 attends to:", w[0].round(2))
+```
+
+Three matrices, learned by [backpropagation](/learn/09-backpropagation/) like
+everything else. The names *query*, *key* and *value* are borrowed from database
+retrieval and are the standard vocabulary — but the mechanism is just three
+projections and a softmax-weighted average.
+
+<Reveal title="Why divide by the square root of d_k" kind="math">
+
+If $q$ and $k$ have independent components with mean 0 and variance 1, their
+<M id="dot-product">dot product</M> $\sum_{i=1}^{d_k} q_i k_i$ is a sum of $d_k$
+independent terms, so its variance is $d_k$ and its typical magnitude is
+$\sqrt{d_k}$.
+
+At $d_k = 64$ the scores are typically around $\pm 8$. Feed those to
+<M id="softmax">softmax</M> and the largest one gets almost all the weight, which
+means the distribution is nearly one-hot — and the gradient of softmax is
+proportional to $p(1-p)$, which is approximately zero when $p$ is 0 or 1.
+
+So without the scaling, attention saturates at initialisation and the gradients
+vanish before training starts. Dividing by $\sqrt{d_k}$ returns the scores to
+variance 1 regardless of head size.
+
+```python run title="see it happen"
+for d_k in [4, 64, 512]:
+    q = rng.normal(size=(1000, d_k)); k = rng.normal(size=(1000, d_k))
+    raw = (q * k).sum(-1)
+    print(f"d_k={d_k:4d}   unscaled score std {raw.std():7.2f}   "
+          f"scaled {(raw / np.sqrt(d_k)).std():.2f}")
+```
+
+That single $\sqrt{d_k}$ is the difference between a transformer that trains and
+one that does not. It is a good example of how much of this field is numerical
+hygiene wearing a Greek letter.
+</Reveal>
+
+## Causal masking
+
+A model predicting the next token must not be allowed to see it. The fix is one
+triangular mask.
+
+```python run title="the mask that makes GPT possible"
+n = 6
+causal = np.tril(np.ones((n, n), dtype=bool))    # True on and below the diagonal
+print(causal.astype(int))
+
+X = rng.normal(size=(n, d_model))
+Q, K, V = X @ W_q, X @ W_k, X @ W_v
+_, w_causal = attention(Q, K, V, mask=causal)
+
+plt.figure(figsize=(4, 3.2))
+plt.imshow(w_causal, cmap="Blues", vmin=0)
+plt.title("causal attention: nothing looks right of the diagonal")
+plt.xlabel("key"); plt.ylabel("query"); plt.colorbar()
+plt.tight_layout()
+```
+
+Everything above the diagonal is zero — no position can attend to its future.
+
+**This one mask is the entire architectural difference between BERT and GPT.**
+Without it, every position sees the whole sequence and you get an encoder, good
+for classification and embeddings. With it, you get a decoder, and you can train
+it to predict the next token on any text in existence — which is the
+<M id="log-likelihood">self-supervised</M> objective from
+[Chapter 3](/learn/03-the-shape-of-problems/) that made the whole internet into
+labelled data.
+
+## Multiple heads
+
+One attention operation computes one kind of relevance. Real models run several
+in parallel with different projections, and concatenate.
+
+```python run title="multi-head attention"
+def multihead(X, Wq, Wk, Wv, Wo, n_heads, mask=None):
+    n, d_model = X.shape
+    d_head = d_model // n_heads
+    heads = []
+    for h in range(n_heads):
+        sl = slice(h * d_head, (h + 1) * d_head)
+        out, _ = attention(X @ Wq[:, sl], X @ Wk[:, sl], X @ Wv[:, sl], mask)
+        heads.append(out)
+    return np.concatenate(heads, axis=-1) @ Wo   # mix the heads back together
+
+d_model, n_heads = 32, 4
+X = rng.normal(size=(8, d_model))
+Wq, Wk, Wv, Wo = (rng.normal(size=(d_model, d_model)) * 0.2 for _ in range(4))
+print("multi-head output:", multihead(X, Wq, Wk, Wv, Wo, n_heads).shape)
+print(f"{n_heads} heads x {d_model // n_heads} dims = {d_model}, same as the input")
+```
+
+The total dimension is unchanged — the heads split it rather than multiplying it.
+Interpretability work has found heads that specialise: one tracking syntactic
+dependencies, one matching quotation marks, one attending to the previous
+occurrence of the current token. That specialisation is emergent, and it is one
+of the more genuinely surprising findings in the field.
+
+## Position
+
+Attention has a strange property: it is **permutation-equivariant**. Shuffle the
+input and the outputs shuffle identically — the mechanism has no notion of order
+at all.
+
+```python run title="attention cannot see order"
+X = rng.normal(size=(5, d_model))
+perm = np.array([3, 1, 4, 0, 2])
+a = multihead(X, Wq, Wk, Wv, Wo, 4)
+b = multihead(X[perm], Wq, Wk, Wv, Wo, 4)
+print("permuting the input just permutes the output:", np.allclose(a[perm], b))
+```
+
+For a bag of words that would be fine. For language it is fatal — *dog bites man*
+and *man bites dog* would be identical. So position is added to the input
+explicitly.
+
+```python run title="sinusoidal positional encoding"
+def positional_encoding(n_positions, d_model):
+    pos = np.arange(n_positions)[:, None]
+    i = np.arange(d_model)[None, :]
+    angle = pos / np.power(10000, (2 * (i // 2)) / d_model)
+    pe = np.zeros((n_positions, d_model))
+    pe[:, 0::2] = np.sin(angle[:, 0::2])
+    pe[:, 1::2] = np.cos(angle[:, 1::2])
+    return pe
+
+pe = positional_encoding(64, 32)
+plt.figure(figsize=(5.5, 3))
+plt.imshow(pe.T, cmap="RdBu_r", aspect="auto")
+plt.xlabel("position in sequence"); plt.ylabel("embedding dimension")
+plt.title("each position gets a unique signature"); plt.colorbar()
+plt.tight_layout()
+```
+
+Each position gets a unique pattern of sine and cosine values at different
+frequencies — effectively a binary counter in continuous form, where low
+dimensions oscillate fast and high dimensions slowly. Adding it to the token
+embedding gives every position an identity.
+
+<Aside type="nice">
+Modern models mostly use **RoPE** (rotary position embeddings) instead, which
+rotates the query and key vectors by an angle proportional to position. Its
+advantage is that the resulting attention score depends only on the *relative*
+distance between two positions, and it extrapolates to sequences longer than
+those seen in training far better than the sinusoidal version.
+
+If you have wondered how a model's context window gets extended after training —
+that is largely RoPE frequency scaling, and it is a surprisingly small change.
+</Aside>
+
+## The full block
+
+```python run title="a transformer block, assembled"
+def layer_norm(x, eps=1e-5):
+    mu = x.mean(-1, keepdims=True)
+    sd = x.std(-1, keepdims=True)
+    return (x - mu) / (sd + eps)
+
+def transformer_block(X, params, n_heads=4, mask=None):
+    # Pre-norm, residual, twice. This is the whole block.
+    h = X + multihead(layer_norm(X), *params["attn"], n_heads, mask)
+    ff = layer_norm(h) @ params["W1"]
+    ff = np.maximum(0, ff) @ params["W2"]            # position-wise MLP
+    return h + ff
+
+d_model, d_ff = 32, 128
+params = {
+    "attn": [rng.normal(size=(d_model, d_model)) * .2 for _ in range(4)],
+    "W1": rng.normal(size=(d_model, d_ff)) * .2,
+    "W2": rng.normal(size=(d_ff, d_model)) * .2,
+}
+X = rng.normal(size=(10, d_model))
+out = transformer_block(X, params, mask=np.tril(np.ones((10, 10), dtype=bool)))
+print("block output:", out.shape, " — same shape in, same shape out")
+print("so you can stack it:", transformer_block(out, params).shape)
+```
+
+**That is a transformer.** Stack ninety-six of those, make `d_model` 12,288, and
+you have GPT-3's architecture. The difference between this cell and a frontier
+model is scale, data, and an enormous amount of engineering — not a different
+idea.
+
+Three pieces earn their place:
+
+- **Residual connections** (`X + ...`). The gradient has a path straight back
+  through the addition, unmultiplied, which is what makes 96 layers trainable at
+  all. Same problem as [vanishing gradients](/learn/09-backpropagation/), a
+  different fix.
+- **Layer normalisation.** Normalises each position's vector to zero mean and
+  unit variance — across the features, not across the batch, which is why it works
+  with variable sequence lengths where batch norm does not.
+- **The position-wise MLP.** Attention *mixes* information between positions; the
+  MLP *transforms* it within a position. Attention alone is a weighted average and
+  cannot compute much. Roughly two thirds of a transformer's parameters live here,
+  and there is good evidence it is where factual knowledge is stored.
+
+## The cost, and why everyone is fighting it
+
+```python run title="quadratic"
+print(f"{'sequence':>10s} {'attention matrix':>18s} {'float32 memory':>16s}")
+for n in [512, 2_048, 8_192, 128_000, 1_000_000]:
+    cells = n * n
+    print(f"{n:>10,} {cells:>18,} {cells * 4 / 1e9:>13,.1f} GB")
+```
+
+The attention matrix is $n \times n$. Doubling the context quadruples the memory
+and the compute — **per head, per layer**.
+
+That one table explains an entire research programme. FlashAttention (recompute
+tiles instead of storing the matrix), sliding-window and sparse attention (do not
+attend to everything), linear attention and state-space models like Mamba (avoid
+forming the matrix at all), and multi-query and grouped-query attention (shrink
+the KV cache at inference). Every long-context announcement you have read is an
+attack on this quadratic.
+
+<Aside type="rust">
+The engineering shape will be familiar. The naive implementation materialises an
+$n^2$ intermediate and is memory-bandwidth-bound, not compute-bound.
+FlashAttention's insight is to tile the computation so the intermediate never
+leaves fast on-chip memory, recomputing bits of it during the backward pass
+rather than storing them.
+
+It is a cache-blocking optimisation. It gave a 2–4x speedup on the most important
+workload in computing, and it changed no mathematics whatsoever.
+</Aside>
+
+## Exercise
+
+```python run title="your turn"
+# 1. Set the scores of a causal-masked attention to all zeros before softmax.
+#    What weights come out? What does that model compute?
+#
+# 2. Build a 2-token sequence where position 1 should attend almost entirely
+#    to position 0. Construct Q and K by hand to make it happen.
+#
+# 3. Stack three transformer_blocks. Track the mean absolute activation after
+#    each. Now delete the residual connection and do it again.
+
+print("replace me")
+```
+
+<Reveal title="Solutions" kind="deep">
+
+```python run
+# 1. Uniform attention
+n = 5
+uniform = softmax(np.where(np.tril(np.ones((n, n), dtype=bool)), 0.0, -np.inf))
+print(np.round(uniform, 3))
+```
+
+Every position gets a uniform average of itself and everything before it — a
+running mean. That is a real, if weak, model, and it is a useful sanity baseline:
+if your trained attention does no better than this, the mechanism has learned
+nothing.
+
+```python run
+# 2. Making position 1 look at position 0
+d = 4
+K = np.array([[1., 0, 0, 0],      # position 0's key
+              [0., 1, 0, 0]])     # position 1's key
+Q = np.array([[0., 0, 0, 0],
+              [9., 0, 0, 0]])     # position 1 queries hard for "direction 0"
+_, w = attention(Q, K, np.eye(2), mask=np.tril(np.ones((2, 2), dtype=bool)))
+print("position 1 attention:", w[1].round(3))
+```
+
+A large query aligned with position 0's key produces a large score there and a
+small one elsewhere, and softmax turns that into near-total attention. **A learned
+"look at the previous token" head is exactly this, found by gradient descent.**
+Induction heads — which look back for the previous occurrence of the current
+token and copy what followed it — are a slightly more elaborate version, and they
+are believed to be a large part of how in-context learning works.
+
+```python run
+# 3. Residuals
+def block_no_residual(X, params, n_heads=4):
+    h = multihead(layer_norm(X), *params["attn"], n_heads)
+    return np.maximum(0, layer_norm(h) @ params["W1"]) @ params["W2"]
+
+for label, fn in [("with residual", transformer_block), ("without", block_no_residual)]:
+    x = rng.normal(size=(10, d_model))
+    mags = []
+    for _ in range(6):
+        x = fn(x, params)
+        mags.append(np.abs(x).mean())
+    print(f"{label:15s} activation magnitude by depth: {np.round(mags, 4)}")
+```
+
+Without residual connections the signal decays toward zero with depth — and since
+the backward pass traverses the same multiplications, the gradient decays too, so
+the early layers receive almost nothing. The residual gives the gradient an
+identity path straight through: `d(x + f(x))/dx = 1 + f'(x)`, and that `1` never
+shrinks.
+
+That single term is why 2015's ResNet could be 152 layers deep when 2014's best
+was 19, and it is in every architecture that has mattered since.
+</Reveal>
+
+Tomorrow: what you get when you scale this to the entire internet.

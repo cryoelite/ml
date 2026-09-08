@@ -1,0 +1,326 @@
+---
+title: "Shipping it, and reading the literature"
+blurb: "Why accuracy is usually the wrong number, what a threshold really is, how a model decays in production, and how to get the gist of a paper in fifteen minutes."
+order: 16
+day: 14
+part: practice
+minutes: 90
+introduces: ["eval", "deploy"]
+---
+
+The last day, and the two things that separate a model from a system: knowing
+what number to report, and being able to keep learning without a curriculum.
+
+## Accuracy is usually the wrong number
+
+```python run setup title="a 99% accurate model that is worthless"
+import numpy as np, matplotlib.pyplot as plt
+
+n = 10_000
+truth = np.zeros(n, dtype=int)
+truth[:100] = 1                      # 1% fraud
+rng = np.random.default_rng(0)
+rng.shuffle(truth)
+
+always_no = np.zeros(n, dtype=int)
+print(f"model that always says 'not fraud': accuracy {(always_no == truth).mean():.2%}")
+print(f"frauds caught: {((always_no == 1) & (truth == 1)).sum()} of {truth.sum()}")
+```
+
+Ninety-nine percent accuracy, zero value. Any metric that a constant can score
+well on is not measuring your problem.
+
+```python run title="the confusion matrix, which is the real object"
+scores = np.where(truth == 1,
+                  rng.normal(0.65, 0.20, n),
+                  rng.normal(0.30, 0.18, n)).clip(0, 1)
+
+def confusion(y, pred):
+    tp = int(((pred == 1) & (y == 1)).sum()); fp = int(((pred == 1) & (y == 0)).sum())
+    fn = int(((pred == 0) & (y == 1)).sum()); tn = int(((pred == 0) & (y == 0)).sum())
+    return tp, fp, fn, tn
+
+tp, fp, fn, tn = confusion(truth, (scores > 0.5).astype(int))
+print(f"                  predicted fraud   predicted ok")
+print(f"actually fraud  {tp:14,d} {fn:14,d}")
+print(f"actually ok     {fp:14,d} {tn:14,d}")
+print(f"\nprecision {tp/(tp+fp):.3f}  — of those flagged, how many really were fraud")
+print(f"recall    {tp/(tp+fn):.3f}  — of the real frauds, how many did we catch")
+```
+
+Learn these two by their sentences, not their formulas:
+
+- **Precision** — when the model says yes, how often is it right? Low precision
+  means you waste effort on false alarms.
+- **Recall** — of the things that really were true, how many did you find? Low recall
+  means you missed them.
+
+They trade off. A model that flags everything has recall 1.0 and dreadful
+precision; one that flags only its single most confident case has precision near
+1.0 and useless recall.
+
+## The threshold is a business decision
+
+```python run title="one model, many operating points"
+rows = []
+for t in [0.2, 0.35, 0.5, 0.65, 0.8]:
+    tp, fp, fn, tn = confusion(truth, (scores > t).astype(int))
+    prec = tp / max(tp + fp, 1); rec = tp / max(tp + fn, 1)
+    rows.append((t, tp, fp, fn, prec, rec))
+    print(f"threshold {t:.2f}   caught {tp:3d}  false alarms {fp:4d}  missed {fn:3d}   "
+          f"precision {prec:.2f}  recall {rec:.2f}")
+```
+
+**The model did not change.** One set of scores, five different systems. Moving
+the threshold moves you along a curve, and choosing where to sit is a question
+about costs, not about machine learning.
+
+```python run title="pick it with money, not with intuition"
+COST_FALSE_ALARM = 4        # an analyst spends five minutes
+COST_MISSED_FRAUD = 500     # you eat the chargeback
+
+best = None
+for t in np.linspace(0.05, 0.95, 91):
+    tp, fp, fn, tn = confusion(truth, (scores > t).astype(int))
+    cost = fp * COST_FALSE_ALARM + fn * COST_MISSED_FRAUD
+    if best is None or cost < best[1]:
+        best = (t, cost, fp, fn)
+
+print(f"cost-optimal threshold {best[0]:.2f}  ->  total cost {best[1]:,}")
+print(f"  {best[2]} false alarms, {best[3]} missed frauds")
+d = confusion(truth, (scores > 0.5).astype(int))
+print(f"default 0.50 threshold  ->  total cost "
+      f"{d[1] * COST_FALSE_ALARM + d[2] * COST_MISSED_FRAUD:,}")
+```
+
+<Aside type="key">
+Two numbers — what a false positive costs and what a false negative costs — turn
+an unanswerable question into arithmetic. Getting them from whoever owns the
+problem is the highest-leverage half hour in most projects, and it is very often
+never done.
+</Aside>
+
+```python run title="the whole curve"
+ths = np.linspace(0.01, 0.99, 200)
+prec, rec = [], []
+for t in ths:
+    tp, fp, fn, tn = confusion(truth, (scores > t).astype(int))
+    prec.append(tp / max(tp + fp, 1)); rec.append(tp / max(tp + fn, 1))
+
+plt.figure(figsize=(5, 3.2))
+plt.plot(rec, prec)
+plt.axhline(truth.mean(), ls=":", c="grey")
+plt.text(0.55, truth.mean() + 0.02, "random guessing", fontsize=8, color="grey")
+plt.xlabel("recall"); plt.ylabel("precision"); plt.title("precision–recall curve")
+plt.tight_layout()
+```
+
+<Aside type="nice">
+Report **PR-AUC** for imbalanced problems and **ROC-AUC** for balanced ones. The
+reason is that ROC's x-axis is the false-positive *rate*, and when 99% of your
+data is negative, a great many false positives still make a small rate — so ROC
+looks flattering. Precision has the count of false positives in its denominator
+and stays honest.
+
+A single number is still a summary of a whole curve. Quote the curve, or at
+minimum quote precision and recall at the threshold you actually intend to use.
+</Aside>
+
+## Calibration
+
+```python run title="a confident model is not a correct one"
+def calibration(probs, y, bins=8):
+    edges = np.linspace(0, 1, bins + 1)
+    out = []
+    for lo, hi in zip(edges, edges[1:]):
+        m = (probs >= lo) & (probs < hi)
+        if m.sum() > 20:
+            out.append((probs[m].mean(), y[m].mean(), int(m.sum())))
+    return np.array(out)
+
+cal = calibration(scores, truth)
+plt.figure(figsize=(4.4, 3.4))
+plt.plot([0, 1], [0, 1], "k:", label="perfectly calibrated")
+plt.plot(cal[:, 0], cal[:, 1], "o-", label="this model")
+plt.xlabel("predicted probability"); plt.ylabel("observed frequency")
+plt.legend(); plt.tight_layout()
+print("when it says 0.7, does it happen 70% of the time?")
+```
+
+A model is **calibrated** if, among the cases it scored 0.7, roughly 70% are
+positive. Ranking correctly and being calibrated are different properties, and
+you need calibration whenever the probability itself feeds a decision — expected
+value, triage, pricing. Neural networks are typically *over*confident; the usual
+fixes are Platt scaling or temperature scaling on a held-out set.
+
+## After it ships
+
+**Distribution shift.** A model learns the distribution it was shown. When the
+world moves — new competitor, new product line, a pandemic — performance decays
+without anything erroring. Monitor the *inputs* as well as the outputs, because
+input drift is visible immediately while label-based metrics may take months to
+arrive.
+
+**The feedback loop.** A fraud model that blocks transactions never learns whether
+those transactions were fraudulent. A recommender that only shows five items only
+gets feedback on five items. Your training data becomes a product of your own past
+predictions, and this is a genuinely hard problem — the usual mitigation is to hold
+out a small random slice that bypasses the model.
+
+**Training/serving skew.** The single most common production bug: features
+computed one way in the training pipeline and another way at serving time. A
+mean imputed from the training set, a category encoded in a different order, a
+timezone. The defence is architectural — compute features with the *same code* in
+both paths.
+
+**A model is a function, and you know how to ship functions.** Version it, pin
+its dependencies, log its inputs and outputs, health-check it, and keep the
+previous one warm. Most of MLOps is ordinary operations applied to an artefact
+that happens to be a matrix.
+
+<Aside type="warn">
+Log the model version alongside every prediction, from day one. The first time
+someone asks "why did it decline this application in March", you will need to
+know which weights answered — and if you did not log it, no amount of later
+effort recovers it.
+</Aside>
+
+## Reading a paper
+
+You now have enough to get the gist of most machine learning papers. The trick is
+not to read them front to back.
+
+**Pass 1, five minutes.** Title, abstract, figures, and the conclusion. Figure 1
+is almost always the architecture or the headline result, and it is usually the
+densest information in the paper. After this you should be able to say what
+problem they attacked and whether the result is interesting to you. Most papers
+stop here, correctly.
+
+**Pass 2, twenty minutes.** The method section, ignoring proofs. Ask four
+questions, all of which you can now answer:
+
+1. What is the **input and output**? (Chapter 3)
+2. What is the **loss**? (Chapters 4–5)
+3. What is the **architecture**, in terms of pieces you know? (Chapters 8–13)
+4. What is the **baseline**, and is the comparison fair? (Chapter 6)
+
+**Pass 3, an afternoon.** Reproduce something. This is where actual understanding
+happens, and it is the pass almost everyone skips.
+
+<Aside type="key">
+The question that catches most weak papers is number 4. Look for: a baseline
+tuned less carefully than the proposed method; a test set consulted repeatedly; a
+comparison against an old version of a competitor; results averaged over one
+seed. None of these require you to understand the mathematics, and all of them
+are common.
+</Aside>
+
+Some notation that used to be opaque and now is not:
+
+<div class="table-scroll">
+
+| Symbol | Reads as |
+|---|---|
+| $\theta$ | all the model's parameters, at once |
+| $\mathcal{L}(\theta)$ | the loss, as a function of them |
+| $\nabla_\theta$ | the gradient with respect to them |
+| $\mathbb{E}_{x \sim D}[\,\cdot\,]$ | average over data drawn from distribution $D$ |
+| $\arg\max_\theta$ | *the* $\theta$ that maximises this, not the value |
+| $p_\theta(y \mid x)$ | probability the model gives $y$ given $x$ |
+| $\hat{y}$ | prediction, as opposed to $y$, the truth |
+| $\|\cdot\|_2$, $\|\cdot\|_1$ | Euclidean and absolute-value norms |
+| $\odot$ | elementwise multiplication |
+
+</div>
+
+So the sentence
+$\min_\theta \mathbb{E}_{(x,y)\sim D}\left[\mathcal{L}(f_\theta(x), y)\right] + \lambda\|\theta\|_2^2$
+says: *make the average loss on your data small, and penalise large weights while
+you are at it.* Which is the whole of Chapters 5 and 6, written in nine symbols.
+
+## A checklist for your first real project
+
+1. **Frame it.** Supervision, task, features, target. Write it down.
+2. **Build the validation set first**, before any modelling, structured the way
+   deployment will be.
+3. **Compute a trivial baseline.** Majority class, or last week's value.
+4. **Get the two costs** — false positive, false negative — from whoever owns the
+   problem.
+5. **Fit the boring model.** Logistic regression or gradient boosting.
+6. **Look at the errors.** Not the metric, the actual rows it got wrong. This is
+   the highest-value hour in any project and the one most often skipped.
+7. **Only now** consider something more complicated.
+8. **Check for leakage** whenever a result is better than you expected.
+9. **Pick the threshold with the costs from step 4.**
+10. **Ship it with logging**, and watch the input distribution.
+
+## Where to go next
+
+**Consolidate.** Do a Kaggle playground competition end to end — not to win, but
+to feel the loop of validate, change one thing, measure. A week of that is worth
+a month of reading.
+
+**Go deeper on the code.** Karpathy's *Zero to Hero* series builds a GPT from
+nothing and is the natural sequel to Chapters 9 and 13. The fastai course is
+excellent and takes the opposite route to this one — top down, library first —
+which makes the two complementary rather than redundant.
+
+**Go deeper on the theory.** Bishop's *Pattern Recognition and Machine Learning*
+for the probabilistic view; Goodfellow, Bengio and Courville's *Deep Learning*
+for the standard reference. Both are demanding and both are better after this
+than before it.
+
+**Read papers.** *Attention Is All You Need* (2017) is the one to start with — you
+have implemented most of it. Then follow whatever is cited by the thing you
+actually want to build.
+
+<Aside type="key">
+The most useful habit: **when you meet something new, find where it sits on
+[the map](/map/).** Is it a new supervision signal, a new model family, or a new
+piece of the fitting machinery? Almost everything is one of those three, and
+placing it correctly turns a strange new thing into a variation on something you
+have already built.
+</Aside>
+
+## Exercise
+
+The last one, and it is not a code cell.
+
+Pick a problem from your own work. A real one — something you have data for or
+could get data for. Write half a page:
+
+1. Supervision, task, features, target.
+2. How you would build the validation set, and why that structure.
+3. The trivial baseline, and what it would score.
+4. The cost of a false positive and of a false negative.
+5. The first model you would try, and why.
+6. One way this could be leakage, and how you would check.
+7. What would make you abandon the project.
+
+If you can answer all seven, you can start. If you cannot answer 2, 4 or 7, that
+is where the work is — and it is not modelling work.
+
+<Reveal title="Why question 7 is the important one" kind="deep">
+
+Every one of the other six has a technical answer you could look up. Question 7
+does not, and it is the one that decides whether the project is worth doing.
+
+Good abandonment criteria are concrete and set in advance: *if a well-tuned
+gradient-boosted model cannot beat the baseline by 5 points on the validation
+set within two weeks, the signal is not there.* Or: *if fixing the label noise
+requires more annotator time than the project saves, stop.*
+
+Written down beforehand, that is a decision. Discovered afterwards, it is four
+months and an awkward meeting. The habit is worth more than any architecture in
+this tutorial.
+</Reveal>
+
+---
+
+That is the fortnight. You have built a linear model, a gradient descent
+optimiser, a neural network, a backward pass, an attention mechanism, an
+embedding, an autoencoder and a tokeniser — every one of them from
+<Py id="ndarray">arrays</Py> and arithmetic — and you know which of them to reach
+for and when the answer is none of them.
+
+The field will keep moving. The frame will not.

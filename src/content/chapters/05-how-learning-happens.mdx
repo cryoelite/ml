@@ -1,0 +1,397 @@
+---
+title: "How learning actually happens"
+blurb: "Gradient descent from scratch: the loop that trains everything from a two-parameter line to a frontier language model, and the three ways it goes wrong."
+order: 5
+day: 5
+part: foundations
+minutes: 100
+introduces: ["machinery", "loss", "gd"]
+---
+
+Yesterday's closed-form solution works for linear least squares and nothing else.
+Today, the method that works for everything — and which, at the scale of a
+frontier model, is still recognisably these fifteen lines.
+
+## The idea
+
+You are on a hillside in fog. You cannot see the valley floor. But you can feel
+the slope under your feet, so you take a small step downhill and repeat.
+
+That is <M id="gradient-descent">gradient descent</M>, and there is nothing more
+to it. The <M id="gradient">gradient</M> tells you which way is uphill; you go
+the other way; the step size is a number you choose and immediately regret.
+
+<Aside type="key">
+Every optimiser you will ever meet — SGD, momentum, RMSProp, Adam, AdamW, Lion,
+Shampoo — is this loop with a different rule for computing the step. Not a
+different algorithm. A different step rule.
+</Aside>
+
+## Deriving the gradient once, by hand
+
+We need $\partial L/\partial w$ and $\partial L/\partial b$ for
+$L = \frac{1}{n}\sum (wx_i + b - y_i)^2$.
+
+<Reveal title="The derivation, slowly" kind="math" open>
+
+Write the residual for one example as $r_i = \hat{y}_i - y_i = (wx_i + b) - y_i$,
+so $L = \frac{1}{n}\sum r_i^2$.
+
+Apply <M id="chain-rule">the chain rule</M>. The outer function is
+$r \mapsto r^2$, whose derivative is $2r$. The inner function is
+$w \mapsto wx_i + b - y_i$, whose derivative with respect to $w$ is $x_i$ and
+with respect to $b$ is $1$.
+
+$$
+\frac{\partial L}{\partial w} = \frac{1}{n}\sum_i 2 r_i \, x_i
+\qquad
+\frac{\partial L}{\partial b} = \frac{1}{n}\sum_i 2 r_i
+$$
+
+Read them in words, because that is the part worth keeping.
+
+The gradient with respect to $w$ is *the average residual, weighted by the input
+that produced it*. An example with a large $x$ has more influence on the slope —
+correctly, since changing the slope moves distant points more.
+
+The gradient with respect to $b$ is *just the average residual*. If you are
+predicting too high on average, lower the intercept. Which is obvious, and it is
+reassuring that the calculus agrees.
+
+<Aside type="nice">
+The factor of 2 is real, and everybody drops it. Some texts define MSE with a
+$\frac{1}{2n}$ out front purely so the 2 cancels. It makes no difference to where
+the minimum is — it rescales every gradient by the same constant, which is
+indistinguishable from halving the learning rate.
+</Aside>
+</Reveal>
+
+Fifteen lines, no library:
+
+```python run setup title="gradient descent, entire"
+import numpy as np, matplotlib.pyplot as plt
+
+rng = np.random.default_rng(0)
+n = 60
+hours = rng.uniform(0, 10, n)
+score = 12 + 7.5 * hours + rng.normal(0, 8, n)
+
+def fit(x, y, lr=0.01, steps=200):
+    w, b = 0.0, 0.0                      # start anywhere
+    history = []
+    for _ in range(steps):
+        pred = w * x + b
+        resid = pred - y
+        grad_w = 2 * (resid * x).mean()  # dL/dw
+        grad_b = 2 * resid.mean()        # dL/db
+        w -= lr * grad_w                 # step downhill
+        b -= lr * grad_b
+        history.append((w, b, (resid ** 2).mean()))
+    return w, b, np.array(history)
+
+w, b, hist = fit(hours, score)
+print(f"learned  w={w:.3f}  b={b:.3f}   (truth 7.5, 12.0)")
+print(f"final loss {hist[-1, 2]:.2f}")
+```
+
+That loop is the whole of training. Everything from here is refinement.
+
+Note that `w` has essentially arrived and `b` has not — 200 steps was not enough
+for the intercept. That is not a bug, it is the next paragraph's point.
+
+```python run title="watch it descend"
+fig, ax = plt.subplots(1, 2, figsize=(8.5, 3))
+ax[0].plot(hist[:, 2]); ax[0].set_xlabel("step"); ax[0].set_ylabel("loss")
+ax[0].set_title("loss curve"); ax[0].set_yscale("log")
+ax[1].plot(hist[:, 0], hist[:, 1], lw=1); ax[1].scatter(7.5, 12, c="crimson", marker="*", s=90)
+ax[1].set_xlabel("w"); ax[1].set_ylabel("b"); ax[1].set_title("path through parameter space")
+plt.tight_layout()
+```
+
+The right-hand panel is the walk down the hillside from yesterday's contour plot.
+Notice it moves fast in `w` and slowly in `b` — the valley is much steeper in one
+direction than the other, and that asymmetry is exactly the problem momentum and
+Adam were invented to fix.
+
+## The learning rate is the whole ballgame
+
+```python run title="three learning rates"
+fig, axes = plt.subplots(1, 3, figsize=(9.5, 2.8), sharey=True)
+for ax, lr in zip(axes, [0.001, 0.02, 0.045]):
+    _, _, h = fit(hours, score, lr=lr, steps=120)
+    ax.plot(np.clip(h[:, 2], 1e-2, 1e7))
+    ax.set_yscale("log"); ax.set_title(f"lr = {lr}"); ax.set_xlabel("step")
+axes[0].set_ylabel("loss (log)")
+plt.tight_layout()
+```
+
+Too small and you crawl: the shape is right and you run out of patience. Too
+large and you overshoot the valley, land higher up the opposite wall, overshoot
+harder, and diverge to `inf` in about twenty steps.
+
+<Aside type="warn">
+**A loss of `nan` almost always means the learning rate is too high.** It is the
+first thing to check, before the data, the model or the code. The sequence is:
+loss grows, weights grow, an activation overflows to `inf`, `inf - inf` produces
+`nan`, and `nan` then contaminates every parameter on the next update and never
+leaves. Divide the learning rate by ten and try again.
+</Aside>
+
+The practical procedure is to try a few on a log scale — `1e-1, 1e-2, 1e-3, 1e-4`
+— and take the largest one that does not blow up. There is a more systematic
+version, the **learning-rate finder**, which fastai popularised: sweep the rate
+upward over a single epoch and plot loss against rate.
+
+```python run title="the learning rate finder"
+rates, final = [], []
+for lr in np.logspace(-4, -1.2, 40):
+    _, _, h = fit(hours, score, lr=lr, steps=60)
+    rates.append(lr); final.append(min(h[-1, 2], 1e6))
+
+plt.figure(figsize=(5, 3))
+plt.plot(rates, final); plt.xscale("log"); plt.yscale("log")
+plt.xlabel("learning rate"); plt.ylabel("loss after 60 steps")
+plt.axvline(rates[int(np.argmin(final))], ls=":", c="crimson")
+plt.tight_layout()
+```
+
+Pick a rate a little below where the curve turns back up. That single plot
+replaces a great deal of guessing, and it costs one short training run.
+
+## Stochastic, mini-batch, and full batch
+
+Our loop uses all 60 examples per step. With 60 million that is one step per
+several minutes, which is untenable.
+
+```python run title="the same loop, on batches"
+def fit_minibatch(x, y, lr=0.01, epochs=40, batch=8, seed=0):
+    rng = np.random.default_rng(seed)
+    w, b, hist = 0.0, 0.0, []
+    for _ in range(epochs):
+        order = rng.permutation(len(x))          # reshuffle every epoch
+        for s in range(0, len(x), batch):
+            idx = order[s:s + batch]
+            xb, yb = x[idx], y[idx]
+            resid = (w * xb + b) - yb
+            w -= lr * 2 * (resid * xb).mean()
+            b -= lr * 2 * resid.mean()
+        hist.append(((w * x + b - y) ** 2).mean())
+    return w, b, np.array(hist)
+
+w2, b2, h2 = fit_minibatch(hours, score)
+print(f"mini-batch: w={w2:.3f} b={b2:.3f}  loss={h2[-1]:.2f}")
+print(f"full batch: w={w:.3f} b={b:.3f}  loss={hist[-1,2]:.2f}")
+```
+
+An **epoch** is one full pass over the data. A **batch** is the group of examples
+used for a single update. Estimating the gradient from 8 examples instead of 60
+is noisier, and it is nearly eight times cheaper — which buys far more steps for
+the same compute, and more noisy steps beat fewer clean ones almost every time.
+
+<Aside type="nice">
+The noise is not merely tolerated, it is useful. A noisy gradient can knock the
+parameters out of a sharp local minimum that a clean one would sit in forever,
+and there is reasonable evidence that mini-batch noise biases training toward
+flatter minima, which generalise better. "SGD" — stochastic gradient descent —
+technically means one example at a time; in practice everyone says SGD and means
+mini-batch.
+
+Batch size is mostly decided by what fits in memory. The useful rule of thumb is
+that doubling the batch size lets you roughly increase the learning rate by
+$\sqrt{2}$, because the gradient estimate got that much less noisy.
+</Aside>
+
+## Momentum, and why Adam exists
+
+Look again at the parameter-space path: fast along one axis, slow along the
+other. Momentum fixes this by accumulating a velocity instead of stepping on the
+raw gradient.
+
+```python run title="plain SGD vs momentum"
+def fit_general(x, y, lr=0.01, steps=200, beta=0.0):
+    w = np.zeros(2)                       # [b, w]
+    X = np.column_stack([np.ones(len(x)), x])
+    v = np.zeros(2)
+    hist = []
+    for _ in range(steps):
+        g = 2 * X.T @ (X @ w - y) / len(x)
+        v = beta * v + (1 - beta) * g     # exponential moving average
+        w -= lr * v
+        hist.append(((X @ w - y) ** 2).mean())
+    return w, np.array(hist)
+
+_, plain    = fit_general(hours, score, beta=0.0)
+_, momentum = fit_general(hours, score, beta=0.9)
+
+plt.figure(figsize=(5.2, 3))
+plt.plot(plain, label="SGD"); plt.plot(momentum, label="momentum 0.9")
+plt.yscale("log"); plt.xlabel("step"); plt.ylabel("loss"); plt.legend()
+plt.tight_layout()
+```
+
+The intuition is physical. Plain gradient descent is a ball with no mass: at
+every point it goes wherever the local slope says, so it zig-zags across a narrow
+valley. Momentum gives it inertia — consistent directions accumulate, oscillating
+ones cancel.
+
+**Adam** adds a second idea: divide each parameter's step by a running estimate of
+that parameter's gradient magnitude. Parameters with consistently large gradients
+get smaller steps and vice versa, so every parameter ends up with its own
+effective learning rate. That is why Adam works out of the box on so many
+problems, and why `torch.optim.Adam(model.parameters(), lr=1e-3)` is the default
+line in most training scripts you will read.
+
+<Reveal title="Adam, in full" kind="math">
+
+Two exponential moving averages, one of the gradient and one of its square:
+
+$$
+m_t = \beta_1 m_{t-1} + (1-\beta_1) g_t
+\qquad
+v_t = \beta_2 v_{t-1} + (1-\beta_2) g_t^2
+$$
+
+Both start at zero, which biases them low for the first few steps, so they are
+corrected:
+
+$$
+\hat{m}_t = \frac{m_t}{1 - \beta_1^t} \qquad \hat{v}_t = \frac{v_t}{1 - \beta_2^t}
+$$
+
+And the update divides one by the root of the other:
+
+$$
+\theta_{t+1} = \theta_t - \eta\,\frac{\hat{m}_t}{\sqrt{\hat{v}_t} + \epsilon}
+$$
+
+Defaults are $\beta_1 = 0.9$, $\beta_2 = 0.999$, $\epsilon = 10^{-8}$, and you
+should essentially never change them. The $\epsilon$ exists solely to avoid
+dividing by zero.
+
+**AdamW** is Adam with one fix: weight decay applied directly to the parameters
+rather than folded into the gradient, where the $\sqrt{\hat{v}}$ division was
+silently scaling it per-parameter. It is a small change and it is strictly
+better; use AdamW.
+</Reveal>
+
+## The same loop, for classification
+
+Nothing structural changes. Swap the loss for
+<M id="cross-entropy">cross-entropy</M>, put a <M id="sigmoid">sigmoid</M> on the
+output, and — through a small miracle — the gradient comes out looking identical.
+
+```python run title="logistic regression from scratch"
+passed = (score > 50).astype(int)
+
+def fit_logistic(x, y, lr=0.5, steps=3000):
+    X = np.column_stack([np.ones(len(x)), (x - x.mean()) / x.std()])  # standardised
+    w = np.zeros(2)
+    for _ in range(steps):
+        p = 1 / (1 + np.exp(-(X @ w)))       # sigmoid of the logits
+        g = X.T @ (p - y) / len(y)           # <- the same shape as before
+        w -= lr * g
+    return w, X
+
+w_log, Xs = fit_logistic(hours, passed)
+p = 1 / (1 + np.exp(-(Xs @ w_log)))
+print(f"training accuracy: {((p > 0.5).astype(int) == passed).mean():.1%}")
+```
+
+<Aside type="key">
+Look at the gradient: `X.T @ (prediction - target) / n`. That is exactly the
+linear-regression gradient with a different `prediction`. It is not a
+coincidence — the sigmoid's derivative and cross-entropy's derivative cancel
+almost perfectly, which is one of the reasons this pairing became standard.
+Softmax with cross-entropy does the same thing for many classes.
+</Aside>
+
+Note the standardisation. Gradient descent on raw features whose scales differ by
+orders of magnitude is miserable: the loss surface becomes a long thin ravine and
+no single learning rate suits both directions. `(x - mean) / std` makes it round.
+This is the most common preprocessing step in the field, and it is one line of
+<Py id="broadcasting">broadcasting</Py>.
+
+## The three ways it goes wrong
+
+**Loss is `nan`.** Learning rate too high, or a `log(0)` somewhere. Clip
+probabilities away from 0 and 1, then lower the rate.
+
+**Loss does not move.** Learning rate too low, features not standardised, or —
+the embarrassing one — you are not actually updating the parameters. Print the
+gradient norm; if it is zero, the bug is upstream of the optimiser.
+
+**Loss falls then rises.** Rate too high for the later, flatter part of training.
+Use a schedule that decays the rate over time; cosine decay is the current
+default and takes one line in any framework.
+
+## Exercise
+
+```python run title="your turn"
+# 1. Add L2 regularisation to `fit`: penalise (lam * w**2), which adds
+#    (2 * lam * w) to grad_w. Fit with lam = 0, 0.1, 1.0 and print w.
+#    Which way does w move, and why?
+#
+# 2. Implement a learning-rate schedule: lr_t = lr0 / (1 + decay * t).
+#    Does it reach a lower final loss than a constant rate?
+#
+# 3. Break it deliberately. Fit on `hours * 1000` without standardising.
+#    Find the largest learning rate that does not produce nan.
+
+print("replace me")
+```
+
+<Reveal title="Solutions and what they show" kind="deep">
+
+```python run
+def fit_reg(x, y, lr=0.01, steps=400, lam=0.0):
+    w = b = 0.0
+    for _ in range(steps):
+        r = (w * x + b) - y
+        w -= lr * (2 * (r * x).mean() + 2 * lam * w)
+        b -= lr * 2 * r.mean()
+    return w, b
+
+for lam in [0.0, 0.1, 1.0, 10.0]:
+    w_, b_ = fit_reg(hours, score, lam=lam)
+    print(f"lam={lam:5.1f}   w={w_:6.3f}  b={b_:6.3f}")
+```
+
+The weight shrinks toward zero as the penalty grows — that is literally what
+"shrinkage" means, and it is <M id="norm">the L2 norm</M> used as a
+regulariser. Note the bias is deliberately *not* penalised: it has no complexity
+cost, it just recentres the predictions. Every library makes the same choice.
+
+```python run
+def fit_sched(x, y, lr0=0.02, steps=300, decay=0.0):
+    w = b = 0.0
+    for t in range(steps):
+        lr = lr0 / (1 + decay * t)
+        r = (w * x + b) - y
+        w -= lr * 2 * (r * x).mean()
+        b -= lr * 2 * r.mean()
+    return ((w * x + b - y) ** 2).mean()
+
+print(f"constant lr : {fit_sched(hours, score, decay=0.0):.4f}")
+print(f"decaying lr : {fit_sched(hours, score, decay=0.02):.4f}")
+```
+
+Decay wins, and the reason generalises: a large rate is right early, when you are
+far away and want to cover ground, and wrong late, when you are near the bottom
+and the large steps just bounce you around it.
+
+```python run
+scaled = hours * 1000
+for lr in [1e-4, 1e-6, 1e-8]:
+    w_, b_ = fit_reg(scaled, score, lr=lr, steps=200)
+    print(f"lr={lr:.0e}  ->  w={w_:.3e}  {'nan/inf' if not np.isfinite(w_) else 'ok'}")
+```
+
+Multiplying the feature by 1000 divides the usable learning rate by roughly a
+million — the gradient scales with $x$, and the squared-error curvature with
+$x^2$. This is why standardising is not a nicety. Two features on different
+scales make the loss surface a ravine, and no single learning rate is right for
+both directions at once.
+</Reveal>
+
+Tomorrow, the question that decides whether any of this is worth anything: does
+it work on data it has not seen?

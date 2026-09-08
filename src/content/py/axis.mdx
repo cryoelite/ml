@@ -1,0 +1,27 @@
+---
+title: 'the axis argument'
+lib: 'numpy'
+summary: '`axis=k` means ''collapse dimension k''. The result has that dimension removed.'
+signature: 'a.sum(axis=0)   |   a.mean(axis=1)   |   a.argmax(axis=-1)'
+example: |-
+  a = np.arange(6).reshape(2, 3)
+  a.sum(axis=0), a.sum(axis=1)
+output: '(array([3, 5, 7]), array([ 3, 12]))'
+rust: '`iter().map(...).sum()` over one dimension of a nested structure — but which one is chosen by an integer rather than by which loop you wrote.'
+docs: 'https://numpy.org/doc/stable/reference/generated/numpy.sum.html'
+docsLabel: 'numpy.sum ↗'
+---
+
+The reliable way to read it: **`axis=k` is the dimension that disappears.**
+For an array of shape `(2, 3)`, `sum(axis=0)` removes the 2 and leaves shape
+`(3,)`; `sum(axis=1)` removes the 3 and leaves `(2,)`.
+
+In practice `axis=0` almost always means *down the rows, across the batch* —
+"the mean of this feature over all examples" — and `axis=-1` means *along the
+last dimension*, which is where the classes live in a batch of predictions.
+`preds.argmax(axis=-1)` is how a matrix of class scores becomes a vector of
+predicted labels.
+
+Add `keepdims=True` when you want the result to keep its rank so it can
+broadcast back against the original. That is the standard trick inside
+softmax.

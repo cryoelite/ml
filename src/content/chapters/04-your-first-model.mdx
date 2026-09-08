@@ -1,0 +1,332 @@
+---
+title: "Your first model, built by hand"
+blurb: "A linear model in three lines of NumPy, a loss function that says what wrong means, and the discovery that finding the best parameters is a search problem."
+order: 4
+day: 4
+part: foundations
+minutes: 90
+introduces: ["linear", "logreg", "classification", "regression"]
+---
+
+Today you write a model with no library doing anything on your behalf. It is
+twenty lines, it will not impress anybody, and every neural network in this
+tutorial is a stack of exactly this thing.
+
+## A model is a function with adjustable numbers
+
+```python run setup title="the data"
+import numpy as np
+import matplotlib.pyplot as plt
+
+rng = np.random.default_rng(0)
+n = 60
+hours = rng.uniform(0, 10, n)                      # hours of revision
+score = 12 + 7.5 * hours + rng.normal(0, 8, n)     # exam score, plus noise
+
+plt.figure(figsize=(5, 3))
+plt.scatter(hours, score, s=18)
+plt.xlabel("hours revised"); plt.ylabel("exam score")
+plt.tight_layout()
+```
+
+We generated this, so we know the truth: `score = 12 + 7.5 * hours + noise`. The
+model's job is to recover `12` and `7.5` having seen only the dots.
+
+<M id="linear-model">A linear model</M> is one line of code.
+
+```python run title="the model"
+def predict(x, w, b):
+    """w: slope, b: intercept. Returns one prediction per element of x."""
+    return w * x + b
+
+predict(np.array([1.0, 5.0]), w=7.5, b=12.0)
+```
+
+`w` and `b` are the **parameters** — the numbers we are looking for. `x` is the
+input, which is given. That distinction is the whole of the subject: training
+means holding the data fixed and moving the parameters.
+
+<Aside type="rust">
+`predict` is a pure function of `(x, w, b)`. What makes it a *model* rather than
+a function is that `w` and `b` are going to be searched for rather than written
+down. The signature you actually want is
+`fn predict(x: &Array1<f64>, p: &Params) -> Array1<f64>`, with `Params` the thing
+an optimiser owns and mutates.
+</Aside>
+
+## A loss says what "wrong" means
+
+Guessing parameters requires a way to compare guesses, and that is a **loss
+function**: one number, lower is better.
+
+```python run title="mean squared error"
+def mse(y_true, y_pred):
+    return ((y_pred - y_true) ** 2).mean()
+
+for w, b in [(7.5, 12.0), (5.0, 12.0), (7.5, 40.0), (0.0, 0.0)]:
+    loss = mse(score, predict(hours, w, b))
+    print(f"w={w:5.1f}  b={b:5.1f}   loss = {loss:9.2f}")
+```
+
+<M id="mse">Mean squared error</M> squares each miss and averages. Squaring
+removes the sign, so errors cannot cancel, and it punishes large errors
+disproportionately — being wrong by 10 is a hundred times worse than being wrong
+by 1, not ten times.
+
+<Aside type="key">
+Choosing the loss is choosing what "wrong" means, and it is a modelling decision
+with consequences, not a formality. Squared error is a statement that outliers
+matter *enormously*. If yours are measurement noise rather than signal, mean
+absolute error will serve you better.
+</Aside>
+
+## Fitting, the stupid way
+
+Before anything clever: just try lots of parameters and keep the best. This is a
+real technique for tiny parameter counts, and more importantly it makes the next
+chapter obvious.
+
+```python run title="grid search"
+ws = np.linspace(0, 15, 120)
+bs = np.linspace(-20, 40, 120)
+W, B = np.meshgrid(ws, bs)
+
+# Broadcasting does all the work: (120,120,1) against (60,) -> (120,120,60)
+preds  = W[..., None] * hours + B[..., None]
+losses = ((preds - score) ** 2).mean(axis=-1)     # collapse the examples axis
+
+i, j = np.unravel_index(losses.argmin(), losses.shape)
+print(f"best on grid:  w={ws[j]:.3f}  b={bs[i]:.3f}   loss={losses[i, j]:.2f}")
+print(f"truth:         w=7.500  b=12.000")
+```
+
+Close. Notice what made that one expression rather than a nested loop:
+<Py id="broadcasting">broadcasting</Py> against a new trailing axis, then
+<Py id="axis">collapsing</Py> the example axis with `axis=-1`.
+
+Now look at the thing we just searched.
+
+```python run title="the loss surface"
+plt.figure(figsize=(5.2, 3.4))
+plt.contourf(W, B, np.log(losses), levels=28, cmap="Blues_r")
+plt.plot(ws[j], bs[i], "r*", markersize=13)
+plt.xlabel("w (slope)"); plt.ylabel("b (intercept)")
+plt.title("log loss surface"); plt.colorbar(label="log MSE")
+plt.tight_layout()
+```
+
+That is the **loss landscape**, and it is the single most useful mental image in
+machine learning. Parameters are coordinates. Loss is altitude. Training is
+finding the bottom of the valley.
+
+<Aside type="warn">
+And here is why grid search dies immediately. Two parameters at 120 values each
+is 14,400 evaluations — instant. Ten parameters is $120^{10}$, about
+$6 \times 10^{20}$, which is longer than the age of the universe. A small neural
+network has ten thousand parameters.
+
+The curse of dimensionality is not a subtlety. It is the wall that makes every
+brute-force approach useless, and the reason the rest of this tutorial exists.
+</Aside>
+
+## Fitting, the algebraic way
+
+For this *particular* loss and this *particular* model family, calculus gives the
+answer outright.
+
+```python run title="the normal equation"
+X = np.column_stack([np.ones(n), hours])     # bias folded in as a column of 1s
+theta = np.linalg.solve(X.T @ X, X.T @ score)
+print(f"closed form:   b={theta[0]:.3f}  w={theta[1]:.3f}")
+print(f"loss:          {mse(score, X @ theta):.3f}")
+```
+
+Two lines, exact, no iteration. The column of ones is the trick from yesterday's
+exercise: it turns $wx + b$ into a single <Py id="matmul">matrix multiply</Py>,
+so the bias needs no special handling.
+
+<Reveal title="Where the normal equation comes from" kind="math">
+
+Write the model as $\hat{y} = X\theta$ and the loss as
+$L(\theta) = \|X\theta - y\|^2$. At the minimum, the
+<M id="gradient">gradient</M> is zero:
+
+$$
+\nabla_\theta L = 2X^{\top}(X\theta - y) = 0
+$$
+
+Rearranging gives the **normal equations**:
+
+$$
+X^{\top}X\,\theta = X^{\top}y \qquad\Longrightarrow\qquad \theta = (X^{\top}X)^{-1}X^{\top}y
+$$
+
+Two notes for practice. First, use `np.linalg.solve(A, b)` rather than
+`np.linalg.inv(A) @ b` — solving is faster and numerically far better behaved
+than forming an explicit inverse. This is true in every language and it is worth
+making a habit.
+
+Second, $X^{\top}X$ is $d \times d$ for $d$ features, and inverting it costs
+about $O(d^3)$. At ten features that is nothing; at fifty thousand it is
+hopeless, and if two features are perfectly correlated the matrix is singular and
+there is no unique answer at all.
+
+But the real limitation is not cost. It is that this derivation only works
+because the model is linear in $\theta$ and the loss is squared error. Change
+either — a sigmoid on the output, a hidden layer, cross-entropy — and there is no
+closed form. That is the whole reason gradient descent exists, and gradient
+descent works for all of them.
+</Reveal>
+
+## From regression to classification
+
+Same machinery, different output shape. Instead of predicting a number, predict a
+probability — and for that the unbounded score $wx + b$ has to be squashed into
+$(0, 1)$.
+
+```python run setup title="binary labels"
+passed = (score > 50).astype(int)      # did they pass?
+
+plt.figure(figsize=(5, 2.6))
+plt.scatter(hours, passed, s=18, alpha=0.7)
+plt.yticks([0, 1], ["fail", "pass"]); plt.xlabel("hours revised")
+plt.tight_layout()
+```
+
+```python run title="the sigmoid"
+def sigmoid(z):
+    return 1 / (1 + np.exp(-z))
+
+z = np.linspace(-8, 8, 200)
+plt.figure(figsize=(5, 2.6))
+plt.plot(z, sigmoid(z))
+plt.axhline(0.5, ls=":", c="grey"); plt.axvline(0, ls=":", c="grey")
+plt.title("sigmoid: any real number -> (0, 1)")
+plt.tight_layout()
+```
+
+<M id="sigmoid">The sigmoid</M> takes the raw score — called a **logit** — and
+returns something you can read as a probability. A linear model with a sigmoid on
+the end is **logistic regression**, which despite the name is a classifier, and
+which remains the correct first thing to try on any binary problem.
+
+The loss changes too, and for a good reason.
+
+```python run title="why not squared error for probabilities"
+def bce(y, p):                       # binary cross-entropy
+    p = np.clip(p, 1e-12, 1 - 1e-12) # never take log(0)
+    return -(y * np.log(p) + (1 - y) * np.log(1 - p)).mean()
+
+for p in [0.99, 0.9, 0.5, 0.1, 0.01]:
+    print(f"true label 1, predicted {p:.2f}   "
+          f"squared error {(1-p)**2:6.3f}   cross-entropy {bce(np.array([1]), np.array([p])):7.3f}")
+```
+
+Look at the last row. Squared error charges `0.98` for being confidently wrong;
+<M id="cross-entropy">cross-entropy</M> charges `4.6`, and the penalty grows
+without bound as your probability approaches zero. That is the right incentive: a
+model that is *confidently* wrong deserves far worse than one that was merely
+unsure.
+
+<Reveal title="Both losses come from the same place" kind="math">
+
+Neither loss was invented. Both drop out of
+<M id="log-likelihood">maximum likelihood</M> — the principle that you should
+choose the parameters making your observed data most probable.
+
+Assume the target is normally distributed around the prediction. The likelihood
+of one observation is
+$p(y \mid x) \propto \exp\!\big(-(y - \hat{y})^2 / 2\sigma^2\big)$. Take the log,
+drop the constants, flip the sign to turn maximisation into minimisation, and
+what remains is $\sum (y - \hat{y})^2$ — squared error.
+
+Assume instead that the target is a coin flip with probability $\hat{p}$. The
+likelihood of one observation is $\hat{p}^{\,y}(1-\hat{p})^{1-y}$. Take the log
+and you have $y\log\hat{p} + (1-y)\log(1-\hat{p})$, which negated is exactly the
+`bce` above.
+
+This is why papers slide between "minimising the loss" and "maximising the
+log-likelihood" without comment. They are the same activity with opposite signs.
+</Reveal>
+
+Fitting it, for now, with the library:
+
+```python run title="logistic regression, fitted"
+from sklearn.linear_model import LogisticRegression
+
+X1 = hours.reshape(-1, 1)                 # sklearn wants (n_samples, n_features)
+clf = LogisticRegression().fit(X1, passed)
+w, b = clf.coef_[0, 0], clf.intercept_[0]
+
+grid = np.linspace(0, 10, 200)
+plt.figure(figsize=(5, 2.8))
+plt.scatter(hours, passed, s=18, alpha=0.6)
+plt.plot(grid, sigmoid(w * grid + b), c="crimson")
+plt.axhline(0.5, ls=":", c="grey")
+plt.xlabel("hours revised"); plt.ylabel("P(pass)")
+plt.title(f"P(pass) = sigmoid({w:.2f}·hours {b:+.2f})")
+plt.tight_layout()
+```
+
+Note `reshape(-1, 1)`. <Py id="fit-predict">scikit-learn</Py> always wants `X` as
+`(n_samples, n_features)`, and a bare 1-D array is the most common shape error in
+the library.
+
+<Aside type="key">
+The model outputs a *probability*, not a class. Turning 0.63 into "pass" requires
+a **threshold**, and 0.5 is a default, not a law. Where you put it trades false
+positives against false negatives, and the right place depends on what each costs
+you — which is a business decision that has been quietly handed to you.
+</Aside>
+
+## Exercise
+
+Fit a two-feature linear model by hand, with no scikit-learn.
+
+```python run title="your turn"
+rng = np.random.default_rng(7)
+m = 200
+sqm       = rng.uniform(30, 150, m)
+bedrooms  = rng.integers(1, 5, m).astype(float)
+price     = 40 + 3.2 * sqm + 18 * bedrooms + rng.normal(0, 25, m)
+
+# 1. Build X of shape (200, 3): a column of ones, then sqm, then bedrooms.
+# 2. Solve for theta with the normal equation.
+# 3. Print the recovered coefficients against the truth (40, 3.2, 18).
+# 4. Compute the MSE, and compare it to a baseline that always predicts
+#    price.mean(). By what factor is the model better?
+
+print("replace me")
+```
+
+<Reveal title="Solutions" kind="deep">
+
+```python run
+X = np.column_stack([np.ones(m), sqm, bedrooms])
+theta = np.linalg.solve(X.T @ X, X.T @ price)
+print("recovered:", theta.round(2), "   truth: [40.  3.2 18. ]")
+
+model_mse    = ((X @ theta - price) ** 2).mean()
+baseline_mse = ((price.mean() - price) ** 2).mean()
+print(f"model    MSE {model_mse:8.1f}")
+print(f"baseline MSE {baseline_mse:8.1f}   ({baseline_mse / model_mse:.0f}x worse)")
+```
+
+Two things worth taking from this.
+
+The recovered coefficients are close but not exact, and they cannot be — we added
+noise with a standard deviation of 25, and no estimator can see through it. This
+is the *irreducible error* term from
+<M id="variance-bias">the bias–variance decomposition</M>. Knowing roughly how
+big it is for your problem is what stops you spending a fortnight chasing an
+accuracy that was never on offer.
+
+The baseline comparison is the habit to keep. "MSE 640" means nothing on its own.
+"Forty times better than predicting the mean" is a claim. Every result in this
+tutorial and in your work should be quoted against a baseline, and
+`always predict the mean` — or `always predict the majority class` — is the one
+that costs nothing to compute.
+</Reveal>
+
+Tomorrow: what to do when there is no closed form — which is to say, what to do
+in every case that is not this one.

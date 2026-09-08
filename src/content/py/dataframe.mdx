@@ -1,0 +1,24 @@
+---
+title: 'pandas.DataFrame'
+lib: 'pandas'
+summary: 'A table: named, individually typed columns sharing one index. The standard shape for tabular data.'
+signature: 'pd.DataFrame({''col'': values})   |   df.shape, df.dtypes, df.head()'
+example: |-
+  import pandas as pd
+  df = pd.DataFrame({'age': [21, 35], 'city': ['NYC', 'LA']})
+  df.dtypes.to_dict()
+output: '{''age'': dtype(''int64''), ''city'': dtype(''O'')}'
+rust: 'A `Vec<Struct>` turned inside out: instead of one allocation per row, one typed array per column. Polars, which is written in Rust, is the same design and will feel immediately familiar.'
+rustCode: |-
+  // polars
+  let df = df! { "age" => [21, 35], "city" => ["NYC", "LA"] }?;
+docs: 'https://pandas.pydata.org/docs/reference/api/pandas.DataFrame.html'
+docsLabel: 'DataFrame reference ↗'
+---
+
+Columnar storage is the whole point. Computing the mean of one column touches
+one contiguous array rather than striding across a million row structs, and
+each column can have its own dtype without boxing.
+
+`df.head()`, `df.describe()` and `df.dtypes` are the first three things to run
+on any dataset you have not seen before, in that order.

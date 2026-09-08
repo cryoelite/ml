@@ -1,0 +1,19 @@
+---
+title: 'pathlib.Path'
+lib: 'stdlib'
+since: 'Python 3.4'
+summary: 'Object-oriented filesystem paths. `/` joins, and the object knows how to read itself.'
+signature: 'Path(''data'') / ''train'' / ''cat.jpg'''
+example: |-
+  from pathlib import Path
+  files = sorted(Path('data').glob('**/*.jpg'))
+  len(files)
+rust: '`PathBuf` and `Path`, with `/` overloaded to mean `join`, plus the convenience methods you would otherwise reach into `std::fs` for.'
+rustCode: 'let p = Path::new("data").join("train").join("cat.jpg");'
+docs: 'https://docs.python.org/3.14/library/pathlib.html'
+docsLabel: 'pathlib docs ↗'
+---
+
+fastai's data blocks are built around `Path` and its `glob`, because the most
+common way to hand a computer-vision dataset over is a directory tree whose
+folder names are the labels.

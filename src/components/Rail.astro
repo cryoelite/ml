@@ -1,0 +1,20 @@
+---
+/** "On this page" — h2 and h3 only; deeper than that is not navigation. */
+interface Heading { depth: number; slug: string; text: string }
+const { headings = [] } = Astro.props as { headings?: Heading[] };
+const items = headings.filter((h) => h.depth === 2 || h.depth === 3);
+---
+{
+  items.length > 1 && (
+    <aside class="rail" aria-label="On this page">
+      <h2>On this page</h2>
+      <ol>
+        {items.map((h) => (
+          <li data-depth={h.depth}>
+            <a href={`#${h.slug}`}>{h.text}</a>
+          </li>
+        ))}
+      </ol>
+    </aside>
+  )
+}

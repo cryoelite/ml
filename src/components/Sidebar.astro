@@ -1,0 +1,60 @@
+---
+/**
+ * The linear spine, grouped into parts. Order is `order`, always — the reading
+ * path is the product, and the nav should never suggest otherwise.
+ */
+import { getCollection } from "astro:content";
+
+const current = Astro.props.current as string | undefined;
+const chapters = (await getCollection("chapters", ({ data }) => !data.draft)).sort(
+  (a, b) => a.data.order - b.data.order,
+);
+
+const PARTS: { id: string; label: string }[] = [
+  { id: "orientation", label: "Part I · Orientation" },
+  { id: "foundations", label: "Part II · How learning works" },
+  { id: "deep-learning", label: "Part III · Deep learning" },
+  { id: "frontier", label: "Part IV · The modern stack" },
+  { id: "practice", label: "Part V · Doing it for real" },
+];
+---
+
+<nav class="sidebar" aria-label="Chapters">
+  {
+    PARTS.map((part) => {
+      const items = chapters.filter((c) => c.data.part === part.id);
+      if (!items.length) return null;
+      return (
+        <>
+          <p class="nav-part">{part.label}</p>
+          <ul class="nav-list">
+            {items.map((c) => (
+              <li>
+                <a
+                  href={`/learn/${c.id}/`}
+                  aria-current={c.id === current ? "page" : undefined}
+                >
+                  <span class="nav-num">{String(c.data.day).padStart(2, "0")}</span>
+                  <span>{c.data.title}</span>
+                </a>
+              </li>
+            ))}
+          </ul>
+        </>
+      );
+    })
+  }
+
+  <p class="nav-part">Appendices</p>
+  <ul class="nav-list">
+    <li><a href="/appendix/python/" aria-current={current === "appendix-python" ? "page" : undefined}><span class="nav-num">Py</span><span>Python for Rust people</span></a></li>
+    <li><a href="/appendix/math/" aria-current={current === "appendix-math" ? "page" : undefined}><span class="nav-num">∑</span><span>The maths, derived</span></a></li>
+    <li><a href="/map/" aria-current={current === "map" ? "page" : undefined}><span class="nav-num">◇</span><span>The map</span></a></li>
+  </ul>
+
+  <p class="nav-part">Meta</p>
+  <ul class="nav-list">
+    <li><a href="/setup/" aria-current={current === "setup" ? "page" : undefined}><span class="nav-num">⚙</span><span>Setup</span></a></li>
+    <li><a href="/colophon/" aria-current={current === "colophon" ? "page" : undefined}><span class="nav-num">§</span><span>Colophon</span></a></li>
+  </ul>
+</nav>

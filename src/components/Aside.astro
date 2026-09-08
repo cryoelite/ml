@@ -1,0 +1,28 @@
+---
+/**
+ * A classified sidenote. The type is the point: the reader should be able to
+ * tell at a glance whether a box is load-bearing or a pleasant detour.
+ *
+ *   key   — the sentence to remember from this section
+ *   nice  — a sibling idea, a dead end, some history. Skippable by design.
+ *   rust  — the bridge from what you already know
+ *   warn  — a place people reliably get hurt
+ *   math  — a notational aside, not a derivation (use <Reveal kind="math"> for those)
+ */
+interface Props {
+  type?: "key" | "nice" | "rust" | "warn" | "math";
+  title?: string;
+}
+const { type = "nice", title } = Astro.props;
+const DEFAULTS: Record<string, string> = {
+  key: "Worth remembering",
+  nice: "Nice to know",
+  rust: "Coming from Rust",
+  warn: "Where people get hurt",
+  math: "Notation",
+};
+---
+<aside class={`aside aside--${type}`}>
+  <span class="aside__label">{title ?? DEFAULTS[type]}</span>
+  <slot />
+</aside>

@@ -1,0 +1,27 @@
+---
+title: 'Gradient descent update'
+summary: 'Take a small step downhill. Repeat. This is the whole of training.'
+formula: '\theta_{t+1} = \theta_t - \eta \, \nabla_\theta L(\theta_t)'
+docs: 'https://en.wikipedia.org/wiki/Gradient_descent'
+docsLabel: 'Wikipedia ↗'
+symbols:
+  - sym: '\theta_t'
+    means: 'the parameters at step t'
+  - sym: '\eta'
+    means: '''eta'' — the learning rate, the size of the step'
+  - sym: '-'
+    means: 'minus, because the gradient points uphill and we want down'
+  - sym: '\nabla_\theta L'
+    means: 'the gradient of the loss with respect to the parameters'
+---
+
+Every optimiser you will meet is a variation on this line. Momentum adds a
+running average of past gradients so the step keeps its direction through
+noise. Adam additionally divides by a running estimate of each gradient's
+magnitude, giving every parameter its own effective step size. RMSProp is Adam
+without the momentum term.
+
+$\eta$ is the hyperparameter that matters most. Too large and the loss
+diverges to NaN; too small and training takes a week to get nowhere. The
+practical method is to try a few on a log scale — $10^{-1}, 10^{-2}, 10^{-3}$ —
+and watch which loss curve falls fastest without exploding.

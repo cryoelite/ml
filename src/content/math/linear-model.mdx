@@ -1,0 +1,28 @@
+---
+title: 'Linear model'
+summary: 'A weighted sum of the inputs plus a constant. The atom that every neural network is built from.'
+formula: '\hat{y} = w \cdot x + b = \sum_i w_i x_i + b'
+docs: 'https://en.wikipedia.org/wiki/Linear_regression'
+docsLabel: 'Wikipedia ↗'
+symbols:
+  - sym: '\hat{y}'
+    means: '''y-hat'' — the prediction, as opposed to y, the truth'
+  - sym: 'w'
+    means: 'weights: one learned number per input feature'
+  - sym: 'x'
+    means: 'the input features for one example'
+  - sym: 'b'
+    means: 'bias: a learned constant, the intercept'
+---
+
+The hat is the convention worth internalising: $y$ is what actually happened,
+$\hat{y}$ is what the model guessed. Loss functions are always some measure of
+the distance between them.
+
+Each weight is the answer to "how much does this feature move the prediction,
+per unit". The bias is what the model predicts when every feature is zero —
+without it the model is forced through the origin, which is rarely what you
+want.
+
+A single neuron is exactly this, followed by a nonlinearity. A layer is a
+stack of them, which is why a layer is a matrix multiply.

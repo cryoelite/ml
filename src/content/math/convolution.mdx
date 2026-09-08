@@ -1,0 +1,28 @@
+---
+title: 'Convolution'
+summary: 'Slide a small window of weights across an input and record the dot product at every position.'
+formula: '(f * g)[n] = \sum_{m} f[m]\, g[n - m]'
+docs: 'https://en.wikipedia.org/wiki/Convolution'
+docsLabel: 'Wikipedia ↗'
+symbols:
+  - sym: '*'
+    means: 'convolution — not multiplication, despite the symbol'
+  - sym: 'f'
+    means: 'the input signal or image'
+  - sym: 'g'
+    means: 'the kernel: a small grid of learned weights'
+  - sym: 'n'
+    means: 'the output position'
+---
+
+The formula is less useful than the picture: a 3x3 grid of weights slides over
+an image, and at each position you multiply the nine weights by the nine
+pixels underneath and sum. The same nine weights are used at every position.
+
+That reuse is the entire idea. A vertical-edge detector is a vertical-edge
+detector wherever it is applied, so the network learns nine numbers instead of
+nine per pixel. This is *weight sharing*, and it encodes a genuine assumption
+about images — that what a thing looks like does not depend on where it is.
+
+When that assumption is false, convolutions are the wrong tool, which is
+precisely why they never worked well on tabular data.

@@ -1,0 +1,63 @@
+---
+import "../styles/global.css";
+import "katex/dist/katex.min.css";
+import RuntimeWidget from "../components/RuntimeWidget.astro";
+
+interface Props {
+  title: string;
+  description?: string;
+  wide?: boolean;
+}
+const {
+  title,
+  description = "A ground-up path into machine learning for people who already ship code.",
+} = Astro.props;
+const full = title === "Gradient" ? title : `${title} · Gradient`;
+---
+
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <title>{full}</title>
+    <meta name="description" content={description} />
+    <meta name="color-scheme" content="light" />
+    <link rel="canonical" href={new URL(Astro.url.pathname, Astro.site)} />
+    <link rel="icon" href="/favicon.svg" type="image/svg+xml" />
+    <meta property="og:title" content={full} />
+    <meta property="og:description" content={description} />
+    <meta property="og:type" content="article" />
+    <!-- Pyodide is fetched only when a cell runs; warm the connection early. -->
+    <link rel="preconnect" href="https://cdn.jsdelivr.net" crossorigin />
+  </head>
+
+  <body>
+    <a class="skip-link" href="#main">Skip to content</a>
+
+    <header class="masthead">
+      <button class="nav-toggle" type="button" aria-expanded="false" aria-label="Toggle chapter list">
+        ☰ Chapters
+      </button>
+      <a class="masthead__brand" href="/">
+        <span class="masthead__mark" aria-hidden="true"></span>
+        Gradient
+        <span class="masthead__tag">machine learning, from the ground up</span>
+      </a>
+      <span class="masthead__spacer"></span>
+      <nav class="masthead__links" aria-label="Sections">
+        <a href="/map/">Map</a>
+        <a href="/appendix/python/">Python</a>
+        <a href="/appendix/math/">Maths</a>
+        <a href="/setup/">Setup</a>
+      </nav>
+      <RuntimeWidget />
+    </header>
+
+    <slot />
+
+    <script>
+      import "../scripts/client";
+    </script>
+  </body>
+</html>

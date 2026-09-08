@@ -1,0 +1,21 @@
+---
+title: 'np.random.default_rng'
+lib: 'numpy'
+since: 'NumPy 1.17'
+summary: 'Creates an independent random generator. The modern replacement for the `np.random.*` globals.'
+signature: 'rng = np.random.default_rng(seed)'
+example: |-
+  rng = np.random.default_rng(0)
+  rng.normal(loc=0, scale=1, size=3)
+output: 'array([ 0.12573022, -0.13210486,  0.64042265])'
+rust: '`StdRng::seed_from_u64(seed)`. Same reasoning: an explicit generator object beats hidden global state, and makes it obvious which functions consume randomness.'
+rustCode: |-
+  let mut rng = StdRng::seed_from_u64(0);
+  let x: f64 = rng.sample(StandardNormal);
+docs: 'https://numpy.org/doc/stable/reference/random/generator.html'
+docsLabel: 'Generator docs ↗'
+---
+
+Weight initialisation, dropout, data shuffling and train/validation splits all
+draw from here. Seeding it is what makes "I changed the learning rate and
+accuracy went up 2%" a claim rather than a coincidence.

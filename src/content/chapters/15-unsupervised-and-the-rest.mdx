@@ -1,0 +1,336 @@
+---
+title: "Without labels — and the branches not taken"
+blurb: "Clustering, PCA and autoencoders in practice, then an honest tour of everything this path skipped and what it would cost you to pick it up."
+order: 15
+day: 14
+part: practice
+minutes: 85
+introduces: ["unsupervised", "clustering", "dimred", "autoenc", "density", "gan", "diffusion", "gnn", "rl"]
+---
+
+Every model so far has been told the right answer. Today, what you can do when
+nobody will tell you — and then a deliberately quick tour of the entire field
+this fortnight has driven straight past.
+
+## Clustering
+
+```python run setup title="k-means, implemented"
+import numpy as np, matplotlib.pyplot as plt
+from sklearn.datasets import make_blobs
+
+X, true_labels = make_blobs(n_samples=400, centers=4, cluster_std=1.1, random_state=7)
+
+def kmeans(X, k, iters=25, seed=0):
+    rng = np.random.default_rng(seed)
+    centres = X[rng.choice(len(X), k, replace=False)]      # start on real points
+    for _ in range(iters):
+        d = ((X[:, None, :] - centres[None, :, :]) ** 2).sum(-1)   # (n, k) distances
+        assign = d.argmin(1)                                        # nearest centre
+        for j in range(k):                                          # move each centre
+            if (assign == j).any():
+                centres[j] = X[assign == j].mean(0)
+    return assign, centres
+
+assign, centres = kmeans(X, 4)
+print("cluster sizes:", np.bincount(assign))
+```
+
+Two steps, alternated until nothing moves: *assign each point to its nearest
+centre*, then *move each centre to the mean of its points*. That is the entire
+algorithm, and the whole idea is visible in the
+<Py id="broadcasting">broadcasting</Py> on the distance line.
+
+```python run title="what it found"
+fig, ax = plt.subplots(1, 2, figsize=(8.4, 3.2))
+ax[0].scatter(X[:, 0], X[:, 1], c=true_labels, s=10, cmap="tab10")
+ax[0].set_title("the truth (which you would not have)")
+ax[1].scatter(X[:, 0], X[:, 1], c=assign, s=10, cmap="tab10")
+ax[1].scatter(centres[:, 0], centres[:, 1], c="k", marker="X", s=120)
+ax[1].set_title("what k-means found")
+for a in ax: a.set_xticks([]); a.set_yticks([])
+plt.tight_layout()
+```
+
+<Aside type="warn">
+Three things will bite you, and all three are consequences of the algorithm
+rather than bugs.
+
+**You have to choose k.** There is no principled answer. The elbow method and
+silhouette score are heuristics, not criteria.
+
+**It assumes round, similar-sized clusters**, because it uses Euclidean distance
+to a mean. Elongated or nested shapes defeat it entirely, and DBSCAN or spectral
+clustering exist for exactly that.
+
+**There is no validation set.** This is the deep discomfort of unsupervised work:
+nothing tells you the answer is right. The only real test is whether the clusters
+are useful to whoever asked, which is a conversation, not a metric.
+</Aside>
+
+```python run title="the elbow, and its limits"
+inertias = []
+for k in range(1, 9):
+    a, c = kmeans(X, k)
+    inertias.append(((X - c[a]) ** 2).sum())
+plt.figure(figsize=(4.8, 2.8))
+plt.plot(range(1, 9), inertias, "o-"); plt.axvline(4, ls=":", c="crimson")
+plt.xlabel("k"); plt.ylabel("within-cluster sum of squares"); plt.tight_layout()
+print("inertia always falls with k — at k = n it is exactly zero, and useless")
+```
+
+## Dimensionality reduction
+
+```python run title="PCA, which is just rotation"
+from sklearn.datasets import load_digits
+d = load_digits()
+Xd = d.data - d.data.mean(0)                  # centre first; PCA requires it
+
+# PCA via SVD — the numerically sane way
+U, S, Vt = np.linalg.svd(Xd, full_matrices=False)
+explained = S ** 2 / (S ** 2).sum()
+
+print(f"64 original dimensions")
+for k in [2, 8, 16, 32]:
+    print(f"  first {k:2d} components explain {explained[:k].sum():.1%} of the variance")
+```
+
+PCA finds the directions of greatest variance and re-expresses the data in them.
+No information is discarded until you truncate — it is a rotation, and the
+truncation is where the compression happens.
+
+```python run title="64 dimensions, drawn in 2"
+proj = Xd @ Vt[:2].T
+plt.figure(figsize=(5.4, 4))
+sc = plt.scatter(proj[:, 0], proj[:, 1], c=d.target, s=7, cmap="tab10")
+plt.colorbar(sc, label="true digit"); plt.xticks([]); plt.yticks([])
+plt.title("digits projected onto their two principal components")
+plt.tight_layout()
+```
+
+The digits partly separate — from two numbers each, with no labels used. PCA
+never saw the colours; they are painted on afterwards to show what it recovered.
+
+<Aside type="nice">
+**UMAP** and **t-SNE** produce much prettier separations and are what you will
+see in papers. They are non-linear and optimise for preserving local
+neighbourhoods, so clusters look crisp.
+
+The warning that belongs with every such plot: in a UMAP embedding, *distances
+between clusters are not meaningful*, cluster sizes are not meaningful, and the
+layout changes with the random seed. They are excellent for "are there groups
+here at all" and actively misleading for "how different are these two groups".
+PCA is less pretty and its axes mean something.
+</Aside>
+
+## Autoencoders
+
+Train a network to reproduce its own input through a narrow bottleneck. The
+bottleneck is forced to be a compressed description.
+
+```python run local setup title="an autoencoder"
+import torch, torch.nn as nn
+
+Xt = torch.tensor(d.data / 16.0, dtype=torch.float32)
+
+class AutoEncoder(nn.Module):
+    def __init__(self, n_in=64, latent=8):
+        super().__init__()
+        self.encode = nn.Sequential(nn.Linear(n_in, 32), nn.ReLU(), nn.Linear(32, latent))
+        self.decode = nn.Sequential(nn.Linear(latent, 32), nn.ReLU(), nn.Linear(32, n_in))
+    def forward(self, x):
+        return self.decode(self.encode(x))
+
+torch.manual_seed(0)
+ae = AutoEncoder()
+opt = torch.optim.AdamW(ae.parameters(), lr=3e-3)
+for epoch in range(400):
+    opt.zero_grad()
+    loss = nn.functional.mse_loss(ae(Xt), Xt)     # the target IS the input
+    loss.backward(); opt.step()
+print(f"reconstruction MSE: {loss.item():.4f}   (8 numbers stand in for 64)")
+```
+
+```python run local title="what survived the bottleneck"
+with torch.no_grad():
+    recon = ae(Xt[:8]).reshape(-1, 8, 8).numpy()
+fig, ax = plt.subplots(2, 8, figsize=(9, 2.4))
+for i in range(8):
+    ax[0, i].imshow(d.images[i], cmap="gray"); ax[0, i].axis("off")
+    ax[1, i].imshow(recon[i], cmap="gray"); ax[1, i].axis("off")
+ax[0, 0].set_title("original", fontsize=8, loc="left")
+ax[1, 0].set_title("through 8 numbers", fontsize=8, loc="left")
+plt.tight_layout()
+```
+
+Note the loss: `mse_loss(ae(Xt), Xt)`. The label is the input. This is
+self-supervision again — the same trick as masked language modelling, in a
+different costume.
+
+Autoencoders give you **anomaly detection** for free: train on normal data, and
+anything that reconstructs badly is unlike what you trained on. That is a genuinely
+useful production pattern, and it needs no labelled anomalies, which is exactly
+the situation you are usually in.
+
+## The branches this path did not take
+
+Everything below is real, used in production somewhere today, and deliberately
+out of scope. This section exists so that the names are not strangers — knowing
+*where a thing lives* is most of what it takes to pick it up later.
+
+### Generative models
+
+**GANs** (2014) pit a generator against a discriminator: one makes fakes, the
+other spots them, and both improve. They produced the first genuinely convincing
+synthetic faces. They are also notoriously unstable to train — mode collapse,
+where the generator finds one good output and stops exploring, is a permanent
+hazard. Largely superseded for images.
+
+**Diffusion models** (practical from 2020) learn to remove noise, one small step
+at a time, from pure static to an image. Training is stable and the objective is
+a simple regression — which is exactly why they beat GANs. Everything you have
+seen from image, video and audio generators is this.
+
+<Aside type="nice">
+Diffusion is worth one more sentence because the idea is so clean. Take a real
+image, add a known amount of Gaussian noise, and train a network to predict the
+noise you added. That is an ordinary supervised regression problem with free
+labels. Then, to generate: start from pure noise and repeatedly subtract the
+predicted noise. A hard generative problem was converted into an easy predictive
+one, which is a move worth recognising when you see it elsewhere.
+</Aside>
+
+### Reinforcement learning
+
+Learning from delayed, evaluative reward rather than from correct answers. The
+agent's own actions determine what data it sees next, which is what makes it
+genuinely harder than everything in this tutorial.
+
+Vocabulary you will meet: *state*, *action*, *policy*, *value function*,
+*Q-learning*, *policy gradient*, *PPO*. It is how game-playing and robot control
+work, and — as RLHF — how a base language model becomes an assistant. Budget a
+month, not an afternoon.
+
+### Graph neural networks
+
+Message passing over the edges of a graph, so each node's representation is built
+from its neighbours'. The right tool when your data *is* a graph: molecules,
+social networks, fraud rings, road systems. Note the pattern from
+[Chapter 11](/learn/11-vision-and-transfer/) — it is the same "share weights over
+a structure" idea as convolution, with a graph in place of a grid.
+
+### The probabilistic tradition
+
+Naive Bayes, hidden Markov models, Gaussian processes, variational inference. Its
+selling point is **calibrated uncertainty**: not just a prediction but an honest
+statement of how sure the model is. It lost the scaling race and is very much
+alive wherever data is scarce or being wrong is expensive — clinical trials,
+scientific experiment design, small-sample forecasting. <M id="bayes-rule">Bayes'
+rule</M> is the entry point.
+
+### Classical time series
+
+ARIMA, exponential smoothing, Prophet, state-space models. Frequently better than
+a neural network on a single series with a few hundred points, and the honest
+default for forecasting problems. The critical discipline is the one from
+[Chapter 6](/learn/06-generalisation/): validate forward in time, never randomly.
+
+<Aside type="key">
+The reason these fit in one section rather than one chapter each is not that they
+are unimportant. It is that they share the machinery you have already built — a
+model, a loss, gradients, a validation strategy — and differ in what they assume
+about the data.
+
+Which is the actual payoff of the last fortnight. You now have the frame that all
+of them slot into, so picking any one up is learning a specific set of
+assumptions rather than learning a field from scratch.
+</Aside>
+
+## Exercise
+
+```python run title="your turn"
+# 1. Run kmeans with k=4 from five different seeds. Do you always get
+#    the same clustering? Compare inertias.
+#
+# 2. Reconstruct the digits from only their first k principal components,
+#    for k = 2, 8, 16, 32. At what point are they recognisable?
+#
+# 3. Take one digit class (say 3), fit PCA on the other nine, and measure
+#    reconstruction error for both groups. You have just built an
+#    anomaly detector with no anomaly labels.
+
+print("replace me")
+```
+
+<Reveal title="Solutions" kind="deep">
+
+```python run
+print("k-means is sensitive to initialisation:")
+for seed in range(5):
+    a, c = kmeans(X, 4, seed=seed)
+    print(f"  seed {seed}: inertia {((X - c[a]) ** 2).sum():9.1f}   sizes {np.bincount(a, minlength=4)}")
+```
+
+Different seeds, different answers — sometimes materially different. k-means finds
+a local optimum, not the global one. Real implementations run it ten times with
+different starts and keep the best inertia (`n_init=10` in scikit-learn), and use
+k-means++ initialisation, which spreads the initial centres apart on purpose.
+
+```python run
+fig, ax = plt.subplots(5, 6, figsize=(7.5, 6.2))
+for row, k in enumerate([2, 4, 8, 16, 64]):
+    approx = (Xd @ Vt[:k].T) @ Vt[:k] + d.data.mean(0)
+    for col in range(6):
+        ax[row, col].imshow(approx[col].reshape(8, 8), cmap="gray"); ax[row, col].axis("off")
+    ax[row, 0].set_title(f"k={k}", fontsize=8, loc="left")
+plt.tight_layout()
+```
+
+Around 8–16 components the digits become clearly readable, which is a compression
+from 64 numbers to 16 — and it is the same trade the autoencoder made, with a
+linear model instead of a network.
+
+```python run
+normal = d.data[d.target != 3]
+odd    = d.data[d.target == 3]
+mu = normal.mean(0)
+_, _, V = np.linalg.svd(normal - mu, full_matrices=False)
+k = 8
+
+def recon_error(A):
+    C = A - mu
+    return (((C @ V[:k].T) @ V[:k] - C) ** 2).mean(1)
+
+en, eo = recon_error(normal), recon_error(odd)
+print(f"reconstruction error, digits 0-9 except 3 : {en.mean():.2f}")
+print(f"reconstruction error, digit 3 (unseen)    : {eo.mean():.2f}")
+thresh = np.percentile(en, 95)
+far, det = (en > thresh).mean(), (eo > thresh).mean()
+print(f"\nflagging error > {thresh:.1f} (95th pct of normal):")
+print(f"  false alarm rate on normal : {far:.1%}")
+print(f"  detection rate on digit 3  : {det:.1%}")
+print(f"  lift over chance           : {det / far:.1f}x")
+```
+
+An anomaly detector, from data with no anomaly labels in it. The principle
+generalises directly: fit a compression to what "normal" looks like, and flag
+whatever will not compress.
+
+Now read the numbers honestly. It catches about 14% of the unseen digit at a 5%
+false-alarm rate — nearly three times better than chance, and a *weak* detector.
+That is not a failure of the code; it is the expected result when the "anomaly"
+looks a great deal like the normal data. A handwritten 3 shares most of its
+strokes with an 8, a 5 and a 9, so the subspace fitted to those reconstructs it
+fairly well.
+
+Two things worth taking from that. Unsupervised anomaly detection is a
+**screening** tool — it narrows a million rows to a thousand for a human, and it
+is not a decision procedure. And the threshold is a *choice*: moving it trades
+false alarms against missed detections, and where you put it depends entirely on
+what each costs you.
+
+That last sentence is tomorrow's chapter, and it is the point at which machine
+learning stops being a technical activity.
+</Reveal>
+
+Tomorrow, the last day: turning a model into something someone can rely on, and
+learning to read the literature on your own.

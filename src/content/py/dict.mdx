@@ -1,0 +1,20 @@
+---
+title: 'dict'
+lib: 'stdlib'
+summary: 'Hash map with guaranteed insertion order. The default container for anything keyed.'
+signature: '{''key'': value}   |   d.get(k, default)   |   d.items()'
+example: |-
+  cfg = {'lr': 1e-3, 'epochs': 5}
+  cfg.get('batch_size', 32)
+output: '32'
+rust: '`HashMap<K, V>`, except that iteration order is insertion order (guaranteed since 3.7), and `d[k]` panics — raises `KeyError` — rather than returning an `Option`. `d.get(k, default)` is `map.get(k).unwrap_or(default)`.'
+rustCode: |-
+  let mut cfg = HashMap::from([("lr", 1e-3)]);
+  cfg.get("batch_size").copied().unwrap_or(32.0);
+docs: 'https://docs.python.org/3.14/library/stdtypes.html#dict'
+docsLabel: 'Python docs ↗'
+---
+
+Model configuration, hyperparameter grids and the state of a training run are
+all dicts by convention. PyTorch's `state_dict()` — the serialised weights of a
+model — is literally a dict from parameter name to tensor.

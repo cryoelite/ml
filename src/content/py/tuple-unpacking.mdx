@@ -1,0 +1,20 @@
+---
+title: 'tuple unpacking'
+lib: 'stdlib'
+summary: 'Assign several names at once from any iterable, with `*rest` absorbing the remainder.'
+signature: 'a, b = pair        |     first, *rest = seq'
+example: |-
+  shape = (32, 3, 224, 224)
+  batch, channels, *spatial = shape
+output: 'batch=32, channels=3, spatial=[224, 224]'
+rust: 'Destructuring, exactly as in `let (a, b) = pair;`. Python''s `*rest` is the rest-pattern you would write as `[first, rest @ ..]`.'
+rustCode: |-
+  let (a, b) = pair;
+  let [first, rest @ ..] = &arr[..] else { return };
+docs: 'https://docs.python.org/3.14/reference/simple_stmts.html#assignment-statements'
+docsLabel: 'Python reference ↗'
+---
+
+Ubiquitous in this field because almost everything returns a pair: a dataset
+yields `(inputs, labels)`, a split yields `(train, valid)`, and an array
+reports its dimensions as a tuple you immediately want to name.

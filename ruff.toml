@@ -1,0 +1,26 @@
+# Python lives in two places: scripts/ (tooling) and lab/ (the environment the
+# notebooks and the local kernel run in). One config for both.
+line-length = 96
+target-version = "py312"
+
+# lab/notebooks/ is generated from the chapters by scripts/export_notebooks.py.
+# The chapters are the source of truth; linting the copies just reports the same
+# deliberate style twice (compact `a(); b(); c()` lines that show a sequence).
+exclude = ["lab/.venv", "lab/notebooks", "dist", "node_modules", "public/pyodide"]
+
+[lint]
+select = ["E", "F", "I", "UP", "B", "S", "BLE"]
+ignore = [
+    "E501",   # long lines are handled by the formatter
+]
+
+[lint.per-file-ignores]
+# check_cells.py exists to execute arbitrary chapter code and report whatever it
+# raises. `exec` is the feature, and catching bare Exception is the requirement —
+# a chapter may raise anything at all and the runner must survive it and keep going.
+"scripts/check_cells.py" = ["S102", "BLE001", "S110"]
+# Teaching code is allowed compact sequences and unstrict zips.
+"src/**" = ["E702", "E401", "B905"]
+
+[format]
+docstring-code-format = true

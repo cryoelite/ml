@@ -1,0 +1,29 @@
+---
+title: 'Chain rule'
+summary: 'The derivative of nested functions is the product of the derivatives of each layer.'
+formula: '\frac{d}{dx} f(g(x)) = f''(g(x)) \cdot g''(x)'
+docs: 'https://en.wikipedia.org/wiki/Chain_rule'
+docsLabel: 'Wikipedia ↗'
+symbols:
+  - sym: 'f, g'
+    means: 'outer and inner functions'
+  - sym: 'f''(g(x))'
+    means: 'the outer derivative, evaluated at the inner function''s output'
+  - sym: '\cdot'
+    means: 'ordinary multiplication'
+---
+
+This single rule is why deep learning works. A neural network *is* a deep
+nesting of functions: $L(f_n(\dots f_2(f_1(x))))$. The chain rule says the
+derivative of the whole stack is the product of the derivatives of the parts,
+and that each part only needs to know its own local derivative.
+
+Read it as a conversion of units. If the loss changes 3 units per unit of $g$,
+and $g$ changes 2 units per unit of $x$, then the loss changes $3 \times 2 = 6$
+units per unit of $x$. Backpropagation is this multiplication carried out
+layer by layer, right to left.
+
+It also explains the classic failure mode. Multiply thirty numbers that are
+each around 0.5 and you get $10^{-9}$: the gradient vanishes, and early layers
+stop learning. ReLU, residual connections and normalisation layers are all, in
+part, answers to that arithmetic.

@@ -1,0 +1,82 @@
+---
+import { getCollection } from "astro:content";
+import Base from "../layouts/Base.astro";
+import ConceptMap from "../components/ConceptMap.astro";
+
+const chapters = (await getCollection("chapters", ({ data }) => !data.draft)).sort(
+  (a, b) => a.data.order - b.data.order,
+);
+const first = chapters[0];
+const total = chapters.reduce((n, c) => n + c.data.minutes, 0);
+
+const PARTS = [
+  { id: "orientation",   label: "Part I", title: "Orientation",         gist: "What this field actually is, where it sits next to normal programming, and a working model in your browser before any theory." },
+  { id: "foundations",   label: "Part II", title: "How learning works",  gist: "Loss, gradients, overfitting. The machinery that is identical whether you are fitting a line or a language model." },
+  { id: "deep-learning", label: "Part III", title: "Deep learning",      gist: "Neural networks built by hand from matrix multiplies, then backpropagation, then the same thing in PyTorch." },
+  { id: "frontier",      label: "Part IV", title: "The modern stack",    gist: "Convolutions, embeddings, attention, transformers, and how a next-token predictor became an assistant." },
+  { id: "practice",      label: "Part V", title: "Doing it for real",    gist: "Reading papers, picking metrics, shipping a model, and knowing when the answer is not machine learning." },
+];
+---
+
+<Base title="Gradient">
+  <main class="home" id="main">
+    <h1 class="home__title">Machine learning, from the ground up.</h1>
+    <p class="home__lede">
+      Fourteen days. Written for someone who already ships software and wants to
+      know <em>where every piece fits</em> — not a survey, not a maths course, and
+      not a tour of one library's API.
+    </p>
+
+    <div class="home__cta">
+      {first && <a class="btn btn--primary" href={`/learn/${first.id}/`}>Start day one →</a>}
+      <a class="btn btn--ghost" href="/map/">See the whole map</a>
+      <a class="btn btn--ghost" href="/setup/">Set up your machine</a>
+    </div>
+
+    <h2>How this is built</h2>
+    <p>
+      Every code block on this site runs. Press <strong>Run</strong> and Python
+      starts inside your browser — no install, nothing to configure, works offline.
+      The chapters that need real PyTorch say so and connect to a kernel on your
+      own machine instead.
+    </p>
+    <p>
+      Python constructs are underlined and explained on hover, once, with the Rust
+      construct you already reach for. Derivations are folded away: the spine is
+      meant to be readable end to end without opening a single one, and every one
+      of them is there when you want it.
+    </p>
+
+    <h2>The path</h2>
+    <div class="parts">
+      {
+        PARTS.map((part) => {
+          const items = chapters.filter((c) => c.data.part === part.id);
+          if (!items.length) return null;
+          return (
+            <div class="part">
+              <h3>{part.title}</h3>
+              <p>{part.gist}</p>
+              <ol>
+                {items.map((c) => (
+                  <li><a href={`/learn/${c.id}/`}>{c.data.title}</a></li>
+                ))}
+              </ol>
+            </div>
+          );
+        })
+      }
+    </div>
+    <p style="font-family:var(--sans);font-size:.8rem;color:var(--ink-3);margin-top:1rem">
+      {chapters.length} chapters · about {Math.round(total / 60)} hours of reading and running,
+      spread over two weeks.
+    </p>
+
+    <h2>Where it all fits</h2>
+    <p>
+      Before anything else, the shape of the field. Solid boxes are taught here;
+      dashed ones exist and are deliberately out of scope.
+    </p>
+    <ConceptMap compact />
+  </main>
+</Base>

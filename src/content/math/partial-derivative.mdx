@@ -1,0 +1,21 @@
+---
+title: 'Partial derivative'
+summary: 'The derivative with respect to one input while every other input is held fixed.'
+formula: '\frac{\partial f}{\partial x_i}'
+docs: 'https://en.wikipedia.org/wiki/Partial_derivative'
+docsLabel: 'Wikipedia ↗'
+symbols:
+  - sym: '\partial'
+    means: '''partial'' — signals that other variables are being held still'
+  - sym: 'x_i'
+    means: 'the i-th input, the only one allowed to vary'
+---
+
+A model has millions of parameters, and the loss is one number that depends on
+all of them. The partial derivative with respect to a single weight asks:
+holding all the others where they are, does nudging *this* one up help?
+
+Collect one partial derivative per parameter and you have the
+[gradient](/appendix/math/#gradient), which is the object training actually
+uses. The curly $\partial$ instead of $d$ is the only notational difference,
+and it means exactly "there are other variables and I am ignoring them".

@@ -1,0 +1,75 @@
+---
+import { getCollection, render } from "astro:content";
+import Doc from "../../layouts/Doc.astro";
+import katex from "katex";
+import { inlineCode } from "../../lib/inline";
+
+const entries = (await getCollection("math")).sort((a, b) =>
+  a.data.title.localeCompare(b.data.title),
+);
+const rendered = await Promise.all(
+  entries.map(async (e) => ({ entry: e, Content: (await render(e)).Content })),
+);
+const tex = (src: string, display = false) =>
+  katex.renderToString(src, { displayMode: display, throwOnError: false });
+---
+
+<Doc
+  title="The maths, derived"
+  current="appendix-math"
+  description="Every formula the tutorial uses, with its symbols named and its derivation available but never required."
+>
+  <h1>The maths, derived</h1>
+  <p class="lede">
+    Not a maths course. Every formula the chapters lean on, with each symbol
+    named — because the thing that actually stops people reading papers is not
+    the difficulty of the maths, it is that nobody says out loud what
+    <span set:html={tex("\\theta")} /> or <span set:html={tex("\\nabla")} /> is
+    supposed to be.
+  </p>
+
+  <div class="filterbar">
+    <input type="search" placeholder="Filter entries…" aria-label="Filter maths entries" />
+  </div>
+
+  {
+    rendered.map(({ entry, Content }) => {
+      const d = entry.data;
+      return (
+        <article class="entry" id={entry.id} data-search={`${d.title} ${d.summary}`}>
+          <div class="entry__head">
+            <h2 class="is-prose">{d.title}</h2>
+          </div>
+
+          {d.formula && (
+            <div class="refcard__formula" style="max-width:none" set:html={tex(d.formula, true)} />
+          )}
+
+          <p set:html={inlineCode(d.summary)} />
+
+          {d.symbols.length > 0 && (
+            <table>
+              <thead><tr><th style="width:6rem">Symbol</th><th>Reads as</th></tr></thead>
+              <tbody>
+                {d.symbols.map((s) => (
+                  <tr>
+                    <td><span set:html={tex(s.sym)} /></td>
+                    <td>{s.means}</td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+          )}
+
+          <Content />
+
+          {d.docs && (
+            <p style="font-family:var(--sans);font-size:.8rem">
+              <a href={d.docs} target="_blank" rel="noopener">{d.docsLabel ?? "Read further ↗"}</a>
+            </p>
+          )}
+        </article>
+      );
+    })
+  }
+</Doc>

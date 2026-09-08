@@ -1,0 +1,26 @@
+---
+title: 'Gradient'
+summary: 'The vector of every partial derivative. It points in the direction of steepest increase.'
+formula: '\nabla_\theta L = \left[ \frac{\partial L}{\partial \theta_1},\ \dots,\ \frac{\partial L}{\partial \theta_n} \right]'
+docs: 'https://en.wikipedia.org/wiki/Gradient'
+docsLabel: 'Wikipedia ↗'
+symbols:
+  - sym: '\nabla'
+    means: '''nabla'' or ''del'' — the gradient operator'
+  - sym: '\theta'
+    means: '''theta'' — the conventional name for all model parameters at once'
+  - sym: 'L'
+    means: 'the loss: one number saying how wrong the model currently is'
+  - sym: 'n'
+    means: 'how many parameters there are — often billions'
+---
+
+If the loss is a landscape and the parameters are your coordinates, the
+gradient is the compass bearing pointing straight uphill. Training walks the
+other way.
+
+The gradient has exactly as many components as the model has parameters — for a
+large language model, hundreds of billions of numbers, recomputed for every
+batch. That this is affordable at all is the achievement of
+[backpropagation](/learn/09-backpropagation/), which computes the whole vector
+in roughly the cost of one extra forward pass.

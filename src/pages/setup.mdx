@@ -1,0 +1,198 @@
+---
+layout: ../layouts/Doc.astro
+title: "Setup"
+current: setup
+description: "Everything you need installed, why each piece is there, and the two macOS gotchas that will otherwise cost you an hour."
+---
+
+import Aside from "../components/Aside.astro";
+import Reveal from "../components/Reveal.astro";
+
+# Setup
+
+You can read every chapter and run most of the code with **nothing installed**.
+Python runs inside your browser. This page is for the parts that need more than
+that, plus the two macOS problems that will otherwise cost you an hour each.
+
+## The two runtimes
+
+<div class="table-scroll">
+
+| | Browser | Local kernel |
+|---|---|---|
+| What it is | CPython 3.14 compiled to WebAssembly (Pyodide) | A real Jupyter kernel on your machine |
+| Install needed | none | `uv`, and one command |
+| Has | numpy, pandas, scikit-learn, scipy, matplotlib, sympy | all of that, plus PyTorch, torchvision, MPS |
+| Chapters | 1–9, 11–16 (most cells) | 10, and the `needs local kernel` cells elsewhere |
+| Speed | roughly 2–5× slower than native | native |
+| Works offline | yes, once vendored | yes |
+
+</div>
+
+The runtime pill in the header shows which one is active and lets you switch. The
+default is the browser, because it is the one with no prerequisites.
+
+<Aside type="key">
+There is no cloud anywhere in this. The browser runtime executes on your own
+machine inside the tab's sandbox; the local kernel executes on your own machine
+as an ordinary process. Nothing you run here leaves the computer.
+</Aside>
+
+## Running the site
+
+You need [Bun](https://bun.sh). Node 20+ works too — substitute `npm`.
+
+```bash
+bun install && bun run dev
+```
+
+`bun run dev` also vendors Pyodide into `public/pyodide/` on first run — about
+56 MB, downloaded once and gitignored. After that the browser runtime works with
+no network at all.
+
+```bash
+bun run vendor
+```
+
+Run that by hand if you ever want to force a refresh, or `bun run vendor --force`
+to re-download everything.
+
+## The local kernel
+
+For [Chapter 10](/learn/10-pytorch/) onwards you need PyTorch, which has no
+WebAssembly build. Install [uv](https://docs.astral.sh/uv/), then:
+
+```bash
+uv sync --project lab --extra deep
+```
+
+That creates `lab/.venv` with numpy, pandas, scikit-learn, matplotlib, Jupyter,
+PyTorch and torchvision. The `--extra deep` flag is what pulls in torch; leave it
+off for a much faster install if you are only on the first week.
+
+Then, in a second terminal:
+
+```bash
+bun run kernel
+```
+
+Click the runtime pill in the header, choose **On this machine**, and the defaults
+(`http://127.0.0.1:8899`, token `gradient`) already match. Cells now execute in
+that process.
+
+<Reveal title="How the browser talks to the kernel" kind="deep">
+
+Jupyter Server exposes the same HTTP and websocket API that JupyterLab itself
+uses, and this site is just another client of it.
+
+1. `POST /api/kernels` starts a kernel and returns its id.
+2. The page opens a websocket to `/api/kernels/{id}/channels`.
+3. Running a cell sends an `execute_request` message on the shell channel.
+4. Results arrive on the iopub channel as `stream`, `execute_result`,
+   `display_data` or `error` messages, matched by `parent_header.msg_id`.
+5. A `status` message with `execution_state: "idle"` means the cell is done.
+
+The whole client is about 150 lines in
+[`src/scripts/runtime.ts`](/colophon/). No JupyterLab, no extra dependency.
+
+`scripts/kernel.sh` sets three flags that make this work from a page served on a
+different port: a fixed token, `disable_check_xsrf` so the POST is accepted, and
+`allow_origin_pat` restricted to localhost. The server binds to `127.0.0.1` only,
+so nothing outside your machine can reach it.
+</Reveal>
+
+## macOS: the two things that will bite you
+
+<Aside type="warn">
+**1. Python cannot verify HTTPS certificates.**
+
+A python.org installer does not wire up a CA bundle until you run a script it
+ships with. Until you do, every dataset download and every `resnet18(weights=...)`
+fails with:
+
+`SSLCertVerificationError: unable to get local issuer certificate`
+
+The permanent fix is one double-click, or one line:
+
+```bash
+open "/Applications/Python 3.14/Install Certificates.command"
+```
+
+Adjust the version to match yours. `scripts/kernel.sh` and the cell checker both
+work around this by pointing `SSL_CERT_FILE` at `certifi`, so the tutorial works
+either way — but everything *else* on your machine will keep failing until you
+run it.
+</Aside>
+
+<Aside type="warn">
+**2. MPS and `float64`.**
+
+Apple's Metal backend does not support 64-bit floats at all. Since NumPy defaults
+to `float64` and PyTorch defaults to `float32`, a `torch.tensor(numpy_array)`
+quietly produces a `float64` tensor that then fails on `.to("mps")`.
+
+Pass `dtype=torch.float32` when converting. Every cell in this tutorial does.
+
+Some operations are also still unimplemented on MPS.
+`PYTORCH_ENABLE_MPS_FALLBACK=1` makes those fall back to CPU silently instead of
+raising; `scripts/kernel.sh` sets it for you.
+</Aside>
+
+## Checking it all works
+
+```bash
+uv run --project lab python scripts/check_cells.py --deep
+```
+
+That extracts every runnable cell from every chapter and executes them in
+document order, in one namespace per chapter — the same way you would by pressing
+Run down the page. It should report `all passing`. Drop `--deep` to skip the
+PyTorch cells.
+
+It is also the fastest way to find out whether your environment is broken before
+you start blaming a chapter.
+
+## Notebooks
+
+If you would rather work in a real notebook than in the page:
+
+```bash
+uv run --project lab jupyter lab
+```
+
+`lab/notebooks/` holds one starter notebook per part, and the kernel started by
+`bun run kernel` is the same environment.
+
+## Versions this was built against
+
+<div class="table-scroll">
+
+| | Version |
+|---|---|
+| Bun | 1.3 |
+| Astro | 7.3 |
+| Pyodide | 314.0.6 (CPython 3.14.2) |
+| Python (local) | 3.14 |
+| PyTorch | 2.14 |
+| NumPy / pandas / scikit-learn | 2.5 / 3.0 / 1.9 |
+
+</div>
+
+Nothing here depends on a bleeding-edge feature; earlier versions of most of these
+will be fine. The one hard requirement is a browser with `WebAssembly`, module
+workers and the Popover API — any browser from 2023 onward.
+
+## If something is wrong
+
+**"Could not load pyodide.mjs"** — run `bun run vendor`. If it still fails, your
+browser is blocking module workers; check the console.
+
+**"cannot reach http://127.0.0.1:8899"** — the kernel is not running. Start it
+with `bun run kernel` in another terminal.
+
+**"403 — wrong or missing token"** — the token in the runtime panel does not match
+the one `bun run kernel` printed. They both default to `gradient`.
+
+**A cell hangs forever** — the browser runtime is single-threaded and a runaway
+loop will hang the worker. Open the runtime panel and press **Restart runtime**.
+

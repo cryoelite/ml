@@ -1,0 +1,21 @@
+---
+title: 'reshape'
+lib: 'numpy'
+summary: 'Reinterpret the same buffer with a different shape. `-1` means ''work this one out''.'
+signature: 'a.reshape(new_shape)   |   a.reshape(-1, 3)'
+example: |-
+  a = np.arange(12)
+  a.reshape(3, 4).shape, a.reshape(-1, 2).shape
+output: '((3, 4), (6, 2))'
+rust: 'A transmute of the *view*, not of the bytes: same allocation, different indexing arithmetic. `as_slice()` then re-chunking is the closest idiom.'
+rustCode: |-
+  let v: Vec<i32> = (0..12).collect();
+  let rows: Vec<&[i32]> = v.chunks(4).collect();
+docs: 'https://numpy.org/doc/stable/reference/generated/numpy.reshape.html'
+docsLabel: 'numpy.reshape ↗'
+---
+
+Free when the array is contiguous, because nothing moves — only the shape
+metadata changes. The `-1` placeholder is what you want almost every time:
+`x.reshape(-1, 784)` says "however many rows it takes, 784 columns each",
+which is how a batch of 28x28 images becomes a matrix a linear layer accepts.

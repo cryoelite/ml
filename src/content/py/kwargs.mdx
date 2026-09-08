@@ -1,0 +1,17 @@
+---
+title: '*args / **kwargs'
+lib: 'stdlib'
+summary: 'Collect positional arguments into a tuple and keyword arguments into a dict, or spread them back out.'
+signature: 'def f(*args, **kwargs): ...   |   f(*seq, **mapping)'
+example: |-
+  params = {'lr': 1e-3, 'weight_decay': 0.01}
+  optimiser = torch.optim.Adam(model.parameters(), **params)
+rust: 'No equivalent — Rust has no variadics and no keyword arguments. The nearest idiom is a builder, or a struct with `..Default::default()`. Spreading a dict with `**` is closest to struct update syntax.'
+rustCode: 'Adam { lr: 1e-3, ..Default::default() }'
+docs: 'https://docs.python.org/3.14/tutorial/controlflow.html#arbitrary-argument-lists'
+docsLabel: 'Python tutorial ↗'
+---
+
+Every ML library leans on this heavily, which is why their signatures are so
+hard to read. When a call takes `**kwargs`, the real documentation is whatever
+the function forwards them to.

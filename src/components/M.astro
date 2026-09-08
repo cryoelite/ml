@@ -1,0 +1,8 @@
+---
+/** Shorthand for <Ref to="math/…">. The slot supplies the visible text. */
+import Ref from "./Ref.astro";
+interface Props { id: string }
+const { id } = Astro.props;
+const label = Astro.slots.has("default") ? await Astro.slots.render("default") : undefined;
+---
+<Ref to={`math/${id}`} label={label} />

@@ -1,0 +1,19 @@
+---
+title: 'torch.optim'
+lib: 'torch'
+summary: 'Holds the parameters and the update rule. `step()` applies one update; `zero_grad()` clears the accumulator.'
+signature: |-
+  opt = torch.optim.Adam(model.parameters(), lr=1e-3)
+  opt.zero_grad(); loss.backward(); opt.step()
+example: 'opt = torch.optim.SGD(net.parameters(), lr=0.1, momentum=0.9)'
+rust: 'A struct owning `&mut` references to the weights plus whatever per-parameter state the rule needs (a momentum buffer, running averages). `step()` is the mutation.'
+docs: 'https://pytorch.org/docs/stable/optim.html'
+docsLabel: 'torch.optim ↗'
+---
+
+Those three lines in that order are the training loop. Every variation you
+will ever read — gradient clipping, accumulation, mixed precision, schedulers
+— is an insertion into that sequence, not a replacement for it.
+
+Default to `Adam` (or `AdamW`) when you do not want to think, and `SGD` with
+momentum when you are chasing the last percent on a vision model.

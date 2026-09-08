@@ -1,0 +1,71 @@
+---
+/**
+ * A runnable Python cell.
+ *
+ * Authors never write this component by hand — `src/lib/remark-runnable-cells.mjs`
+ * produces it from a ```python run fence, so the Markdown source stays Markdown.
+ *
+ * The code is highlighted at build time and carried in a data attribute; the
+ * page is fully readable with JavaScript disabled, minus the Run button.
+ */
+import { Code } from "astro:components";
+
+interface Props {
+  code: string;
+  cellIndex?: number;
+  local?: boolean;
+  autorun?: boolean;
+  setup?: boolean;
+  title?: string;
+}
+
+const { code, cellIndex = 0, local = false, title } = Astro.props;
+const n = cellIndex + 1;
+---
+
+<div
+  class="cell"
+  data-code={encodeURIComponent(code)}
+  data-local={String(local)}
+  tabindex="-1"
+>
+  <div class="cell__bar">
+    <span class="cell__label">
+      <span class="cell__n">In [{n}]</span>
+      {title && <span class="cell__title">{title}</span>}
+    </span>
+    <span class="cell__spacer"></span>
+    {
+      local ? (
+        <span class="cell__badge cell__badge--local">needs local kernel</span>
+      ) : (
+        <span class="cell__badge cell__badge--browser">runs anywhere</span>
+      )
+    }
+    <button class="cell__btn cell__btn--above" type="button" title="Run every cell from the top of the page down to this one">
+      Run above
+    </button>
+    <button class="cell__btn cell__btn--clear" type="button" title="Clear this cell's output">
+      Clear
+    </button>
+    <button class="cell__btn cell__btn--run" type="button" title="Run this cell (Cmd/Ctrl+Enter)">
+      ▶ Run
+    </button>
+  </div>
+
+  <div class="cell__code">
+    <Code code={code} lang="python" theme="github-light" />
+  </div>
+
+  {
+    local && (
+      <p class="cell__hint" hidden>
+        This cell needs PyTorch, which has no WebAssembly build. Switch the runtime
+        to <strong>Local kernel</strong> in the header, after starting one with{" "}
+        <code>bun run kernel</code>. See <a href="/setup/">Setup</a>.
+      </p>
+    )
+  }
+
+  <div class="cell__out" hidden aria-live="polite"></div>
+</div>

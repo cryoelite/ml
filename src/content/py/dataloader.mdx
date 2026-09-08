@@ -1,0 +1,23 @@
+---
+title: 'Dataset / DataLoader'
+lib: 'torch'
+summary: '`Dataset` answers ''how many, and give me item i''. `DataLoader` turns that into shuffled, batched, parallel-loaded tensors.'
+signature: 'DataLoader(dataset, batch_size=64, shuffle=True, num_workers=4)'
+example: |-
+  from torch.utils.data import TensorDataset, DataLoader
+  ds = TensorDataset(X, y)
+  dl = DataLoader(ds, batch_size=64, shuffle=True)
+  xb, yb = next(iter(dl))
+rust: '`Dataset` is `Index<usize>` plus `len()`. `DataLoader` is an iterator adapter that permutes, chunks and stacks — plus a small thread pool doing the fetching ahead of you.'
+rustCode: 'let batches = idx.shuffled().chunks(64).map(|c| stack(c));'
+docs: 'https://pytorch.org/docs/stable/data.html'
+docsLabel: 'torch.utils.data ↗'
+---
+
+The separation is the good idea: `Dataset` knows how to read and decode one
+example, and knows nothing about batching; `DataLoader` knows about batching
+and shuffling, and nothing about your file format. Swap either independently.
+
+`num_workers` spawns processes that prefetch while the GPU is busy. On a small
+in-memory dataset it costs more than it saves; on a directory of JPEGs it is
+the difference between a GPU at 95% utilisation and one at 20%.

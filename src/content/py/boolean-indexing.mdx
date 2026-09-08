@@ -1,0 +1,22 @@
+---
+title: 'boolean indexing'
+lib: 'numpy'
+summary: 'Index an array with a boolean array of the same shape to select the elements where it is true.'
+signature: 'a[mask]   |   a[a > 0]   |   a[mask] = 0'
+example: |-
+  a = np.array([-2, 5, -1, 3])
+  a[a > 0], (a > 0).mean()
+output: '(array([5, 3]), 0.5)'
+rust: '`v.iter().filter(|x| **x > 0).collect()`, except the mask is a first-class value you can reuse, combine with `&` and `|`, and assign through.'
+rustCode: 'let kept: Vec<i32> = v.iter().copied().filter(|&x| x > 0).collect();'
+docs: 'https://numpy.org/doc/stable/user/basics.indexing.html#boolean-array-indexing'
+docsLabel: 'Indexing docs ↗'
+---
+
+`(pred == truth).mean()` is the entire implementation of accuracy: comparison
+gives a boolean array, and the mean of booleans is the fraction that are true.
+You will write that line, or read it, constantly.
+
+Combine masks with `&` and `|` — not `and`/`or`, which try to convert the whole
+array to a single truth value and raise. Parenthesise generously, because `&`
+binds tighter than `>`.

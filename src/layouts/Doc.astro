@@ -1,0 +1,27 @@
+---
+import Base from "./Base.astro";
+import Sidebar from "../components/Sidebar.astro";
+import Rail from "../components/Rail.astro";
+
+/**
+ * Used two ways: directly by .astro pages (props), and as the `layout` of an
+ * .mdx page (where Astro hands frontmatter over in `Astro.props.frontmatter`).
+ * Normalising both here keeps the call sites plain.
+ */
+const p = Astro.props as Record<string, any>;
+const fm = p.frontmatter ?? {};
+const title: string = p.title ?? fm.title ?? "Gradient";
+const description: string | undefined = p.description ?? fm.description ?? fm.blurb;
+const current: string | undefined = p.current ?? fm.current;
+const headings = (p.headings ?? []) as { depth: number; slug: string; text: string }[];
+---
+
+<Base title={title} description={description}>
+  <div class="shell">
+    <Sidebar current={current} />
+    <main class="article" id="main">
+      <slot />
+    </main>
+    <Rail headings={headings} />
+  </div>
+</Base>

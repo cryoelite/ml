@@ -1,0 +1,105 @@
+---
+/**
+ * An inline reference to an appendix entry, with a hover card.
+ *
+ * The model is the documentation comment: signature, one sentence, one example,
+ * and — for Python entries — the sentence a Rust programmer needs to map it onto
+ * something they already know. Anything longer lives on the appendix page.
+ *
+ * Renders as a plain link when JavaScript is off, so nothing is ever lost.
+ *
+ * NOTE ON MARKUP: the card is built entirely from <span>s. It sits inline inside
+ * running prose, and an HTML parser closes the surrounding <p> the moment it
+ * meets a <div>/<pre>/<dl>. Spans plus `display:block` give the same layout
+ * without corrupting the document tree. (KaTeX is span-only too, happily.)
+ */
+import { getEntry } from "astro:content";
+import katex from "katex";
+import { inlineCode } from "../lib/inline";
+
+interface Props {
+  /** "py/list-comprehension" or "math/chain-rule" */
+  to: string;
+  /** Visible text. Falls back to the entry title. */
+  label?: string;
+  /** Render as prose rather than as a monospace chip. */
+  word?: boolean;
+}
+
+const { to, label, word = false } = Astro.props;
+const slash = to.indexOf("/");
+const collection = to.slice(0, slash);
+const id = to.slice(slash + 1);
+
+if (collection !== "py" && collection !== "math") {
+  throw new Error(`<Ref to="${to}"> — collection must be "py" or "math".`);
+}
+
+const entry = await getEntry(collection as "py" | "math", id);
+if (!entry) {
+  throw new Error(
+    `<Ref to="${to}"> points at a missing entry. Create src/content/${collection}/${id}.mdx`,
+  );
+}
+
+const data = entry.data as Record<string, any>;
+const isMath = collection === "math";
+const cardId = `rc-${collection}-${id.replace(/[^a-z0-9]+/gi, "-")}-${Math.random()
+  .toString(36)
+  .slice(2, 7)}`;
+const href = `/appendix/${isMath ? "math" : "python"}/#${id}`;
+const text = label?.trim() || data.title;
+
+const tex = (src: string, display = false) =>
+  katex.renderToString(src, { displayMode: display, throwOnError: false });
+
+const formulaHtml = isMath && data.formula ? tex(data.formula, true) : null;
+const symbols: { sym: string; means: string }[] = isMath ? (data.symbols ?? []) : [];
+---
+
+<a
+  class={`ref ${isMath ? "ref--math" : word ? "ref--py ref--py-word" : "ref--py"}`}
+  href={href}
+  data-card={cardId}
+  aria-expanded="false">{text}</a
+><span class="refcard" popover="auto" id={cardId} role="tooltip"
+  ><span class="refcard__head"
+    ><span class={`refcard__title${isMath ? " refcard__title--math" : ""}`}>{data.title}</span
+    ><span class="refcard__lib">{isMath ? "maths" : data.lib}</span></span
+  ><span class="refcard__body"
+    >{formulaHtml && <span class="refcard__formula" set:html={formulaHtml} />}{
+      data.signature && <span class="refcard__sig">{data.signature}</span>
+    }<span class="refcard__summary" set:html={inlineCode(data.summary)} />{
+      symbols.length > 0 && (
+        <span class="refcard__symbols">
+          {symbols.map((s) => (
+            <span class="refcard__symrow">
+              <span class="refcard__sym" set:html={tex(s.sym)} />
+              <span class="refcard__means">{s.means}</span>
+            </span>
+          ))}
+        </span>
+      )
+    }{data.example && <span class="refcard__example">{data.example}</span>}{
+      data.output && <span class="refcard__out">{data.output}</span>
+    }{
+      data.rust && (
+        <span class="refcard__rust">
+          <span class="refcard__rustlabel">Coming from Rust</span>
+          <span class="refcard__rusttext" set:html={inlineCode(data.rust)} />
+          {data.rustCode && <span class="refcard__rustcode">{data.rustCode}</span>}
+        </span>
+      )
+    }</span
+  ><span class="refcard__foot"
+    >{
+      data.docs && (
+        <a href={data.docs} target="_blank" rel="noopener">
+          {data.docsLabel ?? "Official docs ↗"}
+        </a>
+      )
+    }<a href={href}>Full entry →</a>{
+      data.since && <span class="refcard__more">since {data.since}</span>
+    }</span
+  ></span
+>

@@ -1,0 +1,28 @@
+---
+title: '@dataclass'
+lib: 'stdlib'
+since: 'Python 3.7'
+summary: 'Generates `__init__`, `__repr__` and `__eq__` from annotated class attributes.'
+signature: |-
+  @dataclass
+  class Config:
+      lr: float = 1e-3
+example: |-
+  @dataclass
+  class Config:
+      lr: float = 1e-3
+      epochs: int = 5
+  
+  Config(lr=0.01)
+output: 'Config(lr=0.01, epochs=5)'
+rust: 'A struct with `#[derive(Debug, PartialEq, Default)]` and a generated constructor. Note that the annotations are **not enforced** at runtime — `Config(lr=''oops'')` succeeds.'
+rustCode: |-
+  #[derive(Debug, PartialEq)]
+  struct Config { lr: f64, epochs: u32 }
+docs: 'https://docs.python.org/3.14/library/dataclasses.html'
+docsLabel: 'Python docs ↗'
+---
+
+The honest way to carry a hyperparameter set around. A dict works, but a
+dataclass gives you attribute access, a readable repr in a notebook, and a
+single place to write the defaults down.

@@ -1,0 +1,24 @@
+---
+/**
+ * Collapsed by default, and that is the whole design.
+ *
+ * The spine of this tutorial is meant to be readable straight through without
+ * opening a single one of these. Derivations, proofs and "but why is it that
+ * way" digressions live in here so that depth is available on demand instead
+ * of being charged to every reader up front.
+ */
+interface Props {
+  title: string;
+  kind?: "math" | "deep" | "rust";
+  open?: boolean;
+}
+const { title, kind = "deep", open = false } = Astro.props;
+const KIND_LABEL: Record<string, string> = { math: "derivation", deep: "deep dive", rust: "rust" };
+---
+<details class="reveal" open={open}>
+  <summary>
+    <span class={`reveal__kind reveal__kind--${kind}`}>{KIND_LABEL[kind]}</span>
+    <span>{title}</span>
+  </summary>
+  <div class="reveal__body"><slot /></div>
+</details>

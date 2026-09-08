@@ -1,0 +1,71 @@
+---
+/**
+ * The whole field on one screen, rendered as static SVG at build time.
+ *
+ * No layout library, no client-side graph engine: the tree is known when the
+ * site is built, so the browser receives finished geometry. Nodes that this
+ * tutorial teaches are solid and clickable; nodes it only mentions are dashed,
+ * which is the honest way to say "this exists, you can leave without it".
+ */
+import { CONCEPT_MAP, layout } from "../lib/conceptmap";
+
+interface Props { compact?: boolean }
+const { compact = false } = Astro.props;
+const { nodes, edges, width, height } = layout(CONCEPT_MAP);
+const covered = nodes.filter((n) => n.node.chapter).length;
+---
+
+<figure class="conceptmap">
+  <figcaption class="conceptmap__bar">
+    <strong style="font-weight:600;color:var(--ink-2)">The map</strong>
+    <span>{covered} of {nodes.length} nodes are taught here</span>
+    <label class="cm-fit">
+      <input type="checkbox" class="cm-fit__input" />
+      <span>Fit to width</span>
+    </label>
+    <span class="cm-legend">
+      <span><span class="cm-swatch"></span> covered</span>
+      <span><span class="cm-swatch cm-swatch--dash"></span> mentioned only</span>
+    </span>
+  </figcaption>
+
+  <div class="conceptmap__scroll" style={compact ? "max-height:22rem" : ""}>
+    <svg
+      viewBox={`0 0 ${width} ${height}`}
+      width={width}
+      height={height}
+      role="img"
+      aria-label="Taxonomy of machine learning, from writing rules by hand to large language models"
+    >
+      <g>
+        {
+          edges.map((e) => (
+            <path
+              class="cm-edge"
+              d={`M ${e.x1} ${e.y1} C ${e.x1 + 18} ${e.y1}, ${e.x2 - 18} ${e.y2}, ${e.x2} ${e.y2}`}
+            />
+          ))
+        }
+      </g>
+      {
+        nodes.map(({ node, x, y, w, h }) => {
+          const href = node.chapter ? `/learn/${node.chapter}/` : undefined;
+          const Tag = href ? "a" : "g";
+          return (
+            <Tag
+              class="cm-node"
+              href={href}
+              data-kind={node.kind ?? "leaf"}
+              data-covered={node.chapter ? "yes" : "no"}
+              tabindex={href ? 0 : undefined}
+            >
+              <title>{node.note}{node.chapter ? "" : "  (not covered — nice to know)"}</title>
+              <rect x={x} y={y} width={w} height={h} />
+              <text x={x + 11} y={y + h / 2 + 0.5}>{node.label}</text>
+            </Tag>
+          );
+        })
+      }
+    </svg>
+  </div>
+</figure>

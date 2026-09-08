@@ -1,0 +1,28 @@
+---
+title: 'torch.nn.Module'
+lib: 'torch'
+summary: 'Base class for anything with learnable parameters. Subclass it, define `forward`, and call the instance.'
+signature: |-
+  class Net(nn.Module):
+      def __init__(self): ...
+      def forward(self, x): ...
+example: |-
+  import torch.nn as nn
+  net = nn.Sequential(nn.Linear(784, 128), nn.ReLU(), nn.Linear(128, 10))
+  sum(p.numel() for p in net.parameters())
+output: '101770'
+rust: 'A trait with one required method, plus reflection: the base class walks your attributes to discover which of them are parameters. There is no Rust equivalent to that discovery step — `burn` uses a derive macro to generate it instead.'
+rustCode: |-
+  #[derive(Module, Debug)]
+  struct Net<B: Backend> { l1: Linear<B>, l2: Linear<B> }
+docs: 'https://pytorch.org/docs/stable/generated/torch.nn.Module.html'
+docsLabel: 'Module docs ↗'
+---
+
+The magic that is worth knowing about: assigning a `Parameter` or a submodule
+to `self` registers it. That is how `net.parameters()` can enumerate every
+weight in a hundred-layer network without you maintaining a list, and how
+`net.to('mps')` can move all of them at once.
+
+Call the module, do not call `forward` directly. `net(x)` runs hooks that
+`net.forward(x)` skips, and some of them matter.

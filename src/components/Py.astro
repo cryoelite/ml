@@ -1,0 +1,8 @@
+---
+/** Shorthand for <Ref to="py/…">. The slot supplies the visible text. */
+import Ref from "./Ref.astro";
+interface Props { id: string; word?: boolean }
+const { id, word = false } = Astro.props;
+const label = Astro.slots.has("default") ? await Astro.slots.render("default") : undefined;
+---
+<Ref to={`py/${id}`} word={word} label={label} />

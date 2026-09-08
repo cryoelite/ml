@@ -1,0 +1,56 @@
+---
+/**
+ * The runtime switch, parked in the masthead.
+ *
+ * Deliberately visible on every page even when there is nothing to run, because
+ * the single most confusing thing about an executable tutorial is not knowing
+ * *where* your code is about to execute.
+ */
+---
+<div class="runtime">
+  <button class="runtime__btn" type="button" aria-haspopup="dialog">
+    <span class="runtime__dot" data-state="idle"></span>
+    <span class="runtime__label">Browser</span>
+  </button>
+
+  <dialog class="runtime__panel" aria-label="Python runtime settings">
+    <h3>Where should Python run?</h3>
+    <p class="runtime__detail">not started</p>
+
+    <div class="runtime__choice">
+      <label>
+        <input type="radio" name="backend" value="browser" />
+        <span>
+          <strong>In this browser</strong>
+          <em>
+            Pyodide (CPython 3.14 on WebAssembly). No install, works offline and
+            when deployed. Ships numpy, pandas, scikit-learn, scipy, matplotlib,
+            sympy — but <b>not</b> PyTorch.
+          </em>
+        </span>
+      </label>
+
+      <label>
+        <input type="radio" name="backend" value="local" />
+        <span>
+          <strong>On this machine</strong>
+          <em>
+            A real Jupyter kernel over its websocket API. Full PyTorch, fastai and
+            Apple MPS. Start one with <code>bun run kernel</code>.
+          </em>
+          <span class="runtime__field">
+            <input name="url" type="url" aria-label="Jupyter server URL" spellcheck="false" />
+          </span>
+          <span class="runtime__field">
+            <input name="token" type="text" aria-label="Jupyter token" spellcheck="false" />
+          </span>
+        </span>
+      </label>
+    </div>
+
+    <p>
+      <button class="cell__btn runtime__restart" type="button">Restart runtime</button>
+      &nbsp;<a href="/setup/">Setup guide →</a>
+    </p>
+  </dialog>
+</div>

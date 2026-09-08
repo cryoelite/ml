@@ -1,0 +1,26 @@
+---
+title: 'fit / predict'
+lib: 'sklearn'
+summary: 'The two-method contract every scikit-learn model implements. Learn parameters from data, then apply them.'
+signature: 'model.fit(X, y)   |   model.predict(X)   |   model.score(X, y)'
+example: |-
+  from sklearn.linear_model import LogisticRegression
+  model = LogisticRegression().fit(X_train, y_train)
+  model.score(X_valid, y_valid)
+rust: 'A trait with two methods, where `fit` mutates `self` to store learned state and `predict` borrows it. `Estimator` in the `linfa` crate is precisely this, with the ownership made explicit.'
+rustCode: |-
+  let model = LogisticRegression::default().fit(&train)?;
+  let acc = model.predict(&valid.records()).confusion_matrix(&valid)?;
+docs: 'https://scikit-learn.org/stable/developers/develop.html'
+docsLabel: 'Estimator API ↗'
+---
+
+This interface is the reason scikit-learn won. Every model — a linear
+regression, a random forest, a gradient-boosted ensemble, a clustering
+algorithm — exposes the same two methods, so swapping one for another is a
+one-line change and comparing five of them is a for-loop.
+
+The convention: `X` is a 2-D array of shape `(n_samples, n_features)`, capital
+because it is a matrix; `y` is a 1-D array of length `n_samples`, lowercase
+because it is a vector. Nearly every shape error you hit early on is `X`
+having the wrong rank.

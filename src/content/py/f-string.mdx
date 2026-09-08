@@ -1,0 +1,22 @@
+---
+title: 'f-string'
+lib: 'stdlib'
+since: 'Python 3.6'
+summary: 'String interpolation. Any expression inside `{}` is evaluated and formatted.'
+signature: 'f"text {expression} text {value:.3f}"'
+example: |-
+  loss = 0.03719
+  print(f"epoch {3}: loss={loss:.3f}")
+output: 'epoch 3: loss=0.037'
+rust: 'It is `format!`, with the expression allowed inline instead of only positional or named arguments. The `:.3f` after the colon is the same idea as Rust''s `{:.3}`.'
+rustCode: 'println!("epoch {}: loss={:.3}", 3, loss);'
+docs: 'https://docs.python.org/3.14/reference/lexical_analysis.html#f-strings'
+docsLabel: 'Python reference ↗'
+---
+
+You will see these in every training loop, because printing a metric to three
+decimal places is 80% of what people do while a model trains.
+
+Two forms worth knowing: `f"{x=}"` prints `x=3` — name and value — which is the
+fastest debug print in the language. And `f"{x:>8.3f}"` right-aligns in a field
+of eight, which is how you get columns that line up while epochs scroll past.

@@ -1,0 +1,368 @@
+---
+title: "The model zoo (and why it isn't all neural networks)"
+blurb: "Trees, forests, boosting and nearest neighbours — what each one assumes, and the uncomfortable fact that on tabular data they still win."
+order: 7
+day: 7
+part: foundations
+minutes: 90
+introduces: ["family", "trees", "cart", "rf", "gbm", "knn", "svm", "bayes"]
+---
+
+You now have the machinery: a model, a loss, an optimiser, and a validation set
+that does not lie. Today, the second axis of
+[the map](/map/) — what shape the learned function can take.
+
+The uncomfortable headline first, because it will save you months: **on ordinary
+tabular data, gradient-boosted trees usually beat neural networks.** Not
+sometimes. Usually. If your data is a spreadsheet, start there.
+
+## Everything shares one interface
+
+```python run setup title="the contract"
+import numpy as np
+from sklearn.datasets import make_moons
+from sklearn.model_selection import train_test_split
+
+X, y = make_moons(n_samples=600, noise=0.28, random_state=0)
+X_tr, X_va, y_tr, y_va = train_test_split(X, y, test_size=0.3, random_state=0, stratify=y)
+print(X_tr.shape, y_tr.shape)
+```
+
+<Py id="fit-predict">`fit` and `predict`</Py> — that is the entire scikit-learn
+API, and it is why comparing five model families is a for-loop rather than a
+project.
+
+```python run title="five families, one loop"
+from sklearn.linear_model import LogisticRegression
+from sklearn.tree import DecisionTreeClassifier
+from sklearn.ensemble import RandomForestClassifier, HistGradientBoostingClassifier
+from sklearn.neighbors import KNeighborsClassifier
+from sklearn.svm import SVC
+
+models = {
+    "logistic regression": LogisticRegression(),
+    "decision tree":       DecisionTreeClassifier(max_depth=5, random_state=0),
+    "random forest":       RandomForestClassifier(n_estimators=200, random_state=0),
+    "gradient boosting":   HistGradientBoostingClassifier(random_state=0),
+    "k-nearest (k=15)":    KNeighborsClassifier(n_neighbors=15),
+    "SVM (rbf kernel)":    SVC(),
+}
+fitted = {}
+for name, m in models.items():
+    m.fit(X_tr, y_tr)
+    fitted[name] = m
+    print(f"{name:22s} train {m.score(X_tr, y_tr):.3f}   valid {m.score(X_va, y_va):.3f}")
+```
+
+Now the useful part — not the numbers, but the *shapes of the decisions*.
+
+```python run title="what each family can express"
+import matplotlib.pyplot as plt
+
+xx, yy = np.meshgrid(np.linspace(-1.8, 2.8, 250), np.linspace(-1.3, 1.8, 250))
+grid = np.c_[xx.ravel(), yy.ravel()]
+
+fig, axes = plt.subplots(2, 3, figsize=(9.5, 5.2))
+for ax, (name, m) in zip(axes.flat, fitted.items()):
+    zz = m.predict(grid).reshape(xx.shape)
+    ax.contourf(xx, yy, zz, alpha=0.28, cmap="coolwarm", levels=1)
+    ax.scatter(X_va[:, 0], X_va[:, 1], c=y_va, s=7, cmap="coolwarm", edgecolors="none")
+    ax.set_title(f"{name}\nvalid {m.score(X_va, y_va):.3f}", fontsize=9)
+    ax.set_xticks([]); ax.set_yticks([])
+plt.tight_layout()
+```
+
+Stare at that grid for a minute — it is the most informative picture in this
+chapter.
+
+Logistic regression can only draw a **straight line**, so it fails on two
+interleaved crescents no matter how long you train it. The decision tree draws
+**axis-aligned rectangles**, which is why its boundary is a staircase. The
+forest averages many staircases and gets something smoother. The SVM with an RBF
+kernel draws a **smooth curve**. k-NN draws a boundary that follows the data
+itself, wobbles and all.
+
+<Aside type="key">
+Each family has an **inductive bias** — the shape of function it prefers before
+seeing any data. Choosing a model family is choosing an assumption about the
+world. When the assumption fits, you need very little data; when it does not, no
+amount of data rescues you.
+</Aside>
+
+## Decision trees
+
+A tree is nested `if` statements, chosen greedily. At each node it asks: over
+every feature and every threshold, which single split most reduces the impurity
+of the two resulting groups?
+
+```python run title="a tree you can read"
+from sklearn.tree import export_text
+t = DecisionTreeClassifier(max_depth=2, random_state=0).fit(X_tr, y_tr)
+print(export_text(t, feature_names=["x0", "x1"]))
+```
+
+That is the whole model — printed, auditable, explainable to a regulator. No
+other family gives you that for free.
+
+<Aside type="rust">
+A fitted tree really is
+`enum Node { Leaf(Class), Split { feature: usize, thresh: f64, lt: Box<Node>, ge: Box<Node> } }`,
+and inference is the obvious recursive match. Training is the interesting part: a
+greedy search over `(feature, threshold)` pairs, scoring each by how much it
+purifies the children.
+
+It is greedy and therefore not optimal — a split that looks poor now might enable
+two excellent splits below it, and the tree will never find out. Finding the
+optimal tree is NP-hard, which is why nobody does.
+</Aside>
+
+Trees are scale-invariant (splitting on `sqm > 80` does not care what the units
+are), handle mixed types naturally, and are unbothered by monotonic
+transformations. They are also **catastrophically prone to overfitting**: an
+unconstrained tree will grow until every leaf holds one training row.
+
+```python run title="depth is the whole hyperparameter"
+for d in [1, 2, 3, 5, 10, None]:
+    m = DecisionTreeClassifier(max_depth=d, random_state=0).fit(X_tr, y_tr)
+    print(f"max_depth {str(d):4s}   train {m.score(X_tr, y_tr):.3f}   valid {m.score(X_va, y_va):.3f}"
+          f"   leaves {m.get_n_leaves():4d}")
+```
+
+Perfect training accuracy, mediocre validation accuracy: the memorisation from
+[yesterday](/learn/06-generalisation/), in its purest form.
+
+## Ensembles: the two ways to combine trees
+
+If one tree overfits, the fix is not a better tree — it is many trees, combined.
+There are exactly two strategies, and they are opposites.
+
+**Bagging (random forest): average many independent overfitters.** Train each
+tree on a bootstrap sample of the rows and let each split consider only a random
+subset of features. Every tree overfits differently, and averaging cancels the
+individual mistakes while keeping what they agree on.
+
+**Boosting: build a sequence, each fixing the last one's mistakes.** Fit a small
+tree. Look at what it got wrong. Fit the next tree to *those residuals*. Repeat
+several hundred times, adding each new tree's contribution scaled by a small
+learning rate.
+
+```python run title="bagging versus boosting"
+for n in [1, 5, 25, 200]:
+    rf = RandomForestClassifier(n_estimators=n, random_state=0).fit(X_tr, y_tr)
+    gb = HistGradientBoostingClassifier(max_iter=n, random_state=0).fit(X_tr, y_tr)
+    print(f"{n:3d} trees   forest {rf.score(X_va, y_va):.3f}    boosting {gb.score(X_va, y_va):.3f}")
+```
+
+The difference in character matters. A forest cannot really overfit by adding
+trees — more trees just means a better average, so `n_estimators` is a
+compute budget rather than a hyperparameter. Boosting *can* overfit by adding
+trees, because each one is deliberately chasing the remaining error, including
+the error that is noise. Boosting needs early stopping; forests do not.
+
+<Aside type="nice">
+XGBoost, LightGBM and CatBoost are all gradient boosting with different
+engineering: better handling of missing values, categorical features, and
+histogram-based splitting for speed. scikit-learn's
+`HistGradientBoostingClassifier` is a LightGBM-style implementation in the
+standard library and is genuinely competitive, which is why it is used here.
+
+Between roughly 2015 and 2020, gradient-boosted trees won the overwhelming
+majority of Kaggle competitions on tabular data. They still do.
+</Aside>
+
+## Why trees still beat neural networks on tables
+
+This surprises people who have absorbed the "deep learning solved everything"
+story, and the reasons are concrete.
+
+**Tabular features have no geometry.** A convolutional network assumes nearby
+pixels are related; a transformer assumes nearby tokens are related. In a
+spreadsheet, column 3 and column 4 have no relationship whatsoever — the ordering
+is an accident of whoever wrote the CSV. Neural networks have no structural prior
+to exploit, so they are starting from further back.
+
+**Trees handle irregularity natively.** Skewed distributions, outliers, missing
+values, mixed scales, and features that matter only above a threshold — a tree
+splits and moves on. A neural network needs all of that normalised away by hand.
+
+**The target is often genuinely piecewise-constant.** "Approve the loan if income
+> X and history > Y" is a step function. Trees are step functions. Neural
+networks approximate steps with smooth activations and use capacity doing it.
+
+**You usually have thousands of rows, not millions.** Deep learning's advantage
+appears at scale that tabular datasets rarely reach.
+
+<Aside type="key">
+The practical rule: **if your data is a table, start with gradient boosting.** If
+your data is pixels, audio, text, or graph structure, start with a neural
+network. That single sentence would improve a large number of production
+projects.
+</Aside>
+
+## k-nearest neighbours
+
+No training at all: remember the data, and to predict, find the k most similar
+stored examples and take a vote.
+
+```python run title="k controls the smoothing"
+for k in [1, 5, 25, 100]:
+    m = KNeighborsClassifier(n_neighbors=k).fit(X_tr, y_tr)
+    print(f"k={k:3d}   train {m.score(X_tr, y_tr):.3f}   valid {m.score(X_va, y_va):.3f}")
+```
+
+`k=1` has perfect training accuracy by definition — every point's nearest
+neighbour is itself. As `k` grows the boundary smooths, and eventually
+oversmooths into the majority class.
+
+Three things make it worth knowing despite its simplicity. It requires
+<M id="norm">a distance</M>, so features must be on comparable scales or the
+largest-magnitude one dominates. It degrades badly in high dimensions, where
+everything is roughly equidistant from everything else. And it is the conceptual
+basis of **vector search** — every embedding-based retrieval system, including
+the retrieval half of RAG, is k-NN with a learned distance and a clever index.
+
+## Support vector machines, briefly
+
+Find the boundary with the widest margin between classes, and — the clever part —
+compute distances in a high-dimensional space you never actually construct.
+
+```python run title="the kernel is the assumption"
+for kern in ["linear", "poly", "rbf"]:
+    m = SVC(kernel=kern).fit(X_tr, y_tr)
+    print(f"{kern:7s} kernel   valid {m.score(X_va, y_va):.3f}")
+```
+
+<Reveal title="The kernel trick, in one paragraph" kind="math">
+
+Many algorithms only ever touch the data through
+<M id="dot-product">dot products</M> $x_i \cdot x_j$. If you wanted to work in a
+richer feature space $\phi(x)$, you would need $\phi(x_i) \cdot \phi(x_j)$ — and
+for well-chosen $\phi$ there is a function $K$ that computes that dot product
+*directly from $x_i$ and $x_j$*, without ever forming $\phi(x)$.
+
+The RBF kernel $K(x_i, x_j) = \exp(-\gamma\|x_i - x_j\|^2)$ corresponds to a
+$\phi$ with infinitely many dimensions. You get an infinite-dimensional feature
+space for the price of one exponential.
+
+This was the dominant idea in machine learning from roughly 1995 to 2012, and it
+is genuinely elegant. It lost because it scales badly — the kernel matrix is
+$n \times n$, so a million examples means a $10^{12}$-entry matrix — and because
+deep learning turned out to *learn* the useful feature map rather than requiring
+you to choose it.
+</Reveal>
+
+## Which to reach for
+
+<div class="table-scroll">
+
+| Situation | Start with | Why |
+|---|---|---|
+| Tabular, any size | gradient boosting | Best accuracy per hour of your time, by a distance |
+| Tabular, must be explainable | a shallow tree, or logistic regression | You can print the whole model |
+| A strong, honest baseline | logistic / linear regression | Two lines, and everything else must beat it |
+| Images, audio, video | pretrained neural network | Structure in the input to exploit |
+| Text | pretrained transformer | Same |
+| Very few rows (< 500) | linear model, or k-NN | Anything flexible will memorise |
+| Similarity / retrieval | embeddings + k-NN | This is what vector databases are |
+
+</div>
+
+## Feature importance, and its limits
+
+```python run title="what the model leaned on"
+from sklearn.datasets import load_breast_cancer
+d = load_breast_cancer()
+rf = RandomForestClassifier(n_estimators=300, random_state=0).fit(d.data, d.target)
+order = np.argsort(rf.feature_importances_)[::-1][:6]
+for i in order:
+    print(f"{d.feature_names[i]:26s} {rf.feature_importances_[i]:.3f}")
+```
+
+Genuinely useful — it tells you what to collect more of, and what to drop. But
+treat it with suspicion.
+
+Built-in importance is biased toward high-cardinality features, because a
+continuous feature offers more possible split points than a binary one. And it
+splits credit arbitrarily between correlated features: if two columns say almost
+the same thing, the forest uses each about half the time and both look
+half-important, which can read as "neither matters".
+
+<Aside type="warn">
+Feature importance is **not** causation and not far off being a trap. "Number of
+support tickets" being the top predictor of churn does not mean tickets cause
+churn — it means unhappy people file tickets *and* leave. Removing the ticket
+system will not help.
+
+For anything more careful, look at permutation importance (shuffle one column,
+see how much the score drops) or SHAP values. Both are more honest, and both are
+still correlational.
+</Aside>
+
+## Exercise
+
+```python run title="your turn"
+# A small, real, bundled regression dataset — no download required.
+from sklearn.datasets import load_diabetes
+from sklearn.ensemble import RandomForestRegressor, HistGradientBoostingRegressor
+from sklearn.linear_model import LinearRegression
+
+d = load_diabetes()
+Xd_tr, Xd_va, yd_tr, yd_va = train_test_split(d.data, d.target, test_size=0.3, random_state=0)
+
+# 1. Fit LinearRegression, RandomForestRegressor and HistGradientBoostingRegressor.
+#    Report R^2 on validation for each. Does the fanciest model win?
+#
+# 2. Compute the baseline: R^2 of always predicting yd_tr.mean().
+#    (Hint: by definition of R^2, this is 0.0 — verify it, and understand why.)
+#
+# 3. For the winner, print the top 3 features by importance (or |coef|).
+#
+# 4. Now add 20 columns of pure noise to Xd. Which model degrades most?
+
+print("replace me")
+```
+
+<Reveal title="Solutions, and the point of question 4" kind="deep">
+
+```python run
+rng = np.random.default_rng(0)
+models = {
+    "linear":   LinearRegression(),
+    "forest":   RandomForestRegressor(n_estimators=300, random_state=0),
+    "boosting": HistGradientBoostingRegressor(random_state=0),
+}
+print("clean data")
+for name, m in models.items():
+    m.fit(Xd_tr, yd_tr)
+    print(f"  {name:9s} R^2 {m.score(Xd_va, yd_va):.3f}")
+
+noise_tr = rng.normal(size=(len(Xd_tr), 20))
+noise_va = rng.normal(size=(len(Xd_va), 20))
+Xn_tr = np.hstack([Xd_tr, noise_tr])
+Xn_va = np.hstack([Xd_va, noise_va])
+
+print("\n+ 20 columns of pure noise")
+for name, m in models.items():
+    m.fit(Xn_tr, yd_tr)
+    print(f"  {name:9s} R^2 {m.score(Xn_va, yd_va):.3f}")
+```
+
+Two lessons.
+
+**The fancy model does not always win.** On 353 training rows with 10 features,
+plain linear regression is competitive with and often beats both ensembles. Small
+data favours strong assumptions. Reaching for boosting reflexively is as much a
+mistake as reaching for a neural network reflexively.
+
+**Noise columns hurt, and they hurt unevenly.** Trees have to consider every
+column at every split, so useless features actively dilute the search — some
+splits get spent on noise that happened to look informative in this sample.
+Regularised linear models handle it better because the penalty pushes useless
+coefficients toward zero.
+
+This is why feature selection is still a real activity in 2026 and did not go
+away with deep learning. It just moved to a different part of the stack.
+</Reveal>
+
+That is the classical toolkit. Tomorrow the other branch: what happens when you
+stop choosing features and let the model learn them.

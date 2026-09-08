@@ -1,0 +1,39 @@
+[project]
+name = "gradient-lab"
+version = "0.1.0"
+description = "Local Python environment for the Gradient tutorial: notebooks and the kernel the site talks to."
+readme = "README.md"
+requires-python = ">=3.12"
+
+# Pinned loosely on purpose. The site's browser runtime is pinned exactly (it is
+# vendored); this environment is the one where you are meant to experiment.
+dependencies = [
+    "numpy>=2.0",
+    "pandas>=2.2",
+    "matplotlib>=3.9",
+    "scikit-learn>=1.5",
+    "scipy>=1.14",
+    "sympy>=1.13",
+    "pillow>=10.4",
+    # Explicit, because macOS python.org builds ship without a usable CA bundle
+    # until you run "Install Certificates.command" — see the Setup page.
+    "certifi>=2024.8",
+    # The kernel the website connects to over its websocket API.
+    "jupyter-server>=2.14",
+    "ipykernel>=6.29",
+    "jupyterlab>=4.2",
+]
+
+[project.optional-dependencies]
+# Part III onwards. Split out so the first week installs in seconds.
+deep = [
+    "torch>=2.4",
+    "torchvision>=0.19",
+]
+
+[dependency-groups]
+dev = ["ruff>=0.6"]
+
+# Lint configuration lives in the repo-root ruff.toml so that scripts/ and
+# lab/ are governed by one set of rules. Ruff prefers the nearest config, so a
+# [tool.ruff] table here would silently shadow it.

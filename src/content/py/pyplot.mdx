@@ -1,0 +1,22 @@
+---
+title: 'matplotlib.pyplot'
+lib: 'matplotlib'
+summary: 'Stateful plotting. `plt.plot(...)` draws onto a current figure that later calls keep modifying.'
+signature: 'plt.plot(x, y)   |   plt.scatter(x, y)   |   plt.show()'
+example: |-
+  import numpy as np, matplotlib.pyplot as plt
+  x = np.linspace(-6, 6, 200)
+  plt.plot(x, 1 / (1 + np.exp(-x)))
+  plt.title('sigmoid')
+  plt.show()
+rust: 'An immediate-mode drawing API with hidden global state — closest to a retained `plotters` chart, except that the chart is implicit and every call mutates it.'
+docs: 'https://matplotlib.org/stable/api/pyplot_summary.html'
+docsLabel: 'pyplot API ↗'
+---
+
+The implicit "current figure" is confusing but convenient, and in a notebook
+it is exactly what you want: three lines produce a picture.
+
+On this site `plt.show()` is unnecessary — the runtime harvests any open
+figure after each cell and renders it — but it is harmless, and leaving it in
+means the same code works unchanged in a real notebook or a script.

@@ -1,0 +1,21 @@
+---
+title: 'zip / enumerate'
+lib: 'stdlib'
+summary: '`zip` walks several iterables in lockstep; `enumerate` pairs each item with its index.'
+signature: 'zip(a, b, strict=False)   |   enumerate(seq, start=0)'
+example: |-
+  for i, (name, score) in enumerate(zip(names, scores)):
+      print(i, name, score)
+output: |-
+  0 alice 0.91
+  1 bob 0.78
+rust: '`a.iter().zip(b)` and `.enumerate()` — the same two adapters, in the opposite order of application. Python''s `zip` stops at the shortest input unless you pass `strict=True`, which raises instead.'
+rustCode: 'for (i, (name, score)) in names.iter().zip(&scores).enumerate() {}'
+docs: 'https://docs.python.org/3.14/library/functions.html#zip'
+docsLabel: 'Python docs ↗'
+---
+
+Use `strict=True` whenever the two sequences are supposed to be the same
+length — which, for predictions and labels, is always. Silently truncating a
+prediction array against a shorter label array produces a metric that is
+merely wrong rather than an error, and that is much worse.

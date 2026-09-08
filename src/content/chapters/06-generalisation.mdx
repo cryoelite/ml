@@ -1,0 +1,358 @@
+---
+title: "Generalisation, or: the only number that matters"
+blurb: "Training accuracy is a lie you tell yourself. How to build a validation set that does not lie back, and what to do when the gap opens up."
+order: 6
+day: 6
+part: foundations
+minutes: 95
+introduces: ["generalise", "regular", "regularised"]
+---
+
+A model that scores 100% on its training data has told you nothing, because a
+lookup table scores 100% on its training data. The only question that matters is
+how it does on data it has never seen.
+
+This chapter is where most real projects fail, and the failures are boring and
+avoidable.
+
+## Overfitting, demonstrated
+
+```python run setup title="a small, noisy dataset"
+import numpy as np, matplotlib.pyplot as plt
+from sklearn.preprocessing import PolynomialFeatures
+from sklearn.linear_model import LinearRegression
+from sklearn.pipeline import make_pipeline
+
+rng = np.random.default_rng(3)
+n = 22
+x = np.sort(rng.uniform(0, 1, n))
+y_true = lambda t: np.sin(2.2 * np.pi * t)
+y = y_true(x) + rng.normal(0, 0.28, n)
+
+plt.figure(figsize=(5, 3))
+grid = np.linspace(0, 1, 300)
+plt.plot(grid, y_true(grid), "k--", lw=1, label="truth")
+plt.scatter(x, y, s=22, label="observed (noisy)")
+plt.legend(); plt.tight_layout()
+```
+
+Now fit polynomials of increasing degree. Degree 1 is a straight line; degree 18
+can wiggle through almost anything.
+
+```python run title="three degrees of freedom"
+fig, axes = plt.subplots(1, 3, figsize=(9.5, 2.9), sharey=True)
+for ax, deg in zip(axes, [1, 4, 18]):
+    model = make_pipeline(PolynomialFeatures(deg), LinearRegression())
+    model.fit(x.reshape(-1, 1), y)
+    ax.plot(grid, y_true(grid), "k--", lw=1)
+    ax.plot(grid, model.predict(grid.reshape(-1, 1)), c="crimson")
+    ax.scatter(x, y, s=16)
+    ax.set_ylim(-2.2, 2.2); ax.set_title(f"degree {deg}")
+plt.tight_layout()
+```
+
+Degree 1 **underfits**: it is too rigid to represent a sine wave, and it is wrong
+in the same way everywhere. Degree 18 **overfits**: it passes through nearly every
+point, including the noise, and between the points it does something insane.
+Degree 4 is roughly right.
+
+The crucial observation: **the degree-18 model has the lowest training error of
+the three.** If training error were your criterion, you would pick the worst
+model.
+
+```python run title="training error is not the criterion"
+for deg in [1, 4, 9, 18]:
+    m = make_pipeline(PolynomialFeatures(deg), LinearRegression()).fit(x.reshape(-1, 1), y)
+    train = ((m.predict(x.reshape(-1, 1)) - y) ** 2).mean()
+    true  = ((m.predict(grid.reshape(-1, 1)) - y_true(grid)) ** 2).mean()
+    print(f"degree {deg:2d}   train MSE {train:8.4f}   true MSE {true:10.4f}")
+```
+
+Training error falls monotonically. Error against the underlying truth falls,
+then explodes.
+
+<Aside type="key">
+Overfitting is memorising the noise. The model cannot tell which parts of your
+data are signal and which are accident, so given enough flexibility it will fit
+both — and the noise, by definition, will not repeat.
+</Aside>
+
+## The validation set
+
+You do not have access to the truth. What you have is the ability to *hide some
+data from yourself*.
+
+```python run title="the split"
+from sklearn.model_selection import train_test_split
+
+X = x.reshape(-1, 1)
+X_tr, X_va, y_tr, y_va = train_test_split(X, y, test_size=0.35, random_state=0)
+
+print(f"{len(X_tr)} train, {len(X_va)} validation")
+for deg in [1, 4, 9, 18]:
+    m = make_pipeline(PolynomialFeatures(deg), LinearRegression()).fit(X_tr, y_tr)
+    tr = ((m.predict(X_tr) - y_tr) ** 2).mean()
+    va = ((m.predict(X_va) - y_va) ** 2).mean()
+    print(f"degree {deg:2d}   train {tr:7.4f}   valid {va:10.4f}")
+```
+
+The validation error reproduces the shape of the true error without ever needing
+to know the truth. That is the whole trick, and it is the most important
+methodological idea in the field.
+
+<div class="table-scroll">
+
+| Split | Who touches it | What it is for |
+|---|---|---|
+| **Training** | the optimiser | fitting the parameters |
+| **Validation** | you | choosing the model, the hyperparameters, when to stop |
+| **Test** | nobody, until the end | one honest estimate, once |
+
+</div>
+
+<Aside type="warn">
+The test set exists because *you* overfit too. Every time you look at a
+validation score and change something, you leak a little information from that
+set into your model. Do it two hundred times — which is a normal week — and your
+validation score is optimistic by a few percent.
+
+The test set is the defence, and it only works if you use it once. A test set you
+have consulted five times is a second validation set with a misleading name.
+</Aside>
+
+## Splitting randomly is often wrong
+
+`train_test_split` shuffles. That is correct only when your rows are independent,
+and frequently they are not.
+
+```python run title="random splits lie about time series"
+from sklearn.linear_model import Ridge
+
+t = np.arange(300)
+series = np.cumsum(rng.normal(0, 1, 300)) + 0.05 * t     # a random walk with drift
+feats  = np.column_stack([np.roll(series, k) for k in (1, 2, 3)])[5:]
+target = series[5:]
+
+# A: shuffled split — leaks the future into the past
+Xa_tr, Xa_va, ya_tr, ya_va = train_test_split(feats, target, test_size=0.3, random_state=0)
+a = Ridge().fit(Xa_tr, ya_tr).score(Xa_va, ya_va)
+
+# B: honest split — train on the past, validate on the future
+cut = int(len(feats) * 0.7)
+b = Ridge().fit(feats[:cut], target[:cut]).score(feats[cut:], target[cut:])
+
+print(f"random split  R^2 = {a:.3f}   <- flattering")
+print(f"time-based    R^2 = {b:.3f}   <- what you would actually get")
+```
+
+The random split lets the model train on Tuesday and Thursday and predict
+Wednesday, which it will never be able to do in production. **Your split has to
+reproduce the structure of the real prediction task.**
+
+The rule generalises. Group your split by whatever unit generalisation must cross:
+
+- **Time series** → split at a date. Always.
+- **Multiple rows per patient / user / customer** → split by *person*, never by row.
+- **Photographs from the same session** → split by session.
+- **A Kaggle competition** → look at how *they* split it. It is a hint about the real task.
+
+<Aside type="key">
+Building the validation set is the most consequential decision in a project, and
+it is made in the first hour by someone who thinks it is boilerplate. If the
+validation set does not resemble the deployment condition, every number you
+produce afterwards is fiction — and a well-constructed one, which makes it worse.
+</Aside>
+
+## Cross-validation
+
+With little data, a single split is noisy: you may have got a lucky 30%. K-fold
+cross-validation splits the data $k$ ways, trains $k$ times, and averages.
+
+```python run title="5-fold"
+from sklearn.model_selection import cross_val_score
+
+for deg in [1, 4, 9, 18]:
+    m = make_pipeline(PolynomialFeatures(deg), LinearRegression())
+    scores = -cross_val_score(m, X, y, cv=5, scoring="neg_mean_squared_error")
+    print(f"degree {deg:2d}   MSE {scores.mean():9.4f}  ± {scores.std():7.4f}")
+```
+
+Note the standard deviation. It is telling you how much of the difference between
+two models is real and how much is which rows landed where. Two models whose
+error bars overlap are not distinguishable by this dataset, and choosing between
+them on the mean alone is superstition.
+
+Use cross-validation when data is small and training is cheap. Skip it when
+training costs four GPU-hours — nobody cross-validates a language model.
+
+## Fighting overfitting
+
+Five tools, roughly in order of how often you will reach for them.
+
+**1. More data.** Always the best answer when available. Noise averages out;
+signal does not.
+
+**2. A simpler model.** Fewer parameters, fewer features, a lower polynomial
+degree, a shallower tree. Free, and consistently underrated.
+
+**3. Regularisation.** Keep the flexible model but penalise it for using its
+flexibility.
+
+```python run title="what a penalty does to a wild model"
+from sklearn.linear_model import Ridge, Lasso
+from sklearn.preprocessing import StandardScaler
+
+for name, reg in [("none  ", LinearRegression()),
+                  ("ridge ", Ridge(alpha=1e-3)),
+                  ("lasso ", Lasso(alpha=1e-3, max_iter=50_000))]:
+    m = make_pipeline(PolynomialFeatures(18), StandardScaler(), reg).fit(X_tr, y_tr)
+    coefs = m[-1].coef_
+    va = ((m.predict(X_va) - y_va) ** 2).mean()
+    print(f"{name}  valid MSE {va:8.4f}   largest |coef| {np.abs(coefs).max():10.2f}   "
+          f"nonzero {int((np.abs(coefs) > 1e-6).sum()):2d}/19")
+```
+
+The unregularised degree-18 fit has enormous coefficients — huge positive and
+negative numbers cancelling each other to thread the points. That is what
+overfitting looks like numerically, and <M id="norm">a norm penalty</M> makes it
+expensive.
+
+Ridge (L2) shrinks every coefficient smoothly. Lasso (L1) drives many to exactly
+zero, so it selects features as well as shrinking. The difference comes from the
+geometry of the two constraint regions — L1's diamond has corners on the axes, and
+corners are where solutions land.
+
+**4. Early stopping.** Watch validation loss during training and stop when it
+turns upward. It is regularisation that costs nothing and it is why every
+training loop prints two numbers per epoch.
+
+**5. Data augmentation.** Manufacture plausible variants: flip the image, crop
+it, shift the colours. Ten thousand photos become effectively a hundred thousand,
+and you have taught the model that a cat rotated five degrees is still a cat. See
+[Chapter 11](/learn/11-vision-and-transfer/).
+
+<Aside type="rust">
+Every one of these is a deliberate handicap — you make the model *worse* at the
+training data on purpose, in exchange for it being better at everything else.
+
+The closest instinct you already have is the one that says a type signature
+should be as narrow as the job requires. A function generic over `T: Display`
+where you only ever pass `&str` is not more powerful in any useful sense; it is
+harder to reason about. Regularisation is that argument applied to a fitted
+function.
+</Aside>
+
+## The gap, and what it tells you
+
+```python run title="a diagnostic worth memorising"
+baseline = ((y_va - y_tr.mean()) ** 2).mean()      # predict the mean, always
+
+def diagnose(train_err, valid_err, baseline_err):
+    # Is the model even beating "predict the mean" on its own training data?
+    if train_err > 0.5 * baseline_err:
+        return "UNDERFIT   — too rigid; add capacity or features"
+    if valid_err > 3 * train_err:
+        return "OVERFIT    — regularise, simplify, or get more data"
+    return "REASONABLE — now go and improve the features"
+
+print(f"baseline (predict the mean) MSE = {baseline:.3f}\n")
+for deg in [1, 4, 18]:
+    m = make_pipeline(PolynomialFeatures(deg), LinearRegression()).fit(X_tr, y_tr)
+    tr = ((m.predict(X_tr) - y_tr) ** 2).mean()
+    va = ((m.predict(X_va) - y_va) ** 2).mean()
+    print(f"degree {deg:2d}  train {tr:7.4f}  valid {va:11.4f}  {diagnose(tr, va, baseline)}")
+```
+
+The two numbers together are a diagnosis; either alone is not.
+
+- **Both bad** → underfitting. More capacity, more features, train longer.
+- **Train good, valid bad** → overfitting. The list above.
+- **Both good** → ship it, then go and check for [leakage](/learn/03-the-shape-of-problems/), because both-good is also what leakage looks like.
+- **Valid better than train** → your split is broken, or you have augmentation on in training and off in validation. Investigate; this is never good news.
+
+<Reveal title="Where the classical story stops being true" kind="deep">
+
+Everything above is the textbook bias–variance picture, and it is genuinely how
+small and medium models behave. It also does not survive contact with modern deep
+learning, and it is worth knowing why before you read a paper that assumes you do.
+
+**Double descent.** Increase model capacity and test error goes down, then up
+(the classical overfitting curve) — and then, past the point where the model can
+interpolate the training set exactly, *down again*, often to a better minimum
+than the classical sweet spot. This was documented systematically by Belkin and
+colleagues in 2019, and it means "the model has more parameters than data points"
+is not by itself the alarm it was taught as for forty years.
+
+**The lottery-ticket view.** A large randomly-initialised network appears to
+contain small subnetworks that train well, and training is partly a search over
+them. Under this view, over-parameterisation is not waste — it is what makes the
+search feasible.
+
+**Implicit regularisation.** SGD does not find *any* minimum of the training
+loss; it preferentially finds flat ones, and flat minima generalise better. The
+optimiser is doing regularisation nobody wrote down.
+
+None of this means the validation set stops mattering — it matters more, because
+the theory is a less reliable guide. It means that if you read "this model has 8
+billion parameters and 2 trillion training tokens, isn't that overfitting", the
+answer is more interesting than yes.
+</Reveal>
+
+## Exercise
+
+```python run title="your turn"
+from sklearn.datasets import load_breast_cancer
+from sklearn.tree import DecisionTreeClassifier
+
+data = load_breast_cancer()
+Xc, yc = data.data, data.target
+Xc_tr, Xc_va, yc_tr, yc_va = train_test_split(
+    Xc, yc, test_size=0.3, random_state=0, stratify=yc)
+
+# 1. Fit DecisionTreeClassifier at max_depth = 1, 3, 5, None.
+#    Print training and validation accuracy for each. Where does the gap open?
+#
+# 2. What is the accuracy of always predicting the majority class?
+#    Every number above must be read against it.
+#
+# 3. Use cross_val_score with cv=5 on the FULL dataset for the best depth.
+#    Is the standard deviation larger or smaller than the differences
+#    between your depths? What does that imply?
+
+print("replace me")
+```
+
+<Reveal title="Solutions" kind="deep">
+
+```python run
+for depth in [1, 3, 5, None]:
+    m = DecisionTreeClassifier(max_depth=depth, random_state=0).fit(Xc_tr, yc_tr)
+    tr, va = m.score(Xc_tr, yc_tr), m.score(Xc_va, yc_va)
+    print(f"depth {str(depth):4s}  train {tr:.3f}  valid {va:.3f}   gap {tr - va:+.3f}")
+
+print(f"\nmajority-class baseline: {max(yc.mean(), 1 - yc.mean()):.3f}")
+
+best = DecisionTreeClassifier(max_depth=3, random_state=0)
+s = cross_val_score(best, Xc, yc, cv=5)
+print(f"5-fold at depth 3: {s.mean():.3f} ± {s.std():.3f}")
+print("folds:", s.round(3))
+```
+
+Three things to take away.
+
+An unconstrained tree reaches 1.000 training accuracy — it has memorised every
+row, which a tree can always do — while validation stalls. That is the gap in its
+purest form.
+
+The baseline is 63%, so a model at 88% is real but rather less impressive than
+88% sounds. Always quote against the baseline.
+
+And the fold standard deviation is usually comparable to the gap between depth 3
+and depth 5, which means those two are *not distinguishable* on this dataset.
+Picking one over the other on a single split is reading tea leaves. This is the
+most common statistical error in applied machine learning, and it is committed
+daily in production and on leaderboards.
+</Reveal>
+
+Tomorrow: the models you should actually reach for, most of which are not neural
+networks.

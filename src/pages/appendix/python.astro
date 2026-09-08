@@ -1,0 +1,81 @@
+---
+import { getCollection, render } from "astro:content";
+import Doc from "../../layouts/Doc.astro";
+import { inlineCode } from "../../lib/inline";
+
+const entries = (await getCollection("py")).sort((a, b) =>
+  a.data.title.localeCompare(b.data.title),
+);
+const libs = [...new Set(entries.map((e) => e.data.lib))].sort();
+const rendered = await Promise.all(
+  entries.map(async (e) => ({ entry: e, Content: (await render(e)).Content })),
+);
+---
+
+<Doc
+  title="Python for Rust people"
+  current="appendix-python"
+  description="Every Python feature used in the tutorial, explained once, with the Rust construct you already reach for."
+>
+  <h1>Python for Rust people</h1>
+  <p class="lede">
+    Every Python construct the chapters use, explained once. Each entry carries
+    the sentence that maps it onto something you already know — not a
+    translation, an <em>analogy</em>, because half of these have no Rust
+    equivalent and pretending otherwise would mislead you.
+  </p>
+
+  <p>
+    You do not read this page. You arrive at one entry of it from a dotted
+    underline in a chapter, read four lines, and go back. It is here as a page at
+    all so that the whole surface is greppable and printable.
+  </p>
+
+  <div class="filterbar">
+    <input type="search" placeholder="Filter entries…" aria-label="Filter Python entries" />
+    {libs.map((lib) => (
+      <button class="chip" data-lib={lib} aria-pressed="false" type="button">{lib}</button>
+    ))}
+  </div>
+
+  {
+    rendered.map(({ entry, Content }) => {
+      const d = entry.data;
+      return (
+        <article
+          class="entry"
+          id={entry.id}
+          data-lib={d.lib}
+          data-search={`${d.title} ${d.summary} ${d.signature ?? ""} ${d.rust ?? ""}`}
+        >
+          <div class="entry__head">
+            <h2>{d.title}</h2>
+            <span class="refcard__lib" style="margin:0">{d.lib}</span>
+            {d.since && <span style="font-family:var(--sans);font-size:.72rem;color:var(--ink-4)">since {d.since}</span>}
+          </div>
+
+          {d.signature && <pre class="refcard__sig" style="max-width:none">{d.signature}</pre>}
+          <p set:html={inlineCode(d.summary)} />
+          {d.example && <pre class="refcard__example" style="max-width:none">{d.example}</pre>}
+          {d.output && <div class="refcard__out">{d.output}</div>}
+
+          {d.rust && (
+            <div class="aside aside--rust">
+              <span class="aside__label">Coming from Rust</span>
+              <p style="margin:0" set:html={inlineCode(d.rust)} />
+              {d.rustCode && <pre style="margin:.6rem 0 0;background:#fdf7f4;border-color:#f0dbd1">{d.rustCode}</pre>}
+            </div>
+          )}
+
+          <Content />
+
+          {d.docs && (
+            <p style="font-family:var(--sans);font-size:.8rem">
+              <a href={d.docs} target="_blank" rel="noopener">{d.docsLabel ?? "Official documentation ↗"}</a>
+            </p>
+          )}
+        </article>
+      );
+    })
+  }
+</Doc>

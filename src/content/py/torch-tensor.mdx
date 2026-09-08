@@ -1,0 +1,26 @@
+---
+title: 'torch.Tensor'
+lib: 'torch'
+summary: 'A NumPy array that can also live on a GPU and remember the operations performed on it.'
+signature: 'torch.tensor(data)   |   t.shape, t.dtype, t.device, t.requires_grad'
+example: |-
+  import torch
+  t = torch.arange(6.).reshape(2, 3)
+  t.shape, t.dtype, t.device
+output: '(torch.Size([2, 3]), torch.float32, device(type=''cpu''))'
+rust: '`ndarray::Array` plus two extra fields: which device owns the memory, and an optional pointer into a tape recording how this value was computed. The second is what makes automatic differentiation possible.'
+docs: 'https://pytorch.org/docs/stable/tensors.html'
+docsLabel: 'Tensor docs ↗'
+---
+
+Two differences from NumPy that will bite you early.
+
+The default float type is `float32`, not `float64`. This is deliberate —
+half the memory, and roughly twice the throughput on hardware that cares —
+but it means `torch.tensor([1, 2, 3])` gives you an *integer* tensor, and
+passing that where a float is expected fails in a confusing way. Write
+`torch.tensor([1., 2., 3.])` or pass `dtype=torch.float32`.
+
+Tensors carry a device. Two tensors on different devices cannot be combined,
+and the error says so plainly. `t.to(device)` moves one; the idiom is to
+choose the device once at the top of a script and route everything through it.

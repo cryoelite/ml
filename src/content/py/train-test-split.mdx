@@ -1,0 +1,23 @@
+---
+title: 'train_test_split'
+lib: 'sklearn'
+summary: 'Randomly partitions arrays into training and held-out sets, keeping rows aligned across them.'
+signature: 'train_test_split(X, y, test_size=0.2, random_state=0, stratify=y)'
+example: |-
+  from sklearn.model_selection import train_test_split
+  X_tr, X_va, y_tr, y_va = train_test_split(
+      X, y, test_size=0.2, random_state=0, stratify=y)
+rust: 'A shuffle with a seeded RNG followed by a split at an index — the tricky part being that the same permutation must be applied to every array, which is exactly what this function guarantees.'
+docs: 'https://scikit-learn.org/stable/modules/generated/sklearn.model_selection.train_test_split.html'
+docsLabel: 'scikit-learn docs ↗'
+---
+
+Always pass `random_state` so the split is reproducible, and pass
+`stratify=y` for classification so that rare classes appear in both halves in
+the same proportion. Without stratification, a class making up 2% of the data
+can end up entirely inside the training set, and your validation score becomes
+a measurement of a question you never asked.
+
+A random split is wrong whenever rows are not independent — time series,
+multiple photos of the same patient, repeated users. See
+[Generalisation](/learn/06-generalisation/) for what to do instead.
