@@ -1,6 +1,6 @@
 ---
 title: "The probabilistic tradition"
-blurb: "The branch that lost the scaling race and is very much alive where data is scarce or being wrong is expensive. Its selling point is the one thing neural networks are worst at: knowing what they don't know."
+blurb: "The branch that lost the race to scale up, and is very much alive wherever data is scarce or being wrong is expensive. It does the one thing neural networks are worst at: knowing what it does not know."
 order: 23
 minutes: 13
 kind: "sibling"
@@ -93,7 +93,7 @@ uncertainty is a computed consequence of where the evidence was.
 
 The prior is where you put what you knew before. Two honest views of it:
 
-**It's a feature.** With 30 data points you genuinely do know things the data
+**It's a feature.** With 30 data points you do know things the data
 doesn't say — that a probability is between 0 and 1, that an effect size is
 unlikely to be enormous, that this parameter should be near zero unless the data
 insists. Encoding that is *using your knowledge*, and refusing to is not
@@ -146,7 +146,7 @@ So "add a penalty on large weights because it generalises better" and "encode a
 prior belief that weights are probably small" are **the same operation**, arrived
 at from completely different directions — one empirical, one philosophical.
 
-I find that genuinely pleasing. The Bayesians and the practitioners were doing
+I find that pleasing. The Bayesians and the practitioners were doing
 identical arithmetic and arguing about what it meant.
 </Wonder>
 
@@ -195,7 +195,7 @@ The catch is cost: fitting requires inverting an $n \times n$ matrix, so it's
 $O(n^3)$. Wonderful at 500 points. Impossible at 500,000. That single fact is
 most of why this tradition lost the scaling race.
 
-## Where it's genuinely the right tool
+## Where it's the right tool
 
 **Bayesian optimisation.** Optimising a function that's expensive to evaluate —
 hyperparameter search, experiment design, drug screening. A GP models the
@@ -250,7 +250,7 @@ philosophy quietly filed off.
 
 </div>
 
-The genuinely useful takeaway isn't "learn Bayesian statistics." It's:
+The useful takeaway isn't "learn Bayesian statistics." It's:
 
 **When someone hands you a prediction, ask what its uncertainty is. If the answer
 is "we don't compute that," you've found a real limitation of the system**, and

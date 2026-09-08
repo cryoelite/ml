@@ -1,6 +1,6 @@
 ---
 title: "Why gradient descent works at all"
-blurb: "A neural network's loss surface has astronomically many minima and gradient descent is a greedy local method. By every classical argument it should fail. It doesn't, and the reasons are genuinely surprising."
+blurb: "A neural network has an astronomical number of places where the search can get stuck, and the search is short-sighted. By every classical argument it should fail. It does not, and the reasons are surprising."
 order: 12
 minutes: 15
 kind: "theory"
@@ -123,7 +123,7 @@ So the thing that *should* make optimisation hopeless — an unimaginably large
 parameter space — is precisely the thing that removes the classical obstacle.
 
 And a saddle is a much friendlier place to be stuck than a minimum. At a
-minimum, every direction is uphill and you are genuinely finished. At a saddle,
+minimum, every direction is uphill and you are finished. At a saddle,
 *some* direction goes down — you just have to find it. Any noise at all will
 eventually knock you off.
 
@@ -131,7 +131,7 @@ Which reframes what mini-batch noise is doing. It isn't a regrettable
 approximation you'd remove if you could afford not to. In a landscape made almost
 entirely of saddles, **the noise is what keeps you moving.**
 
-I find this genuinely lovely. The two things that look like the biggest problems
+I find this lovely. The two things that look like the biggest problems
 — too many parameters, and a gradient we can't afford to compute exactly — turn
 out to be the two things that make it work.
 </Wonder>
@@ -200,7 +200,7 @@ print(f"\nloss spread: {min(losses):.4f} to {max(losses):.4f}"
 ```
 
 Eight completely different random initialisations. Eight different sets of
-weights, which are genuinely not the same network. And essentially the same loss
+weights, which are not the same network. And essentially the same loss
 and the same accuracy.
 
 They landed in eight different minima that are, for all practical purposes,
@@ -299,7 +299,7 @@ initialisation are all fighting.
 **Bad initialisation.** Start too small and signals vanish; too large and they
 explode. Chapter 8's exercise 3 is this, and no optimiser rescues you from it.
 
-**Genuinely hard losses.** Sparse rewards in reinforcement learning, GAN
+**hard losses.** Sparse rewards in reinforcement learning, GAN
 minimax objectives, anything with discrete decisions inside. These break in ways
 that plain supervised learning does not.
 

@@ -10,7 +10,7 @@ covers: ["loss"]
 
 You've used cross-entropy since chapter 4 and it has worked perfectly well
 without you knowing where the name comes from. That's fine — but the underlying
-ideas are genuinely lovely, they take twenty minutes, and they explain a family
+ideas are lovely, they take twenty minutes, and they explain a family
 of things that otherwise look unrelated.
 
 Including one that I think is the best single sentence in this whole book:
@@ -192,14 +192,14 @@ model is choosing between.**
 
 A model with perplexity 50,000 on a 50,000-token vocabulary has learned nothing —
 it's guessing uniformly. Perplexity 20 means that at each position it's about as
-uncertain as picking among 20 words, which is a genuinely good language model.
+uncertain as picking among 20 words, which is a good language model.
 
 Exponentiating makes the numbers *comparable to intuition*. A loss dropping from
 3.0 to 2.9 sounds trivial; perplexity dropping from 20 to 18 is visibly a tenth
 of the remaining uncertainty gone.
 
 <Wonder title="A language model is a compression algorithm">
-Now the connection I've been building toward, and it's genuinely one of my
+Now the connection I've been building toward, and it's one of my
 favourite facts in this subject.
 
 Shannon's source coding theorem says the optimal code length for a symbol of

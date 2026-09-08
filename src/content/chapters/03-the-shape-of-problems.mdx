@@ -1,6 +1,6 @@
 ---
 title: "The shape of problems"
-blurb: "Before any model: what kind of question is this, what feedback exists, and how to spot the moment when the honest answer is that no model can help."
+blurb: "Before any model at all: what kind of question is this, what evidence do we have, and how to notice when the answer is that no model will help."
 order: 3
 day: 3
 part: orientation
@@ -8,23 +8,21 @@ minutes: 80
 introduces: ["supervision", "supervised", "unsupervised", "selfsup", "rl"]
 ---
 
-Yesterday you got the tools. Today is the thing that quietly separates people who
-*ship* models from people who merely train them: working out what the problem
-actually is.
+Yesterday was the tools. Today is a step that gets skipped constantly and
+shouldn't be: working out what the problem actually is before building anything.
 
-I'll be honest with you — this is the least glamorous chapter in the book. It has
-the fewest impressive outputs and the highest return of any day here. A mediocre
-model on a well-framed problem beats a brilliant model on a badly framed one,
-every single time, and the second kind of failure stays invisible until it has
-become expensive.
+This is the chapter with the fewest interesting pictures in it. It is also the
+one that saves the most work. An ordinary model on a well-chosen problem beats a
+clever model on a badly-chosen one every time, and the second kind of mistake
+tends to stay invisible until a lot of effort has gone into it.
 
-So let's spend a day learning to look before we leap.
+So: a day on looking before leaping.
 
 ## Three questions, and they're independent
 
-Every project answers all three of these. They're orthogonal — knowing one tells
-you nothing at all about the others — and running them together is the main
-reason this field's vocabulary feels like soup when you first meet it.
+Every project answers all three of these. They are independent — knowing one
+tells you nothing about the others — and running them together is the main reason
+the vocabulary here feels like soup when you first meet it.
 
 <div class="table-scroll">
 
@@ -58,7 +56,7 @@ Spend your thinking in proportion. Most people spend it exactly backwards.
 
 This is where nearly all commercially deployed machine learning lives, for a
 reason worth naming: it's the setting where you can actually *measure* whether
-you're winning. That sounds mundane. It's the whole ball game.
+you're winning. That sounds mundane. It is most of the job.
 
 The catch is that labels cost money. A radiologist labelling scans is a
 radiologist not doing radiology. So half of applied machine learning is really
@@ -90,14 +88,14 @@ rather than mathematical — it made data free. The whole internet became a
 labelled dataset overnight, and it had been sitting there the whole time.
 
 **Unsupervised** means no labels, and no way to manufacture any. You have a
-million customer records and genuinely no idea what the interesting groupings
+million customer records and no idea at all what the interesting groupings
 are.
 
 Clustering, dimensionality reduction and anomaly detection all live here. The
-uncomfortable property — and I want to be straight with you about it — is that
+uncomfortable property, and it is worth being straight about, is that
 there's no score. Nothing tells you whether your clusters are *right*, only
 whether a human downstream finds them useful. Budget for that ambiguity before
-you promise anybody a number in a planning meeting.
+you promise anybody a number.
 
 **Reinforcement learning** means feedback that is delayed and *evaluative* rather
 than instructive. Nobody tells you the correct move. Forty moves later, somebody
@@ -109,7 +107,7 @@ question instead of cheerfully continuing your sentence.
 
 <Aside type="nice">
 Reinforcement learning is deliberately out of scope for the fortnight. It's a
-genuinely separate discipline with its own vocabulary (states, actions, policies,
+separate discipline with its own vocabulary (states, actions, policies,
 value functions, the Bellman equation) and its own distinctive ways of going
 wrong, and two weeks can't hold both honestly.
 
@@ -214,7 +212,7 @@ there's no arithmetic relationship left to misread.
 
 The cost is width. Fifty thousand distinct user IDs become fifty thousand
 columns, which is plainly untenable — and the fix for *that* is **embeddings**,
-which are one of the genuinely beautiful ideas in this field and get a whole
+which are one of the beautiful ideas in this field and get a whole
 chapter to themselves ([Chapter 12](/learn/12-embeddings-and-tabular/)).
 
 <Aside type="rust">
@@ -243,7 +241,7 @@ A perfect score. Wonderful. Ship it.
 
 Except `price_per_sqm` was computed *from the price*. The model has been handed
 the answer in a very thin disguise. It scores perfectly in testing and
-catastrophically in production, where nobody knows the price yet — that being,
+catastrophically once it is in real use, where nobody knows the price yet — that being,
 you'll recall, the entire reason anyone built it.
 
 **Leakage** is any information in your features that wouldn't be available at
@@ -260,7 +258,7 @@ Real leakage looks like this:
 - An "account status" field that gets back-filled nightly.
 - A single row duplicated across your training and validation sets.
 
-Each of those is invisible in a schema and fatal in production.
+Each of those is invisible in a table of column names and fatal in real use.
 
 The habit that catches all of them is simple and slightly unnatural: **when a
 result is much better than you expected, don't celebrate. Go and find out why.**
@@ -272,7 +270,7 @@ base rate.
 <Stuck>
 **"How is leakage different from just... a good feature?"** Ask one question: *at
 the moment I need a prediction, does this value exist yet?* A good feature is one
-you'd genuinely have on hand. Leakage is one you'd only have afterwards. The
+you'd have on hand. Leakage is one you'd only have afterwards. The
 model can't tell the difference, so you have to.
 
 **"Why is `X` capital and `y` lowercase? That looks like a typo."** It's a
@@ -355,7 +353,7 @@ Four questions, in order. A "no" to any of them means stop.
 **1. Could a competent human do it from the same information?**
 
 If a person staring at the same row can't tell, the signal probably isn't in the
-row. This isn't a law — models genuinely do find patterns humans can't,
+row. This isn't a law — models do find patterns humans can't,
 especially in high dimensions — but as a first filter it's excellent, and it will
 rescue you from most doomed projects before they start.
 
@@ -375,7 +373,7 @@ Models learn the distribution they were shown, and nothing else. If your trainin
 data is pre-pandemic travel behaviour, or pre-competitor pricing, then your model
 isn't a predictor — it's a historian.
 
-This is **distribution shift**, and it's the reason models decay in production
+This is **distribution shift**, and it's the reason models get worse over time once they are in use
 rather than sitting there staying correct. Nothing broke. The world moved.
 
 **4. What happens when it's wrong?**
@@ -454,7 +452,7 @@ tickets" is a product. "Here are your 400 clusters" is a homework assignment for
 somebody else.
 
 Baseline: TF-IDF cosine similarity. Thirty years old, takes an afternoon, and is
-a genuinely strong baseline on this exact task.
+a strong baseline on this exact task.
 
 **3. VAT.** Not a machine learning problem. It's defined in legislation — write
 the rules. A model would hand you 99.4% accuracy where 100% was free, and then be

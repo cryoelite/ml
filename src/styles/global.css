@@ -935,11 +935,17 @@ h3:hover .heading-anchor, h4:hover .heading-anchor { opacity: 1; }
   background: var(--paper-3); font-family: var(--sans); font-size: 0.73rem; color: var(--ink-3);
 }
 .conceptmap__scroll { overflow: auto; max-height: 34rem; scrollbar-width: thin; }
+.conceptmap--compact .conceptmap__scroll { max-height: 22rem; }
 .conceptmap svg { display: block; min-width: 100%; font-family: var(--sans); }
 /* "Fit to width" trades legibility for the whole shape at once. The viewBox does
-   the scaling; nothing is re-laid out. */
+   the scaling; nothing is re-laid out.
+
+   These two rules have to out-specify the compact cap above, or a map that has
+   been scaled down to fit gets its bottom half cut off anyway — which is
+   exactly the bug this pair of selectors was written to fix. */
 .conceptmap.is-fit svg { width: 100%; height: auto; min-width: 0; }
 .conceptmap.is-fit .conceptmap__scroll { max-height: none; overflow: visible; }
+.conceptmap.is-fit.conceptmap--compact .conceptmap__scroll { max-height: none; }
 .cm-fit {
   display: inline-flex; align-items: center; gap: 0.35rem;
   cursor: pointer; color: var(--ink-3); user-select: none;
@@ -1414,3 +1420,450 @@ h3:hover .heading-anchor, h4:hover .heading-anchor { opacity: 1; }
 .runtime__result[data-kind="testing"]       { color: var(--ink-3); font-style: italic; }
 /* The hint is the actionable half; give it its own line so it is readable. */
 .runtime__result b { display: block; font-weight: 500; color: var(--ink-3); margin-top: 0.15rem; }
+
+/* ============================================================================
+   Runtime panel — "On this machine"
+
+   Three fixes, all of them visible in the panel before this block existed:
+
+   1. `.runtime__choice strong` was scoping too widely. The option TITLE should
+      be a block, but a <strong> inside the description inherited it too and
+      shattered the sentence across three lines mid-clause.
+   2. The URL and token inputs were two unlabelled boxes; nothing said which was
+      which. They are now a two-column grid so the labels align.
+   3. Everything was packed at ~5px. The panel is a settings dialog, not a
+      dense table, and it can afford to breathe.
+   ========================================================================== */
+
+/* Only the direct child title is a block. Anything inline stays inline. */
+.runtime__choice > label > span > strong { display: block; }
+.runtime__choice em strong,
+.runtime__choice em b { display: inline; }
+.runtime__yours { font-weight: 650; font-style: normal; color: var(--ink-2); }
+
+.runtime__choice em { display: block; line-height: 1.5; margin-top: 0.15rem; }
+
+/* Label / input pairs, aligned. `display: contents` lets each field's two
+   children join the parent grid so every label shares one column. */
+.runtime__fields {
+  display: grid;
+  grid-template-columns: auto minmax(0, 1fr);
+  gap: 0.4rem 0.6rem;
+  align-items: center;
+  margin-top: 0.7rem;
+}
+.runtime__field { display: contents; }
+.runtime__flabel {
+  font-family: var(--sans);
+  font-size: 0.72rem;
+  font-weight: 600;
+  color: var(--ink-3);
+  white-space: nowrap;
+}
+.runtime__fields input { width: 100%; margin: 0; }
+
+.runtime__test {
+  margin-top: 0.7rem;
+  padding-top: 0.6rem;
+  border-top: 1px solid var(--rule-soft);
+  align-items: flex-start;
+  gap: 0.6rem;
+}
+.runtime__result { flex: 1 1 100%; }
+
+/* ============================================================================
+   The cast
+   Four faces drawn by DiceBear at build time (scripts/gen-cast.mjs), each one
+   bound to one kind of box. The ring colour is the same colour the box already
+   uses, so a face never introduces a hue the palette doesn't have.
+   ========================================================================== */
+
+.portrait {
+  display: inline-block;
+  width: 34px; height: 34px;
+  flex: none;
+  border-radius: 50%;
+  background: var(--paper);
+  box-shadow: 0 0 0 2px currentColor;
+  overflow: hidden;
+  line-height: 0;
+  vertical-align: middle;
+}
+.portrait svg { width: 100%; height: 100%; display: block; }
+.portrait--sky    { color: rgba(42, 111, 168, 0.45); }
+.portrait--amber  { color: rgba(146, 101, 13, 0.4); }
+.portrait--berry  { color: rgba(178, 58, 104, 0.4); }
+.portrait--leaf   { color: rgba(76, 122, 31, 0.4); }
+.portrait--rust   { color: rgba(162, 69, 34, 0.4); }
+.portrait--violet { color: rgba(92, 74, 145, 0.4); }
+
+/* Faces inside the boxes they belong to. */
+.wonder__face {
+  position: absolute; top: -15px; right: 16px;
+  width: 42px; height: 42px;
+  box-shadow: 0 0 0 3px var(--paper), 0 0 0 4.5px rgba(42, 111, 168, 0.35);
+}
+.try__label { display: flex; align-items: center; gap: 0.5rem; }
+.try__face { width: 30px; height: 30px; }
+.stuck__icon { width: 30px; height: 30px; }
+.aside--warn { position: relative; }
+.aside__face {
+  position: absolute; top: -13px; right: 14px;
+  width: 36px; height: 36px;
+  box-shadow: 0 0 0 3px var(--paper), 0 0 0 4.5px rgba(168, 50, 50, 0.3);
+}
+
+/* ============================================================================
+   Somebody saying something
+   ========================================================================== */
+
+.says {
+  display: flex; align-items: flex-start; gap: 0.75rem;
+  margin: 1.6rem 0;
+}
+.says--flip { flex-direction: row-reverse; }
+.says__who {
+  display: flex; flex-direction: column; align-items: center; gap: 0.2rem;
+  flex: none; width: 54px;
+}
+.says__who .portrait { width: 48px; height: 48px; }
+.says__name {
+  font-family: var(--hand); font-weight: 800; font-size: 0.7rem;
+  letter-spacing: 0.03em; color: var(--ink-3);
+}
+.says__bubble {
+  position: relative;
+  flex: 1;
+  padding: 0.8rem 1rem;
+  border-radius: 14px;
+  background: var(--paper-2);
+  border: 2px solid var(--rule-soft);
+  font-size: 0.97rem;
+}
+.says__bubble > :first-child { margin-top: 0; }
+.says__bubble > :last-child { margin-bottom: 0; }
+/* The little tail. Two triangles: the border colour, then the fill on top. */
+.says__bubble::before, .says__bubble::after {
+  content: ""; position: absolute; top: 15px;
+  border: 9px solid transparent;
+}
+.says__bubble::before { left: -18px; border-right-color: var(--rule-soft); }
+.says__bubble::after  { left: -15px; border-right-color: var(--paper-2); }
+.says--flip .says__bubble::before { left: auto; right: -18px; border-right-color: transparent; border-left-color: var(--rule-soft); }
+.says--flip .says__bubble::after  { left: auto; right: -15px; border-right-color: transparent; border-left-color: var(--paper-2); }
+
+.says--sky   .says__bubble { background: var(--sky-soft);   border-color: #cfe2f0; }
+.says--sky   .says__bubble::after { border-right-color: var(--sky-soft); }
+.says--sky   .says__bubble::before { border-right-color: #cfe2f0; }
+.says--berry .says__bubble { background: var(--berry-soft); border-color: #f5d5e0; }
+.says--berry .says__bubble::after { border-right-color: var(--berry-soft); }
+.says--berry .says__bubble::before { border-right-color: #f5d5e0; }
+.says--amber .says__bubble { background: var(--amber-soft); border-color: #efe2c4; }
+.says--amber .says__bubble::after { border-right-color: var(--amber-soft); }
+.says--amber .says__bubble::before { border-right-color: #efe2c4; }
+.says--rust  .says__bubble { background: var(--rust-soft);  border-color: #f0dbd1; }
+.says--rust  .says__bubble::after { border-right-color: var(--rust-soft); }
+.says--rust  .says__bubble::before { border-right-color: #f0dbd1; }
+
+@media (max-width: 34rem) {
+  .says__bubble::before, .says__bubble::after { display: none; }
+  .says { gap: 0.6rem; }
+  .says__who { width: 42px; }
+  .says__who .portrait { width: 38px; height: 38px; }
+}
+
+/* ============================================================================
+   The folded "if you already write code" aside
+   Shut by default. Most readers here have never written a line, and an aside
+   about Rust in front of them is a wall, not a help.
+   ========================================================================== */
+
+details.aside--rust { padding: 0; }
+details.aside--rust > summary {
+  cursor: pointer; list-style: none;
+  padding: 0.7rem 1.05rem;
+  display: flex; align-items: baseline; gap: 0.6rem; flex-wrap: wrap;
+}
+details.aside--rust > summary::-webkit-details-marker { display: none; }
+details.aside--rust > summary::after {
+  content: ""; width: 7px; height: 7px; margin-left: auto;
+  align-self: center;
+  border-right: 2px solid var(--rust); border-bottom: 2px solid var(--rust);
+  transform: rotate(-45deg); transition: transform 0.18s ease;
+}
+details.aside--rust[open] > summary::after { transform: rotate(45deg); }
+details.aside--rust > summary .aside__label { margin: 0; display: inline; }
+.aside__hint {
+  font-family: var(--sans); font-size: 0.72rem; color: var(--rust);
+  opacity: 0.75; font-style: italic; text-transform: none; letter-spacing: 0;
+}
+.aside__body { padding: 0 1.05rem 0.85rem; }
+.aside__body > :first-child { margin-top: 0; }
+.aside__body > :last-child { margin-bottom: 0; }
+
+/* ============================================================================
+   The fruit demo
+   ========================================================================== */
+
+.fruit {
+  margin: 1.8rem 0 2.2rem;
+  border: 2px solid var(--rule);
+  border-radius: var(--radius-lg);
+  background: var(--paper);
+  overflow: hidden;
+  box-shadow: var(--shadow-soft);
+}
+.fruit__head {
+  display: flex; align-items: baseline; gap: 0.6rem; flex-wrap: wrap;
+  padding: 0.55rem 0.95rem;
+  background: var(--paper-3);
+  border-bottom: 1px solid var(--rule);
+  font-family: var(--sans);
+}
+.fruit__title { font-family: var(--hand); font-weight: 800; font-size: 0.9rem; color: var(--ink); }
+.fruit__sub { font-size: 0.75rem; color: var(--ink-3); }
+.fruit__stage { padding: 0.7rem 0.7rem 0; }
+.fruit__canvas {
+  display: block; width: 100%; height: 340px;
+  border-radius: var(--radius);
+  background: var(--paper-2);
+  cursor: crosshair;
+  touch-action: manipulation;
+}
+.fruit__controls {
+  display: flex; align-items: center; gap: 0.9rem; flex-wrap: wrap;
+  padding: 0.75rem 0.95rem 0.2rem;
+}
+.fruit__tools { display: flex; gap: 0.4rem; flex-wrap: wrap; }
+.fruit__tool {
+  display: inline-flex; align-items: center; gap: 0.4rem;
+  padding: 0.35rem 0.75rem;
+  border-radius: 999px;
+  border: 2px solid var(--rule);
+  background: var(--paper-2);
+  font-family: var(--hand); font-weight: 720; font-size: 0.82rem;
+  color: var(--ink-2);
+  cursor: pointer;
+  user-select: none;
+}
+.fruit__tool input { position: absolute; opacity: 0; width: 0; height: 0; }
+.fruit__tool::before {
+  content: ""; width: 11px; height: 11px; border-radius: 50%;
+  background: currentColor; flex: none;
+}
+.fruit__tool--apple { color: #c0392b; }
+.fruit__tool--berry { color: #4a6fb5; }
+.fruit__tool--ask   { color: var(--ink-3); }
+.fruit__tool--ask::before { border-radius: 2px; transform: rotate(45deg); }
+.fruit__tool:has(input:checked) {
+  border-color: currentColor;
+  background: var(--paper);
+  box-shadow: 0 0 0 3px color-mix(in srgb, currentColor 14%, transparent);
+}
+.fruit__tool:has(input:focus-visible) { outline: 2px solid var(--accent); outline-offset: 2px; }
+.fruit__tool span { color: var(--ink); }
+.fruit__buttons { display: flex; gap: 0.5rem; margin-left: auto; }
+.fruit__buttons .btn { font-family: var(--hand); font-weight: 780; }
+.fruit__buttons .btn:disabled { opacity: 0.55; cursor: progress; }
+.fruit__status {
+  margin: 0.7rem 0 0;
+  padding: 0.7rem 0.95rem 0.95rem;
+  font-size: 0.92rem;
+  color: var(--ink-2);
+  line-height: 1.5;
+  min-height: 3.4rem;
+}
+.fruit__status strong { color: var(--ink); }
+
+@media (max-width: 32rem) {
+  .fruit__canvas { height: 260px; }
+  .fruit__buttons { margin-left: 0; }
+}
+
+/* ============================================================================
+   Home page, second pass — warmer, rounder, more colour
+   The rule from the top of this file still holds: every hue already means
+   something. Nothing below introduces a new colour, it only lets the ones we
+   have take up more room.
+   ========================================================================== */
+
+/* A soft sky behind the hero, ending in a hand-drawn horizon. It hangs off
+   .hero rather than .home so that it always ends where the hero ends — on a
+   phone the hero is twice as tall, and a fixed height put the wave straight
+   through the middle of a sentence. */
+.hero { position: relative; }
+.hero::before {
+  content: "";
+  position: absolute;
+  top: -4rem; bottom: -0.6rem;
+  left: 50%; transform: translateX(-50%);
+  width: 100vw;
+  background:
+    radial-gradient(46rem 20rem at 78% -5rem, color-mix(in srgb, var(--amber-soft) 80%, transparent), transparent 66%),
+    linear-gradient(#cee3f3, #d9ebf6 60%, #dcecf7);
+  z-index: -2;
+  pointer-events: none;
+}
+.hero::after {
+  content: "";
+  position: absolute;
+  bottom: -0.6rem;
+  left: 50%; transform: translateX(-50%);
+  width: 100vw;
+  height: 2.4rem;
+  background: var(--paper);
+  clip-path: polygon(
+    0 55%, 8% 34%, 17% 52%, 26% 30%, 35% 50%, 45% 32%, 54% 51%,
+    63% 33%, 72% 52%, 81% 34%, 90% 53%, 100% 36%, 100% 100%, 0 100%);
+  z-index: -1;
+  pointer-events: none;
+}
+.home { position: relative; }
+body { overflow-x: hidden; }
+
+.home__eyebrow {
+  font-family: var(--hand); font-weight: 800;
+  font-size: 0.85rem; letter-spacing: 0.02em;
+  color: var(--sky);
+  margin: 0 0 0.35rem;
+}
+.home__title {
+  font-family: var(--hand);
+  font-weight: 900;
+  letter-spacing: -0.03em;
+}
+/* One word of the headline in the accent, the way a marker pen would do it. */
+.home__title::after {
+  content: "";
+  display: block;
+  width: 8.5rem; height: 9px;
+  margin-top: 0.5rem;
+  border-radius: 6px;
+  background: var(--amber-soft);
+  box-shadow: 0 0 0 2px rgba(146, 101, 13, 0.18) inset;
+}
+.home h2 {
+  font-family: var(--hand);
+  font-weight: 850;
+  font-size: 1.45rem;
+  margin: 3.1rem 0 0.8rem;
+}
+.home > p { max-width: 36rem; }
+
+/* Part cards: one colour each, so the five stages of the path are five
+   different places rather than five identical boxes. */
+.part { border-width: 2px; border-radius: var(--radius-lg); }
+.part h3 { font-family: var(--hand); font-weight: 850; }
+.part--0 { background: var(--sky-soft);    border-color: #cfe2f0; }
+.part--1 { background: var(--leaf-soft);   border-color: #dae8c6; }
+.part--2 { background: var(--violet-soft); border-color: #ded6ee; }
+.part--3 { background: var(--berry-soft);  border-color: #f5d5e0; }
+.part--4 { background: var(--amber-soft);  border-color: #efe2c4; }
+.part--0 h3 { color: #1d4f78; }
+.part--1 h3 { color: #3a5e17; }
+.part--2 h3 { color: #45376e; }
+.part--3 h3 { color: #8a2c50; }
+.part--4 h3 { color: #6d4b06; }
+
+/* The cast, introduced once on the front page. */
+.cast-strip {
+  list-style: none;
+  margin: 1.4rem 0 1.6rem;
+  padding: 0;
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(11rem, 1fr));
+  gap: 0.7rem;
+}
+.cast-card {
+  display: flex; align-items: center; gap: 0.7rem;
+  padding: 0.7rem 0.85rem;
+  border-radius: var(--radius-lg);
+  border: 2px solid var(--rule-soft);
+  background: var(--paper);
+}
+.cast-card__face { width: 44px; height: 44px; }
+.cast-card__name {
+  margin: 0; font-family: var(--hand); font-weight: 850; font-size: 0.98rem;
+}
+.cast-card__role {
+  margin: 0; font-family: var(--sans); font-size: 0.78rem; color: var(--ink-3);
+  line-height: 1.35;
+}
+.cast-card--sky   { background: var(--sky-soft);   border-color: #cfe2f0; }
+.cast-card--rust  { background: var(--rust-soft);  border-color: #f0dbd1; }
+.cast-card--berry { background: var(--berry-soft); border-color: #f5d5e0; }
+.cast-card--amber { background: var(--amber-soft); border-color: #efe2c4; }
+
+/* Buttons get a little more presence now that they sit on colour. */
+.btn { border-radius: 999px; font-family: var(--hand); font-weight: 780; font-size: 0.92rem; }
+.btn--primary { box-shadow: 0 2px 0 var(--accent-deep); }
+.btn--primary:active { transform: translateY(1px); box-shadow: 0 1px 0 var(--accent-deep); }
+.btn--ghost { background: var(--paper); border-width: 2px; }
+
+
+/* ============================================================================
+   Chapter openers, coloured by part
+   The same five hues the front page uses for the five stages of the path, so a
+   reader who has seen the map recognises where they are before reading a word.
+   ========================================================================== */
+
+.opener {
+  position: relative;
+  border-bottom: 0;
+  border-radius: var(--radius-lg);
+  padding: 1.3rem 1.4rem;
+  margin-bottom: 2rem;
+  background: var(--paper-2);
+  border: 2px solid var(--rule-soft);
+}
+.opener h1 { font-family: var(--hand); font-weight: 900; letter-spacing: -0.025em; }
+.opener--orientation   { background: var(--sky-soft);    border-color: #cfe2f0; }
+.opener--foundations   { background: var(--leaf-soft);   border-color: #dae8c6; }
+.opener--deep-learning { background: var(--violet-soft); border-color: #ded6ee; }
+.opener--frontier      { background: var(--berry-soft);  border-color: #f5d5e0; }
+.opener--practice      { background: var(--amber-soft);  border-color: #efe2c4; }
+.opener--orientation   h1 { color: #1d4f78; }
+.opener--foundations   h1 { color: #3a5e17; }
+.opener--deep-learning h1 { color: #45376e; }
+.opener--frontier      h1 { color: #8a2c50; }
+.opener--practice      h1 { color: #6d4b06; }
+.opener .lede { color: var(--ink-2); }
+.opener .chapter-meta { margin-top: 0.7rem; }
+
+/* Article headings, rounded to match the rest. */
+.article h2 { font-family: var(--hand); font-weight: 870; }
+.article h3 { font-family: var(--hand); font-weight: 800; }
+
+/* ============================================================================
+   Footer
+   ========================================================================== */
+
+.footer {
+  display: flex; align-items: center; gap: 0.9rem; flex-wrap: wrap;
+  padding: 1.5rem clamp(1rem, 4vw, 3rem);
+  border-top: 2px dashed var(--rule);
+  background: var(--paper-2);
+  font-family: var(--sans); font-size: 0.83rem; color: var(--ink-3);
+}
+.footer__pip { width: 34px; flex: none; }
+.footer__pip .doodle { width: 34px; }
+.footer p { margin: 0; max-width: 30rem; }
+.footer strong { font-family: var(--hand); font-weight: 850; color: var(--ink); }
+.footer nav { display: flex; gap: 1rem; flex-wrap: wrap; margin-left: auto; }
+.footer nav a { color: var(--accent-deep); text-decoration: none; }
+.footer nav a:hover { text-decoration: underline; }
+.footer__ver {
+  font-family: var(--hand); font-weight: 800; font-size: 0.7rem;
+  color: var(--accent-deep); background: var(--accent-soft);
+  border-radius: 999px; padding: 0.12rem 0.5rem;
+}
+@media print { .footer { display: none; } }
+
+/* The map on the front page breaks out of the reading column. At 52rem the
+   whole tree scaled to fit is too small to read the labels; given the full
+   window it is legible, which is the only reason to show it here at all. */
+.home .conceptmap {
+  width: min(calc(100vw - 3rem), 72rem);
+  margin-left: 50%;
+  transform: translateX(-50%);
+}

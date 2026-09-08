@@ -84,13 +84,11 @@ import { withBase } from "../lib/base";
     }{data.example && <span class="refcard__example">{data.example}</span>}{
       data.output && <span class="refcard__out">{data.output}</span>
     }{
-      data.rust && (
-        <span class="refcard__rust">
-          <span class="refcard__rustlabel">Coming from Rust</span>
-          <span class="refcard__rusttext" set:html={inlineCode(data.rust)} />
-          {data.rustCode && <span class="refcard__rustcode">{data.rustCode}</span>}
-        </span>
-      )
+      /* The Rust note deliberately does not appear here. Most readers have
+         never written Rust, and a card that opens on hover has to be short
+         enough to read in one glance. The note is still on the appendix page,
+         folded, for the people it helps. */
+      null
     }</span
   ><span class="refcard__foot"
     >{

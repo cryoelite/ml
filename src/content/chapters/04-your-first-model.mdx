@@ -1,6 +1,6 @@
 ---
 title: "Your first model, built by hand"
-blurb: "A linear model in three lines of NumPy, a loss function that says what wrong means, and the discovery that finding good parameters is a search problem."
+blurb: "A straight line fitted by hand, a way of measuring how wrong it is, and the realisation that finding good numbers is a search."
 order: 4
 day: 4
 part: foundations
@@ -8,11 +8,13 @@ minutes: 90
 introduces: ["linear", "logreg", "classification", "regression"]
 ---
 
-Today you write a model with no library doing anything on your behalf.
+Today you write a model yourself, with no library doing anything on your
+behalf.
 
-It's about twenty lines. It will not impress anybody at a party. And every neural
-network in the rest of this book — including the ones with billions of
-parameters — is a stack of exactly this thing. So it's worth doing slowly.
+It's about twenty lines, and it fits a straight line through some dots. That
+sounds small. But every neural network in the rest of this book, including the
+ones with billions of numbers in them, is a stack of exactly this thing repeated.
+So it's worth doing slowly.
 
 ## A model is a function with adjustable numbers
 
@@ -52,7 +54,7 @@ That's a model. I know it doesn't look like much.
 `w` and `b` are the **parameters** — the numbers we're hunting for. `x` is the
 input, which is given to us and which we don't get to change.
 
-That distinction is the entire subject, so let me put it plainly: **training
+That distinction runs through everything here, so plainly: **training
 means holding the data fixed and moving the parameters.** Everything else is
 detail.
 
@@ -224,7 +226,7 @@ of them. Tomorrow.
 
 <Stuck>
 **"Why is the closed-form answer still not exactly 12 and 7.5?"** Because we added
-noise, and the noise is genuinely in the data. The best possible line through
+noise, and the noise is really in the data. The best possible line through
 *these* dots is not the line that generated them. No method can fix that — it's
 irreducible, and recognising it saves you weeks. More on this at the bottom of
 the page.
@@ -310,7 +312,7 @@ more than one that said "maybe?" and was wrong.
 
 <Reveal title="Neither loss was invented — both fall out of the same idea" kind="math">
 
-Here's something I find genuinely satisfying. MSE and cross-entropy look like two
+Here's something I find satisfying. MSE and cross-entropy look like two
 unrelated formulas somebody chose. They aren't. They're the same principle,
 applied to two different assumptions.
 

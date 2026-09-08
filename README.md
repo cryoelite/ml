@@ -1,9 +1,13 @@
 # Gradient
 
-A two-week, ground-up path into machine learning, written for someone who already
-ships software. Sixteen chapters, fifteen optional extras, 253 runnable code
-cells, two Python runtimes, and an appendix that explains every Python construct
-in terms of the Rust you already know.
+A two-week, ground-up path into machine learning, **written for people who have
+never programmed**. Sixteen chapters, fifteen optional extras, 254 runnable code
+cells, two Python runtimes, and an appendix explaining every piece of Python it
+uses.
+
+It was written by a programmer, and there are a few notes for readers in the same
+position — Python-versus-Rust comparisons, mostly. All of them are folded shut,
+labelled, and needed by nothing.
 
 ```bash
 docker compose up --build     # http://localhost:4321
@@ -111,14 +115,13 @@ gotchas that will otherwise cost you an hour, are on `/setup/`.
 
 ## The path
 
-**I · Orientation** — where this fits, Python for Rust programmers, the shape of problems
-**II · How learning works** — your first model, gradient descent, generalisation, the model zoo
-**III · Deep learning** — neural networks by hand, backpropagation, PyTorch
-**IV · The modern stack** — vision & transfer, embeddings, attention, LLMs
+**I · Getting our bearings** — where this all fits, meeting Python, the shape of problems
+**II · How learning happens** — your first model, gradient descent, generalisation, the model zoo
+**III · Neural networks** — built by hand, backpropagation, then PyTorch
+**IV · The modern stack** — pictures & transfer, embeddings, attention, language models
 **V · Doing it for real** — unsupervised methods, shipping, reading papers
 
-`/extras/` holds everything that is genuinely worth reading and genuinely does not
-fit in a fortnight — **nothing in the sixteen chapters depends on any of it.**
+`/extras/` holds everything worth reading that simply does not fit in a fortnight — **nothing in the sixteen chapters depends on any of it.**
 `/map/` shows the whole field as a tree. `/colophon/` explains every design
 decision behind the thing.
 
@@ -141,7 +144,7 @@ src/
   content/
     chapters/*.mdx      the 16 chapters — the two-week spine
     extras/*.mdx        15 optional pieces, none of them load-bearing
-    py/*.mdx            46 Python entries, each with a Rust analogy
+    py/*.mdx            46 Python entries, most with a folded programmer note
     math/*.mdx          31 maths entries, each with its symbols named
   components/           Cell, Ref/Py/M (hover cards), Aside, Reveal,
                         SideQuest, Stuck, TryThis, Wonder, Doodle

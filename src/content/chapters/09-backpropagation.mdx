@@ -1,6 +1,6 @@
 ---
 title: "Backpropagation"
-blurb: "The chain rule applied mechanically, right to left, computing every gradient in a network for the price of one extra forward pass. Derived, implemented, and checked against brute force."
+blurb: "The chain rule applied mechanically, right to left, working out every gradient in a network for the price of one extra pass. Derived, written, and checked."
 order: 9
 day: 9
 part: deep-learning
@@ -13,10 +13,17 @@ Yesterday's numerical gradient cost two forward passes **per parameter**.
 Backpropagation costs about one forward pass **in total** — for every parameter
 at once. Today is where that comes from.
 
-It's the most important algorithm in the field, and I want to say plainly up
-front: it is not difficult. It's <M id="chain-rule">the chain rule</M>, applied
-to a graph, in reverse. If you can do the chain rule, you can do this. The
-difficulty is entirely in the reputation.
+It is the most important procedure in the field, and it is not difficult. It is
+<M id="chain-rule">the chain rule</M> from school calculus, applied step by step,
+working backwards. If you can do the chain rule, you can do this. The difficulty
+is all in the reputation.
+
+<Says who="moss">
+If the phrase "chain rule" makes your stomach drop a little: it means that when
+one thing depends on a second thing, which depends on a third, you can work out
+how the first responds to the third by multiplying the two steps together. That
+is the entire tool. Everything today is that, done several times in a row.
+</Says>
 
 ## The idea, on something tiny
 
@@ -89,7 +96,7 @@ So the gradient with respect to *everything* costs about the same as evaluating
 the function once. Not per parameter. Total.
 
 <Wonder title="Why right-to-left, and not left-to-right?">
-Here's the part I think is genuinely lovely, and it's a fact about *bracketing*.
+Here's the part I think is lovely, and it's a fact about *bracketing*.
 
 The chain rule doesn't specify an order. For a function
 $\mathbb{R}^n \to \mathbb{R}^m$ the derivative is a Jacobian matrix, and a
@@ -118,7 +125,7 @@ doing the work here: the fact that a loss is a *single number*. That isn't a
 convention or a stylistic choice — it is the property that makes training
 affordable at all.
 
-If you wanted to optimise two things at once, genuinely and separately, you'd pay
+If you wanted to optimise two things at once, truly and separately, you'd pay
 twice. The entire economics of deep learning rests on collapsing everything you
 care about into one scalar and then bracketing the product from the right.
 
@@ -338,8 +345,9 @@ over the wrong axis.
 Gradient checking is how *every* autodiff library is tested, and it's what you
 should do the moment you write a custom layer.
 
-It's slow, so you run it once on fifty examples — never inside the training loop.
-Think of it as a unit test for calculus.
+It's slow, so you run it once on fifty examples and never inside the training
+loop. It is a check on the maths, done once, the way you'd re-add a column of
+figures a second time before trusting the total.
 </Aside>
 
 ## Now train it properly
@@ -400,7 +408,7 @@ print(f"  backpropagation : {back_ms:8.2f} ms")
 print(f"  numerical       : {num_ms:8.2f} ms   ({num_ms / back_ms:.0f}x slower)")
 ```
 
-And here's the thing that makes it matter: **that ratio grows linearly with the
+And this is what makes it matter: **that ratio grows linearly with the
 parameter count.**
 
 At 129 parameters the gap is already big (I get somewhere around 80x; you'll
@@ -409,7 +417,7 @@ on). At ten million parameters it would be a factor of millions. At a hundred
 billion, the numerical version doesn't finish before the sun does.
 
 That's the difference one algorithm makes. And it's why this is the one algorithm
-genuinely worth deriving by hand, once, yourself — which you now have.
+worth deriving by hand, once, yourself — which you now have.
 
 ```python run title="the result"
 xx, yy = np.meshgrid(np.linspace(-2.2, 2.4, 240), np.linspace(-2.4, 2.4, 240))
@@ -476,7 +484,7 @@ PyTorch bug there is, and now you'll recognise it on sight tomorrow.
 
 <Stuck>
 **"Why does `forward` return a cache? That feels like a hack."** It isn't — the
-backward pass genuinely needs values the forward pass computed (`a1` for step 2,
+backward pass really does need values the forward pass computed (`a1` for step 2,
 `z1` for step 4). Every framework does this. It's also why training uses far more
 memory than inference.
 
@@ -494,7 +502,7 @@ sum divided by n, and that constant carries all the way through the backward
 pass. Exercise 1 below deletes it deliberately, and the result is instructive.
 
 **"This all works for two layers. What about fifty?"** Steps 3 and 4 in a loop.
-That's genuinely it — the exercise at the bottom has you add a third layer, and
+That's it — the exercise at the bottom has you add a third layer, and
 once you've done that you've done all of them.
 </Stuck>
 
@@ -539,7 +547,7 @@ print(f"ratio bad/good = {(bad / good).mean():.1f}   (= n = {len(ys)})")
 Gradient checking catches it instantly — every gradient is off by exactly the
 batch size.
 
-But here's the genuinely insidious part, and I want to dwell on it: **it still
+And here is the part that catches people out, which is worth dwelling on: **it still
 trains.**
 
 A constant factor on the gradient is indistinguishable from a larger learning
@@ -584,7 +592,7 @@ measurement cell above was showing you.
 So: don't over-apply a rule outside the range where it bites. "ReLU beats tanh" is
 true at depth and roughly irrelevant here.
 
-**Question 3** is the one genuinely worth doing.
+**Question 3** is the one worth doing.
 
 The pattern to notice is that steps 2, 3 and 4 are *identical for every layer*:
 input transposed times incoming error; error pushed back through the transposed

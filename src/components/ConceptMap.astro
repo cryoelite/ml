@@ -16,12 +16,12 @@ const covered = nodes.filter((n) => n.node.chapter).length;
 import { withBase } from "../lib/base";
 ---
 
-<figure class="conceptmap">
+<figure class={`conceptmap ${compact ? "conceptmap--compact is-fit" : ""}`.trim()}>
   <figcaption class="conceptmap__bar">
     <strong style="font-weight:600;color:var(--ink-2)">The map</strong>
     <span>{covered} of {nodes.length} nodes are taught here</span>
     <label class="cm-fit">
-      <input type="checkbox" class="cm-fit__input" />
+      <input type="checkbox" class="cm-fit__input" checked={compact} />
       <span>Fit to width</span>
     </label>
     <span class="cm-legend">
@@ -30,7 +30,7 @@ import { withBase } from "../lib/base";
     </span>
   </figcaption>
 
-  <div class="conceptmap__scroll" style={compact ? "max-height:22rem" : ""}>
+  <div class="conceptmap__scroll">
     <svg
       viewBox={`0 0 ${width} ${height}`}
       width={width}

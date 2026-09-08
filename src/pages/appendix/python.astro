@@ -14,33 +14,32 @@ const rendered = await Promise.all(
 ---
 
 <Doc
-  title="Python for Rust people"
+  title="The Python we use"
   current="appendix-python"
-  description="Every Python feature used in the tutorial, explained once, with the Rust construct you already reach for."
+  description="Every piece of Python the chapters use, explained once, in one place."
 >
   <div class="opener">
     <div>
-      <h1>Python for Rust people</h1>
+      <h1>The Python we use</h1>
       <p class="lede">
-        Every Python construct the chapters use, explained once — each with the
-        sentence that maps it onto something you already know.
+        Every piece of Python that turns up in the chapters, explained once, with
+        the smallest example that makes it clear.
       </p>
     </div>
     <div class="opener__art"><Doodle name="snake" /></div>
   </div>
 
   <p>
-    An <em>analogy</em>, mind you, not a translation. A good few of these have no
-    Rust equivalent at all — broadcasting, <code>**kwargs</code>, decorators,
-    autograd — and pretending otherwise would mislead you. Where the honest
-    answer is &ldquo;there isn&rsquo;t one&rdquo;, the entry says so.
+    This is a place to look things up, not a page to read from top to bottom.
+    Usually you arrive at one entry from a dotted underline in a chapter, read
+    four lines, and go back. It exists as a whole page so that everything is
+    searchable and printable in one go, and browsable on a day when you feel
+    like browsing.
   </p>
 
   <p>
-    You&rsquo;re not really meant to read this page top to bottom. You arrive at
-    one entry from a dotted underline in a chapter, read four lines, and go back.
-    It exists as a page so the whole surface is searchable, printable, and
-    browsable on a day when you feel like browsing.
+    Some entries end with a note for readers who already program in another
+    language — those are folded shut, and there is nothing in them you need.
   </p>
 
   <div class="filterbar">
@@ -72,11 +71,16 @@ const rendered = await Promise.all(
           {d.output && <div class="refcard__out">{d.output}</div>}
 
           {d.rust && (
-            <div class="aside aside--rust">
-              <span class="aside__label">Coming from Rust</span>
-              <p style="margin:0" set:html={inlineCode(d.rust)} />
-              {d.rustCode && <pre style="margin:.6rem 0 0;background:#fdf7f4;border-color:#f0dbd1">{d.rustCode}</pre>}
-            </div>
+            <details class="aside aside--rust">
+              <summary>
+                <span class="aside__label">If you already write code</span>
+                <span class="aside__hint">a note for Rust programmers</span>
+              </summary>
+              <div class="aside__body">
+                <p style="margin:0" set:html={inlineCode(d.rust)} />
+                {d.rustCode && <pre style="margin:.6rem 0 0;background:#fdf7f4;border-color:#f0dbd1">{d.rustCode}</pre>}
+              </div>
+            </details>
           )}
 
           <Content />

@@ -1,6 +1,6 @@
 ---
-title: "Embeddings: giving categories a geometry"
-blurb: "How 'user 84113' becomes something a model can reason about — and why the same trick underlies word vectors, recommendation, and every vector database you have heard of."
+title: "Embeddings: turning names into places"
+blurb: "How 'customer 84113' becomes something a model can work with — and why the same idea sits underneath word vectors, recommendations and search."
 order: 12
 day: 12
 part: frontier
@@ -8,14 +8,14 @@ minutes: 90
 introduces: ["embed"]
 ---
 
-[Chapter 3](/learn/03-the-shape-of-problems/) left a loose end dangling, and I've
-been looking forward to picking it up.
+[Chapter 3](/learn/03-the-shape-of-problems/) left a loose end, and today we
+pick it up.
 
-One-hot encoding turns *k* categories into *k* columns. Which is fine for three
-districts, and absurd for fifty thousand product IDs.
+To feed a category — a district, a colour, a product — into a model, we turned it
+into one column per possible value. That's fine for three districts. It is absurd
+for fifty thousand product codes.
 
-Today we fix it — and the fix turns out to be one of the loveliest ideas in the
-whole field.
+Today we fix that, and the fix is one of the nicer ideas in the subject.
 
 ## The problem, concretely
 
@@ -64,7 +64,7 @@ print("lookup by index:\n", table[ids].round(2))
 print("\nsame as one-hot @ table:", np.allclose(np.eye(vocab)[ids] @ table, table[ids]))
 ```
 
-That last line is the whole trick, and it's worth pausing on:
+That last line is the part worth pausing on:
 
 **A one-hot vector times a matrix is just selecting a row of that matrix.**
 
@@ -96,9 +96,9 @@ for n_categories in [500, 50_000, 30_000_000]:
 
 ## What the numbers become
 
-Now — the compression is nice. The compression is not the remarkable part.
+The compression is useful. It is not the interesting part.
 
-The remarkable part is that the learned coordinates turn out to be **meaningful**,
+The interesting part is that the coordinates it found turn out to be **meaningful**,
 because training pushes categories that get used in similar ways to similar
 positions. Let's watch it happen.
 
@@ -202,7 +202,7 @@ the name "all-but-the-top".
 Word2vec's celebrated result was that
 `vec("king") − vec("man") + vec("woman")` lands near `vec("queen")`. The vector
 space had apparently learned a "gender" direction and a "royalty" direction,
-without anybody specifying either. It's a genuinely striking demonstration and it
+without anybody specifying either. It's a striking demonstration and it
 deserved the attention it got.
 
 Two caveats the popular retelling tends to leave out, though.
@@ -225,7 +225,7 @@ weren't in it.** It has no way to know which parts you'd have preferred.
 
 Now back to the spreadsheet.
 
-The technique that made neural networks genuinely competitive on tabular data —
+The technique that made neural networks competitive on tabular data —
 pioneered for a Kaggle competition on retail sales forecasting, and later adopted
 by fastai — is disarmingly simple: **one embedding table per categorical column,
 concatenated with the continuous columns, into an ordinary dense network.**
@@ -269,21 +269,21 @@ print("\nembedding dims:", [e.embedding_dim for e in model.embeds])
 
 Day-of-week gets 4 dimensions. Month gets 6. Store-id gets 50.
 
-And what the network can now learn is genuinely nicer than what one-hot allowed:
+And what the network can now learn is nicer than what one-hot allowed:
 that certain stores behave alike, that December resembles November more than it
 resembles June. Relationships that one-hot encoding makes *structurally
 impossible* to express, because under one-hot every month is equally unlike every
 other month.
 
 <Aside type="warn">
-This is genuinely useful, and it did **not** dethrone gradient boosting. I'd
+This is useful, and it did **not** dethrone gradient boosting. I'd
 rather you hear that from me than discover it in a retrospective.
 
 On most tabular problems, `HistGradientBoostingRegressor` with sensible
 categorical handling still matches or beats an embedding network — in a fraction
 of the time, and with far fewer decisions available to get wrong.
 
-Where embeddings genuinely win: very high-cardinality categories (millions of
+Where embeddings win: very high-cardinality categories (millions of
 users), when you want to **reuse** the learned representation somewhere else, and
 when the tabular data sits alongside text or images in one model.
 
@@ -336,7 +336,7 @@ That is the entire algorithm. Six lines.
 
 A production vector database adds an approximate nearest-neighbour index (HNSW,
 IVF) so it doesn't have to compare against all thirty million rows, plus
-persistence, plus metadata filtering. Real engineering, genuinely hard.
+persistence, plus metadata filtering. Real engineering, hard.
 
 But the retrieval itself is <Py id="matmul">a matrix multiply</Py> and an
 <Py id="argmax">argsort</Py>. When someone demos a vector database, that's what's
@@ -410,7 +410,7 @@ Two dimensions suffice for three clusters. More dimensions keep helping, until
 they don't.
 
 And that is the entire story of choosing an embedding dimension: too small and
-genuinely distinct things are forced to collide; too large and you're spending
+truly distinct things are forced to collide; too large and you're spending
 parameters and inviting overfitting for no gain.
 
 The fastai rule of thumb `min(50, (cardinality + 1) // 2)` isn't theory — it's a

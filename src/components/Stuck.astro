@@ -10,7 +10,7 @@
  * Closed by default — if you are not stuck, you should not have to read about
  * being stuck.
  */
-import Doodle from "./Doodle.astro";
+import Portrait from "./Portrait.astro";
 
 interface Props {
   title?: string;
@@ -20,7 +20,7 @@ const { title = "If something isn't clicking", open = false } = Astro.props;
 ---
 <details class="stuck" open={open}>
   <summary>
-    <span class="stuck__icon"><Doodle name="pipStuck" decorative /></span>
+    <Portrait who="moss" class="stuck__icon" />
     <span class="stuck__title">{title}</span>
     <span class="stuck__chev" aria-hidden="true"></span>
   </summary>

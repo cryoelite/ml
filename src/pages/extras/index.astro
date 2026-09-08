@@ -10,7 +10,7 @@ const extras = (await getCollection("extras", ({ data }) => !data.draft)).sort(
 const KINDS = [
   { id: "theory",  title: "The deeper why",   gist: "Places where the fortnight says “it just works like this” and you would rather know why it works like this." },
   { id: "sibling", title: "The roads not taken", gist: "Methods that are perfectly good and simply did not fit. Worth recognising by name when a paper or a colleague reaches for one." },
-  { id: "craft",   title: "Things you learn by shipping", gist: "The unglamorous parts nobody writes a chapter about, and everybody eventually needs." },
+  { id: "craft",   title: "Things you learn by shipping", gist: "The unglamorous parts nobody writes a chapter about, and everybody eventually needs anyway." },
   { id: "history", title: "How we got here",   gist: "The field has a memory, and knowing it makes the present far less arbitrary." },
   { id: "culture", title: "The field as a human thing", gist: "Papers, people, incentives, and the harm this technology is capable of doing." },
 ];
@@ -23,7 +23,7 @@ import { withBase } from "../../lib/base";
     <div>
       <h1>Extras</h1>
       <p class="lede">
-        Everything that is genuinely worth reading and genuinely does not fit in
+        Everything worth reading that simply does not fit in
         a fortnight.
       </p>
     </div>
@@ -31,9 +31,9 @@ import { withBase } from "../../lib/base";
   </div>
 
   <p>
-    The sixteen chapters are a promise: two weeks, and you come out able to build
-    things and read papers. Keeping that promise means leaving things out, and
-    quite a lot of what got left out is lovely.
+    The sixteen chapters are a promise: two weeks, and you come out able to
+    build things and read papers about them. Keeping that promise means leaving
+    things out, and quite a lot of what got left out is worth reading.
   </p>
   <p>
     So it lives here instead. {extras.length} pieces, about {Math.round(total / 60)} hours

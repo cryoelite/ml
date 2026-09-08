@@ -1,0 +1,541 @@
+---
+title: "Meeting Python"
+blurb: "The small slice of the language we actually need, the four things that surprise newcomers, and the number-crunching library that is really the point of the day."
+order: 2
+day: 2
+part: orientation
+minutes: 90
+---
+
+Today is about the tools. Not the ideas — the ideas come back tomorrow — but
+the small amount of Python you need to read the rest of this site, and then a
+library called NumPy, which is what machine learning is actually written in.
+
+We are not going to learn all of Python. Python is large and most of it never
+comes up here. We need enough to read about forty lines of code, and after that
+almost everything is arrays of numbers.
+
+<Aside type="key">
+If you take one thing from today: in ordinary programming you tell the computer
+to do something to each item, one at a time. Here you tell it to do something to
+a whole grid of numbers at once, and it works out the details. Almost every line
+of code you'll read in this course is one operation applied to millions of
+numbers.
+</Aside>
+
+<SideQuest title="If you have never written any code at all" time="6 min" why="Variables, functions and loops from a standing start. Skip if you already know them." open>
+
+Four ideas, and then you can read anything on this site.
+
+**A variable is a name for a value.** `hours = 3` means "from now on, `hours`
+stands for 3". Later you can say `hours = 4` and the name points at something
+new. That's all a variable is: a label you can move.
+
+**A list is several values with one name.** `scores = [7, 9, 4]` holds three
+numbers in order. `scores[0]` is the first one — counting starts at zero here,
+which is a historical accident that everyone has learned to live with.
+
+**A function is a named recipe.** You give it some values, it does some work,
+and it hands one back:
+
+```python run title="a function"
+def average(numbers):
+    return sum(numbers) / len(numbers)
+
+average([7, 9, 4])
+```
+
+`def` starts the recipe, `average` is its name, `numbers` is what you have to
+give it, and `return` says what comes back. Everything indented underneath
+belongs to the recipe — Python uses indentation where other languages use
+brackets, so the spacing at the start of a line is part of the meaning, not a
+matter of taste.
+
+**A loop repeats something.** `for x in scores:` runs the indented lines once
+for each item in the list, with `x` standing for that item each time round.
+
+That really is enough to start. Everything else in this chapter is one of those
+four dressed up, or a shorter way of writing one of them.
+</SideQuest>
+
+## The language, briefly
+
+Three things to know up front, which will make more sense as we go.
+
+Everything in Python is an *object* — a thing with a type and some behaviour,
+including numbers and text. A name doesn't hold a value so much as point at one,
+which matters the first time two names end up pointing at the same list. And
+nothing at all is checked until the moment it runs: a mistake that some languages
+would refuse to start with will happily run here and fall over halfway through.
+
+```python run title="the shape of it"
+def train(examples, lr=0.01, *, verbose=False):
+    """A note about what this does. Python keeps it and can show it to you."""
+    total = 0.0
+    for i, (x, y) in enumerate(examples):
+        total += (x - y) ** 2
+        if verbose:
+            print(f"  {i}: running total {total:.2f}")
+    return total / len(examples)
+
+train([(1.0, 0.8), (2.0, 2.4)], verbose=True)
+```
+
+Quite a lot happened in nine lines, so let's name it.
+
+The indentation is the structure — there are no brackets around a block, and an
+indent in the wrong place is an error, not a style opinion. `lr=0.01` gives an
+argument a default, so you can leave it out. Anything written after the bare `*`
+must be passed by name, which is why the call says `verbose=True` rather than
+just `True`; a bare `True` at a call site tells a reader nothing at all.
+
+The `f"..."` is an <Py id="f-string">f-string</Py>: anything inside the curly
+braces is worked out and dropped into the text.
+<Py id="zip-enumerate">`enumerate`</Py> hands you each item along with its
+position, and <Py id="tuple-unpacking">tuple unpacking</Py> is what lets
+`for i, (x, y) in ...` pull the pair apart on the spot. `**` means "to the power
+of". And `/` between two whole numbers gives a decimal — `7 / 2` is `3.5`, where
+`7 // 2` is `3`.
+
+<Aside type="rust">
+If you're coming from Rust, four differences that each cost an hour if nobody
+says them out loud.
+
+**No ownership, no borrows, no `mut`.** Everything is a reference to a heap
+object, and assignment rebinds a name rather than copying. So `b = a` followed by
+`b.append(1)` mutates what `a` sees. There is no compiler to catch this. There is
+no compiler at all.
+
+**No `Option`, no `Result`.** Absence is `None`. Failure is an exception that
+propagates upward until something catches it. There's no `?`, and nothing warns
+you that you ignored a failure path.
+
+**Annotations are not types.** `def f(x: int)` is a comment that tooling can
+read. Passing a string works perfectly right up until something inside does
+arithmetic on it.
+
+**No overflow. Ever.** Python integers are arbitrary precision — `2 ** 1000` is
+an exact number, and it will happily print all 302 digits. NumPy integers, on the
+other hand, are fixed-width and *do* wrap silently. Mixing the two is a nasty edge, and you will meet it eventually.
+</Aside>
+
+### A shorter way to build a list
+
+```python run
+xs = list(range(10))
+squares = [x * x for x in xs if x % 2 == 0]
+lookup  = {name: i for i, name in enumerate("abc")}
+squares, lookup
+```
+
+That's a <Py id="list-comprehension">list comprehension</Py>. Read it from the
+middle outwards: *for each `x` in `xs`, if `x` is even, give me `x * x`.* It is
+exactly a loop that builds a list, written on one line, and Python code is full
+of them. Using `{}` instead of `[]` builds a dictionary — a set of name-to-value
+pairs — in the same way.
+
+Swap the square brackets for round ones and you get a
+<Py id="generator">generator</Py>, which works out its items only as you ask for
+them rather than all at once. That matters when there are a billion of them.
+
+A rule of thumb: one `for` and one `if` on a line reads better than a loop. Two
+of each reads worse. Write the loop.
+
+### The pieces you'll meet constantly
+
+```python run
+from dataclasses import dataclass
+
+@dataclass
+class Config:
+    lr: float = 1e-3
+    epochs: int = 5
+
+cfg = Config(lr=0.01)
+print(cfg)
+print({**cfg.__dict__, "epochs": 10})   # ** spreads a dict
+```
+
+A **class** is a way of grouping some values under one name — here, the
+settings for a training run. <Py id="dataclass">`@dataclass`</Py> is a
+<Py id="decorator">decorator</Py>: a line that sits above a definition and quietly
+rewrites it. This one writes the boring parts for you, so `Config(lr=0.01)` works
+and printing it shows something readable.
+
+The `**` in front of a dictionary spreads it back out into separate arguments.
+That is the mechanism behind every `**kwargs` you'll see in a library, and
+<Py id="kwargs">there are a lot of them</Py>.
+
+Two more that turn up constantly: <Py id="with-statement">`with`</Py>, which sets
+something up and reliably tidies it away afterwards, and
+<Py id="pathlib">`pathlib.Path`</Py>, where `/` joins the parts of a file path.
+Yes, division. They reused the symbol, and it reads better than it sounds.
+
+## NumPy, which is the real subject
+
+Everything from here is what the rest of the site is written in.
+
+```python run setup title="arrays, not lists"
+import numpy as np
+
+a = np.array([[1., 2., 3.],
+              [4., 5., 6.]])
+print(a.shape, a.dtype, a.ndim, a.size)
+a * 2 + 1
+```
+
+An <Py id="ndarray">`ndarray`</Py> — an "array" from here on — is a block of
+numbers, all of the same type, laid out end to end in memory, plus a **shape**
+saying how to read them as rows and columns. The one above has shape `(2, 3)`:
+two rows, three columns.
+
+The important part is the last line. `a * 2 + 1` did not loop over anything you
+can see. It doubled every number and added one, all six at once, and that is how
+every calculation in this course is written.
+
+Arrays are also much faster than doing it a number at a time. You have a Python
+right there in the page, so rather than take that on trust, measure it.
+
+```python run title="why the loop has to go"
+import time
+
+n = 300_000
+py_list = list(range(n))
+np_arr  = np.arange(n)
+
+t = time.perf_counter()
+_ = [x * 2 for x in py_list]
+py_ms = (time.perf_counter() - t) * 1000
+
+t = time.perf_counter()
+_ = np_arr * 2
+np_ms = (time.perf_counter() - t) * 1000
+
+print(f"python list : {py_ms:7.2f} ms")
+print(f"numpy array : {np_ms:7.2f} ms   ({py_ms / np_ms:.0f}x faster)")
+```
+
+<Wonder title="Where the speed actually comes from">
+The gap isn't because Python is bad at multiplication. It's a *memory layout*
+story, and it's a nice one.
+
+A Python list of a million floats is a million **pointers**, aimed at a million
+separately allocated, individually type-tagged objects scattered across the heap.
+Every `x * 2` has to chase a pointer, ask the object what type it is, look up the
+right multiply, allocate a new object for the answer, and store another pointer.
+
+A `float64` array is eight megabytes of doubles, laid end to end, and one
+pointer. The CPU can walk it in a straight line, pull 4 or 8 values into a
+register at a time, and never ask a single question about types.
+
+The nice part is that this is the same insight, found over and over
+independently, that makes databases fast, and game engines fast, and
+spreadsheets fast. Put the same kind of thing next to the same kind of thing,
+and the hardware rewards you for it. It has done since the 1970s.
+
+NumPy is how Python buys its way back into that world.
+</Wonder>
+
+### Shape
+
+Worth saying plainly: almost everything that goes wrong for the next fortnight
+will be a shape problem. Not a mistake in the reasoning — a mismatch between how
+many rows and columns something has and how many the next line expected. Learn
+to read shapes and you will fix in ten seconds what otherwise eats an evening.
+
+```python run
+a = np.arange(12)
+print("flat      ", a.shape)
+print("as 3x4    ", a.reshape(3, 4).shape)
+print("as ?x2    ", a.reshape(-1, 2).shape)     # -1 means 'you work it out'
+print("transposed", a.reshape(3, 4).T.shape)
+```
+
+<Py id="reshape">`reshape`</Py> is free. The buffer doesn't move — only the
+metadata describing how to walk it changes. That's why you'll see it thrown
+around so casually.
+
+The other half of shape is <Py id="axis">`axis`</Py> — which direction you want
+an operation to run in. There is exactly one thing to remember:
+
+**`axis=k` is the dimension that disappears.**
+
+```python run
+m = np.arange(6).reshape(2, 3)
+print(m)
+print("sum(axis=0) collapses the 2 ->", m.sum(axis=0), m.sum(axis=0).shape)
+print("sum(axis=1) collapses the 3 ->", m.sum(axis=1), m.sum(axis=1).shape)
+```
+
+In practice `axis=0` means "down the rows, across the batch" — the average of one
+feature over every example. And `axis=-1` means "along the last dimension," which
+is where class scores live, so `preds.argmax(axis=-1)` is how a matrix of scores
+becomes a vector of predicted labels. You'll write that line a hundred times.
+
+### Broadcasting
+
+This is the one piece of NumPy that has no equivalent in most languages, and it
+is on essentially every line of every neural network ever written.
+
+```python run
+rows = np.arange(3).reshape(3, 1)   # shape (3, 1)
+cols = np.arange(4)                 # shape (4,)
+print(rows + cols)                  # -> (3, 4)
+```
+
+A `(3,1)` plus a `(4,)` gave a `(3,4)`. Nothing was copied to make that happen.
+
+<Py id="broadcasting">Broadcasting</Py> stretches mismatched dimensions of size
+`1` up to whatever's needed, without allocating. The rule, applied right to left:
+dimensions are compatible if they're equal, or if one of them is `1`.
+
+Its most important use is completely undramatic — adding a bias vector to a batch:
+
+```python run
+batch = np.ones((32, 4))     # 32 examples, 4 features
+bias  = np.array([10., 20., 30., 40.])   # one per feature
+(batch + bias).shape, (batch + bias)[0]
+```
+
+Thirty-two rows, the same four numbers added to each one. Written as a loop
+that's five lines; written as broadcasting it's a single `+`. And it is the line
+sitting inside every layer of every neural network you will meet.
+
+<Aside type="warn">
+Broadcasting is also the most common silent bug in the entire field, because the
+failure mode isn't an exception. It's a number.
+
+```python run title="the bug you will write"
+pred  = np.array([1., 2., 3.])            # shape (3,)
+truth = np.array([[1.], [2.], [3.]])      # shape (3, 1)  <- a stray column
+err = pred - truth
+print("expected shape (3,), got", err.shape, "and", err.size, "numbers")
+print(err)
+```
+
+Three predictions minus three true answers gave **nine numbers**. And
+`err.mean()` is now a perfectly reasonable-looking number that means nothing at
+all.
+
+You will write this mistake. Everyone does. The habit that saves you: when a
+result looks odd, print `.shape` before you print anything else — before you
+start thinking about it, even.
+</Aside>
+
+### The operations that matter
+
+```python run
+rng = np.random.default_rng(0)
+X = rng.normal(size=(5, 3))
+w = rng.normal(size=3)
+
+print("X @ w        ", (X @ w).shape, "  <- matrix multiply, the workhorse")
+print("X.mean(0)    ", X.mean(axis=0).round(2))
+print("X > 0        ", (X > 0).sum(), "positive entries")
+print("X[X > 0][:3] ", X[X > 0][:3].round(2), " <- boolean indexing")
+```
+
+<Py id="matmul">`@`</Py> is matrix multiplication; `*` is elementwise. Mixing
+those up is the second most common bug, and mercifully — unlike broadcasting — it
+usually does throw.
+
+<Py id="boolean-indexing">Boolean indexing</Py> picks out every position where
+a condition holds. And here is a small thing worth noticing: `(a == b).mean()` —
+the fraction of positions where two arrays agree — is the entire implementation
+of accuracy. Comparing gives true and false, true and false count as 1 and 0, and
+the average of those is a percentage. One line, no `if` anywhere.
+
+<Py id="default-rng">`default_rng(0)`</Py> is how you make a run reproducible.
+Please use it every single time. The alternative is being unable to
+tell an improvement from luck, which is a bad place to spend a week.
+
+### The one that will actually bite you
+
+```python run title="views alias, copies do not"
+a = np.arange(6)
+view = a[2:5]        # a VIEW into a's memory
+view[0] = 999
+print("a is now", a)
+
+b = np.arange(6)
+copy = b[2:5].copy() # explicit copy
+copy[0] = 999
+print("b is still", b)
+```
+
+Slicing a Python <Py id="slicing">list</Py> copies. Slicing a NumPy array does
+**not** — you get a view over the same buffer, and writing through it mutates the
+original.
+
+That's a deliberate speed decision: copying eight megabytes every time somebody
+takes a slice would be a disaster. But it means two names can refer to the same
+numbers, and writing through one changes what the other sees. Nothing will warn
+you. When you want an independent copy, ask for `.copy()`, and ask on purpose.
+
+<Stuck>
+**"How do I know if I have a view or a copy?"** Slicing gives a view. Fancy
+indexing (`a[[0, 2, 4]]`) and boolean indexing (`a[a > 0]`) give copies.
+`.reshape()` gives a view when it can. If it matters, `arr.base is not None`
+tells you it's a view of something.
+
+**"I keep getting `shapes not aligned`."** That's `@` telling you the inner
+dimensions disagree. For `A @ B`, `A.shape[-1]` must equal `B.shape[-2]`. Print
+both shapes and read them next to each other — the mismatch is usually a missing
+`.T`.
+
+**"Comprehensions still feel unnatural."** Read them from the `for` outward:
+`[x * x for x in xs if x % 2 == 0]` is "for each x in xs, if it's even, give me x
+squared." The bit that says what you get is written first even though you read it
+last. That feels backwards for about a week and then stops.
+
+**"I don't believe broadcasting isn't copying."** Fair. It's implemented with
+*strides*: a stretched dimension is given a stride of zero, so walking along it
+reads the same memory over and over. There's no copy because there's nothing to
+copy — the array simply lies about how to move.
+</Stuck>
+
+## Ten minutes of pandas
+
+You need just enough to load a table and look at it honestly.
+
+```python run
+import pandas as pd
+
+df = pd.DataFrame({
+    "hours":  [1.0, 2.0, 3.5, 4.0, 5.5, 6.0],
+    "passed": [0, 0, 0, 1, 1, 1],
+    "cohort": ["a", "a", "b", "b", "a", "b"],
+})
+df.head(3)
+```
+
+A <Py id="dataframe">`DataFrame`</Py> is a table, like a sheet in a
+spreadsheet: named columns, each holding one kind of thing, and rows across them.
+Underneath it's one array per column rather than one record per row, which is why
+asking "what's the average of this column" is fast.
+
+```python run
+print(df.dtypes.to_dict())
+print()
+print(df.groupby("cohort")["passed"].mean())
+```
+
+<Py id="groupby">`groupby`</Py> splits the table into groups and works out
+something for each. Do this before you build anything, every time. The reasoning
+is short and it's worth more than it looks: if the thing you're trying to predict
+has the same average across every value of a column, then that column tells you
+nothing, and no model however clever will invent information that isn't there.
+
+Ten minutes of `groupby` regularly saves an afternoon of training. It's the
+cheapest thing on this whole site.
+
+Two more: <Py id="loc-iloc">`df.loc`</Py> picks rows and columns by name and
+`df.iloc` by position, and `df["col"].values` hands back the plain NumPy array
+underneath — which is what a model wants from you anyway.
+
+<SideQuest title="Other libraries whose names you'll see" time="8 min" why="What SciPy, Polars, JAX and einsum are, so the names stop being noise.">
+
+These come up constantly and it's nice not to be mystified by them.
+
+**SciPy** sits on top of NumPy and adds the things a numerical analyst wants:
+optimisation, statistics, sparse matrices, signal processing, linear algebra
+beyond the basics. When you need a chi-squared test or a sparse matrix, it's
+already installed.
+
+**Polars** does the same job as pandas — tables of data — but is newer, faster
+on large tables, and rather tidier to write. This course uses pandas only because
+nearly every tutorial, forum answer and paper you will run into uses pandas, and
+being able to read those matters more here than raw speed.
+
+**JAX** is NumPy with three extra abilities: it can work out derivatives for you
+(which is chapter 9's whole subject), compile your code to run on a graphics
+card, and turn a function that handles one example into one that handles a
+thousand. Common in research, rarer in production. If you enjoy chapter 9, you
+will enjoy JAX.
+
+**`einsum`** deserves a mention because it looks like line noise and isn't:
+
+```python run title="einsum, gently"
+import numpy as np
+A = np.arange(6).reshape(2, 3)
+B = np.arange(12).reshape(3, 4)
+
+print("normal :", (A @ B).shape)
+print("einsum :", np.einsum("ij,jk->ik", A, B).shape)
+```
+
+Read `"ij,jk->ik"` as: first array is indexed by `i` and `j`, second by `j` and
+`k`, and I want a result indexed by `i` and `k`. Any index that appears on the
+left but not the right gets summed over. That's the whole rule.
+
+It is long-winded for an ordinary matrix multiply, and a lifesaver once you have
+six-dimensional arrays inside a transformer and cannot possibly remember which
+dimension is which. You'll see it around chapter 13.
+</SideQuest>
+
+<TryThis title="Twenty minutes, and then you're done for the day" reveal="Show the solutions">
+
+Do these before moving on. They're not busywork — they're precisely the
+operations the next four chapters assume you can do without thinking.
+
+```python run title="your turn"
+rng = np.random.default_rng(42)
+X = rng.normal(size=(100, 3))      # 100 examples, 3 features
+y = rng.integers(0, 2, size=100)   # binary labels
+
+# 1. Standardise every column: subtract its mean, divide by its std.
+#    Do it with broadcasting, in one line, no loops.
+Xs = ...
+
+# 2. What fraction of labels are 1?  (one expression, no sum())
+
+# 3. Compute the mean of each feature *for the rows where y == 1*.
+
+# 4. Make a (100, 4) array by adding a column of ones to X.
+#    Look up np.column_stack or np.hstack.
+
+print("replace the ... above and re-run")
+```
+
+<Fragment slot="hint">
+For 1, remember `X.mean(axis=0)` has shape `(3,)` and `X` has shape `(100, 3)` —
+broadcasting will do the rest if you just write the obvious thing.
+
+For 2, think about what the mean of a bunch of 0s and 1s actually *is*.
+
+For 3, boolean indexing gives you the rows you want; then take a mean over
+axis 0.
+</Fragment>
+
+<Fragment slot="answer">
+
+```python run
+Xs = (X - X.mean(axis=0)) / X.std(axis=0)
+print("1.", Xs.mean(axis=0).round(6), Xs.std(axis=0).round(6))
+
+print("2.", y.mean())
+
+print("3.", X[y == 1].mean(axis=0).round(3))
+
+X1 = np.column_stack([np.ones(len(X)), X])
+print("4.", X1.shape, X1[0].round(3))
+```
+
+Number 1 is the single most common preprocessing step in the entire field, and
+broadcasting is doing all the work: `X` is `(100, 3)`, `X.mean(axis=0)` is
+`(3,)`, and the subtraction quietly stretches those three numbers across all
+hundred rows. Note the means come out as `-0.0` and the stds as exactly `1.0` —
+that's the point of the operation.
+
+Number 2 is the small delight from earlier: the mean of a 0/1 array *is* the
+proportion. No counting required.
+
+Number 4 is a trick you'll see in the very next chapter. Adding a column of ones
+lets you fold the bias term into the weight vector, so that $wx + b$ collapses
+into a single matrix multiply. It's a small piece of algebraic sleight of hand
+and it makes the code noticeably cleaner.
+</Fragment>
+</TryThis>
+
+Tomorrow, before we write another line of model: how to tell what kind of problem
+you're looking at — and how to tell when you're not looking at one at all.

@@ -13,21 +13,26 @@ import { VERSION } from "../lib/version";
 
 # Colophon
 
-You're about to spend two weeks reading something, so it seems only fair to tell
-you what it's trying to do, what it decided *not* to do, and which bits are
-opinions wearing the costume of facts.
+You're about to spend two weeks reading something, so it seems fair to say what
+it is trying to do, what it deliberately doesn't do, and which parts are opinions
+dressed up as facts.
 
-If you know why something was built the way it was, you read it differently — and
-usually better.
+Knowing why something was built the way it was tends to make it easier to read.
 
-## The brief
+## Who it's for
 
-One reader: a backend engineer who writes Rust, can pick up Python, and wants to
-learn machine learning properly in a fortnight. Not to invent new architectures —
-to *use* the field well, know where every piece sits, and read a paper without
-drowning.
+Anyone who wants to understand how machine learning works and is willing to read
+carefully for a couple of weeks. No programming experience is assumed. The code
+is explained as it appears, and all of it runs in the page.
 
-Everything below follows from that.
+It was written by somebody who already writes software for a living, and that
+shows up in one place only: a handful of asides comparing Python to other
+languages, all of them folded shut and labelled. Nothing anywhere depends on
+them. If they mean nothing to you, they cost you nothing.
+
+The goal is not to make anyone a researcher. It's to leave you able to use this
+material sensibly, know where each piece sits relative to the others, and read a
+paper about it without drowning.
 
 ## Eight decisions
 
@@ -67,7 +72,7 @@ what backpropagation **is** doesn't have to scroll past it.
 ### 4. The fortnight is a promise, so the extras exist
 
 The single hardest constraint here was keeping two weeks to two weeks. A great
-deal of genuinely lovely material doesn't fit.
+deal of lovely material doesn't fit.
 
 So it lives in the [extras](/extras/) instead — fifteen full pieces, grouped by
 *why* they exist: the deeper whys, the roads not taken, the things you only learn
@@ -150,11 +155,16 @@ taught you less.
 The original draft was correct, dense and a bit cold. That's the default register
 for technical writing and I don't think it's the right one for *teaching*.
 
-So: a warmer voice throughout, and 25 hand-drawn SVG illustrations. There's a
-mascot — Pip, the round thing that rolls downhill — which exists for a reason
-rather than for decoration. Rolling downhill is literally the algorithm the whole
-subject is built on, so when Pip turns up on a slope in chapter 5, the joke and
-the lesson are the same picture.
+So: a warmer voice throughout, 25 hand-drawn SVG illustrations, and a small
+cast. Pip is the round thing that rolls downhill, and exists for a reason rather
+than for decoration — rolling downhill is the algorithm the whole subject is
+built on, so when Pip turns up on a slope in chapter 5, the joke and the lesson
+are the same picture.
+
+The other four are Wren, Basil, Juno and Moss, and each one is tied to exactly
+one kind of box: something lovely, something to be careful about, something to
+try, and somewhere people get stuck. After a chapter you stop reading the label
+and recognise the face, which is the point of having faces.
 
 <Aside type="nice">
 The drawings are stroke-based SVG in `src/lib/doodles.ts`, and they all pass
@@ -166,27 +176,27 @@ more usefully, makes them all look drawn by the *same* hand. Twenty-five drawing
 one wobble.
 </Aside>
 
-## The Rust bridge
+## The notes for programmers
 
-You know an ownership model, a type system and an iterator API. Those are exactly
-the concepts that make Python confusing, because Python looks similar and behaves
-differently.
+The site was written by a programmer, and there is a small amount of material
+aimed at people in the same position — mostly comparisons between Python and
+Rust, which is a language whose habits make Python surprising in specific ways.
 
-So every Python appendix entry carries *how a Rust programmer already thinks about
-this* — an **analogy, not a translation**. Quite a few have no Rust equivalent at
-all (broadcasting, `**kwargs`, decorators, autograd), and pretending otherwise
-would mislead you. Where the honest answer is "there isn't one", the entry says
-so.
+Every one of those is a folded box labelled *if you already write code*, and
+they appear only in the Python appendix and in a dozen chapter asides. They are
+strictly additional. A reader who has never programmed can go from the first page
+to the last without opening one, and the two-week path never refers back to
+anything inside them.
 
-The four differences that recur, and cost an hour each if nobody says them out
-loud: no ownership, no `Result`, annotations aren't types, and NumPy slices alias
-like `&mut` with no borrow checker to stop you.
+They stay because they're useful to the people they're for, and folding them is
+what makes it safe to keep them.
 
 ## Hover cards
 
 Python constructs and mathematical results are underlined inline and open a card
-on hover: a signature, one sentence, one example, its output, and the Rust note.
-Longer explanations are one click away on the appendix pages.
+on hover: a signature, one sentence, one example, and its output. Longer
+explanations, including the programmer notes, are one click away on the appendix
+pages.
 
 The model is the documentation comment — most useful thing at the top, an example
 immediately, a link to the real docs. Every card degrades to a plain link with
@@ -239,9 +249,21 @@ mode when it breaks is an opaque network error that teaches the reader nothing.
 | [Bun](https://bun.sh) | 1.3 | Package manager and runner |
 | [uv](https://docs.astral.sh/uv/) | 0.12 | The Python side, in `lab/` |
 | [Ruff](https://docs.astral.sh/ruff/) | 0.16 | Linting the Python |
+| [DiceBear](https://www.dicebear.com) | 9.4 | Draws the four portraits, once, at build time |
+| [canvas-confetti](https://github.com/catdad/canvas-confetti) | 1.9 | Loaded only when the front-page demo gets everything right |
 | Source Serif 4 · Inter · Nunito · JetBrains Mono | 5.x | Self-hosted via Fontsource; no font CDN |
 
 </div>
+
+The portraits are the *big-smile* style: **"Custom Avatar" by
+[Ashley Seo](http://www.ashleyseo.com/), licensed
+[CC BY 4.0](https://creativecommons.org/licenses/by/4.0/)**, rendered through
+DiceBear. They are generated once by `scripts/gen-cast.mjs` and committed as SVG,
+so the people on the site don't quietly change when a dependency updates.
+
+The demo on the front page is a two-feature logistic regression trained by
+gradient descent — chapters 4 and 5, in about a hundred lines of TypeScript, with
+the maths hidden and the picture showing.
 
 One custom remark plugin, `src/lib/remark-runnable-cells.mjs`, turns a
 ` ```python run ` fence into a `<Cell/>` component. That's what keeps every
@@ -255,8 +277,8 @@ page is complete static HTML; the script only ever adds behaviour.
 
 Light only, by request. Warm cream paper, near-black ink, and a palette where
 every hue is bound to one kind of content — teal for the path, amber for
-sidetracks, rust for the Rust bridge, violet for maths, berry for *your turn*,
-sky for the moments of wonder.
+sidetracks, rust for the notes aimed at programmers, violet for maths, berry for
+*your turn*, sky for the moments of wonder.
 
 That binding is what lets it be colourful and calm at once: you learn the palette
 in one chapter and then read it at a glance forever. Nothing is coloured to be
@@ -280,10 +302,10 @@ Interpreters* for the build-it-then-explain-it rhythm, and the Rust Book for the
 discipline of putting failure modes in the main text instead of a footnote.
 
 The voice owes most to Eddie Woo — set up a pattern the reader already believes,
-run it backwards until the surprising thing is forced, then zoom out and say
-plainly that it's beautiful. That move is why chapter 9 asks *why right-to-left*
-instead of just asserting it, and why chapter 12 makes you notice that a one-hot
-times a matrix is a row lookup rather than telling you.
+run it backwards until the surprising thing is forced, then step back and say
+plainly what is nice about it. That is why chapter 9 asks *why right to left*
+rather than asserting it, and why chapter 12 lets you notice that a one-hot times
+a matrix is a row lookup instead of telling you.
 </Aside>
 
 ## Sources
@@ -322,8 +344,8 @@ scaling, Belkin et al. on double descent, He et al. on residual connections.
 - **Distributed training.** You'd need more than one GPU to follow it.
 - **Prompt engineering.** It moves faster than any document can, and it's
   downstream of understanding what the model is doing.
-- **Deployment tooling.** Docker, Kubernetes, model registries. You're a backend
-  engineer; a model is a function and you already ship functions.
+- **Deployment tooling.** Docker, Kubernetes, model registries. Real subjects,
+  and entirely about running software rather than about machine learning.
 
 <Aside type="key">
 The consistent rule: leave out anything you can pick up in an afternoon *once you
@@ -356,13 +378,13 @@ and not a theorem. The universal approximation theorem says the opposite is
 
 | | |
 |---|---|
-| Version | <strong>{VERSION}</strong> — the first complete edition |
+| Version | <strong>{VERSION}</strong> — rewritten for readers new to programming |
 | Chapters | 16, across five parts |
 | Extras | 15, none of them required |
-| Python appendix | 46 entries, each with a Rust analogy |
+| Python appendix | 46 entries, most with a note for programmers |
 | Maths appendix | 31 entries, each with its symbols named |
 | Runnable cells | 253, all executed before every change lands |
-| Drawings | 25, one hand |
+| Drawings | 25 by hand, plus four portraits |
 | Words of prose | about 91,000 |
 | Client JavaScript | 4.5 KB gzipped |
 

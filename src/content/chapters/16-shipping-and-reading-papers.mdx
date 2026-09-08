@@ -1,6 +1,6 @@
 ---
-title: "Shipping it, and reading the literature"
-blurb: "Why accuracy is usually the wrong number, what a threshold really is, how a model decays in production, and how to get the gist of a paper in fifteen minutes."
+title: "Putting it out into the world, and reading papers"
+blurb: "Why accuracy is usually the wrong number, what a threshold really is, how a model goes stale, and how to get the gist of a paper in fifteen minutes."
 order: 16
 day: 14
 part: practice
@@ -8,10 +8,11 @@ minutes: 90
 introduces: ["eval", "deploy"]
 ---
 
-Last day. Two things separate a model from a system: knowing what number to
-report, and being able to keep learning without anybody writing you a curriculum.
+Last day, and two things left. Knowing which number to report — because
+"accuracy" is usually the wrong one — and being able to carry on learning after
+this site runs out, without anybody writing you a syllabus.
 
-Let's do both, and then you're done.
+Both today, and then you're done.
 
 ## Accuracy is usually the wrong number
 
@@ -122,7 +123,7 @@ Two numbers — what a false positive costs, and what a false negative costs —
 turn an unanswerable question into arithmetic.
 
 Getting those two numbers from whoever owns the problem is the
-highest-leverage half hour in most machine learning projects.
+best-spent half hour in most machine learning projects.
 
 It is also very often never done at all. People will spend six weeks on model
 architecture and zero minutes on the number that turns out to matter more. Be the
@@ -201,14 +202,14 @@ decays and *nothing errors*.
 
 Monitor the **inputs** as well as the outputs. Input drift is visible
 immediately; label-based metrics might take months to arrive, and by then you've
-been quietly wrong for a quarter.
+been quietly wrong for three months.
 
 **The feedback loop.** A fraud model that blocks transactions never finds out
 whether those transactions were fraudulent. A recommender that shows five items
 only ever gets feedback on five items.
 
 Your training data becomes a product of your own past predictions — and this is a
-genuinely hard problem, not a tidiness issue. The usual mitigation is to hold out
+hard problem, not a tidiness issue. The usual mitigation is to hold out
 a small random slice of traffic that bypasses the model entirely, so you keep
 seeing unfiltered reality.
 
@@ -240,7 +241,7 @@ This costs one column and saves an entire terrible week.
 
 ## Reading a paper
 
-You now have enough to get the gist of most machine learning papers. Genuinely —
+You now have enough to get the gist of most machine learning papers. —
 this is not encouragement, it's an assessment.
 
 The trick is to not read them front to back.
@@ -332,7 +333,7 @@ worth a month of reading, and it's the fastest way to build the instinct.
 **Go deeper on the code.** Karpathy's *Zero to Hero* series builds a GPT from
 nothing and is the natural sequel to chapters 9 and 13. The fastai course is
 excellent and takes the *opposite* route to this one — top down, library first —
-which makes the two genuinely complementary rather than redundant. You'll get
+which makes the two complementary rather than redundant. You'll get
 more from it now than you would have a fortnight ago.
 
 **Go deeper on the theory.** Bishop's *Pattern Recognition and Machine Learning*

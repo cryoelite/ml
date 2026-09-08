@@ -97,7 +97,7 @@ completely different routes.
 
 ## Attempt 2: GANs, and the arms race
 
-Goodfellow's 2014 idea is genuinely clever: **if you can't write down a loss for
+Goodfellow's 2014 idea is clever: **if you can't write down a loss for
 "looks real", learn one.**
 
 Two networks. A **generator** turns noise into images. A **discriminator** tries
@@ -130,7 +130,7 @@ print("no reconstruction loss anywhere — it learned only by being judged")
 The generator never sees a real example. It only ever receives the gradient of
 "how convinced was the judge," and that's enough to find the distribution.
 
-GANs produced the first genuinely convincing synthetic faces, and for about six
+GANs produced the first convincing synthetic faces, and for about six
 years they were how generation worked.
 
 <Aside type="warn">
@@ -276,7 +276,7 @@ bottleneck, reconstruct it). Three times now, in three different contexts:
 > **When a problem has no labels, look for a reversible corruption whose labels
 > you generate yourself.**
 
-I think that's one of the genuinely transferable ideas in this field — the kind
+I think that's one of the transferable ideas in this field — the kind
 you can carry to a problem nobody has written a paper about. If you're ever stuck
 with data and no targets, ask what you could break on purpose.
 </Wonder>

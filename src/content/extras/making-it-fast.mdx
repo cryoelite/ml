@@ -8,9 +8,9 @@ after: "16-shipping-and-reading-papers"
 covers: ["deploy"]
 ---
 
-Chapter 16 said a model is a function and you know how to ship functions. True —
-and it skipped the part where the function is 400 MB, takes 800 ms per call, and
-your budget is 50 ms.
+Chapter 16 said a model is, in the end, just a function that other software
+calls. True — and it skipped the part where the function is 400 MB, takes 800 ms
+to answer, and the thing calling it can only wait 50 ms.
 
 This is that gap. The good news is that the techniques are few, they compose, and
 the first two are nearly free.
@@ -83,7 +83,7 @@ each individual request waits longer while the system serves far more of them.
 
 Production servers do **dynamic batching**: collect requests for a few
 milliseconds, run them together. That window is a tuning knob that directly sets
-your latency/throughput trade-off, and it is usually the single highest-leverage
+your latency/throughput trade-off, and it is usually the single most useful
 setting in a serving stack.
 
 ## Quantisation: fewer bits per weight
@@ -143,7 +143,7 @@ nothing.
 model *learns* weights that survive it. More work than quantising afterwards, and
 noticeably better at low bit widths.
 
-There's also a genuinely surprising empirical finding: a **larger model quantised
+There's also a surprising empirical finding: a **larger model quantised
 to 4 bits usually beats a smaller model at 16 bits**, at equal memory. Parameters
 matter more than precision. That result reshaped how people ship models.
 </Aside>

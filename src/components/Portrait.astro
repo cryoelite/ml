@@ -1,0 +1,29 @@
+---
+/**
+ * One face from the cast, at whatever size the surrounding box wants.
+ *
+ * Decorative by default: in a callout the name is already in the label, so a
+ * screen reader announcing "picture of Wren" before every single aside would
+ * be noise. Pass `label` on the rare occasion the face is carrying meaning.
+ */
+import { byId } from "../lib/cast";
+
+interface Props {
+  who: string;
+  size?: number;
+  label?: string;
+  class?: string;
+}
+const { who, size, label, class: cls = "" } = Astro.props;
+const m = byId[who];
+if (!m) throw new Error(`Unknown character "${who}" — see src/lib/cast.ts`);
+const style = size ? `width:${size}px;height:${size}px` : undefined;
+---
+<span
+  class={`portrait portrait--${m.tone} ${cls}`.trim()}
+  style={style}
+  role={label ? "img" : "presentation"}
+  aria-label={label}
+  aria-hidden={label ? undefined : "true"}
+  set:html={m.svg}
+/>

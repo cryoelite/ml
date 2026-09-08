@@ -1,6 +1,6 @@
 ---
 title: "The same thing, in PyTorch"
-blurb: "Everything you built by hand, in a tenth of the code — plus the one thing the library genuinely gives you, which is not convenience."
+blurb: "Everything from the last two chapters in a tenth of the code — and the one thing the library gives you that is not convenience."
 order: 10
 day: 10
 part: deep-learning
@@ -20,13 +20,12 @@ below are labelled `needs local kernel` so you always know which is which. Full
 instructions live on the [Setup](/setup/) page.
 </Aside>
 
-You've now written a forward pass, a backward pass and a training loop with
-nothing but NumPy. Today we throw almost all of it away.
+You have now written a forward pass, a backward pass and a training loop using
+nothing but NumPy. Today we throw nearly all of it away and use a library.
 
-And I want to be clear about why that was still worth doing. The point of the
-last two days wasn't to build a library — it was so that you know *exactly what
-you're throwing away*. Because that is precisely what you'll be debugging for the
-rest of your career, and it will be invisible.
+Which raises the obvious question: why write it at all? Because the library hides
+exactly the parts you just built, and when something goes wrong later it will go
+wrong in there, silently. Having built it once, you'll know where to look.
 
 ## Tensors are arrays with two extra fields
 
@@ -67,9 +66,9 @@ function calls later.
 two objects are different views of the same allocation, and mutating one mutates
 the other.
 
-It's the same aliasing hazard as a NumPy slice, and the same total absence of a
-compiler to warn you about it. You know the shape of this bug already; now you
-know it lives here too.
+It's the same hazard as a NumPy slice in chapter 2 — two names for one block of
+numbers, and nothing anywhere to warn you. Same shape of mistake, new place to
+make it.
 </Aside>
 
 ## Autograd replaces your backward pass
@@ -149,7 +148,7 @@ print("parameters:", sum(p.numel() for p in model.parameters()))
 ```
 
 <Py id="nn-module">`nn.Module`</Py> discovers its parameters by walking the
-attributes you assign to `self`. A bit of Python magic, and a genuinely good idea:
+attributes you assign to `self`. A bit of Python magic, and a good idea:
 it's how `model.parameters()` enumerates every weight in a network of arbitrary
 depth without you maintaining a list, and how `model.to(device)` moves all of
 them at once.
@@ -168,10 +167,10 @@ sloppiness on my part. It's required.
 
 If you apply the sigmoid yourself and then use `BCELoss`, you get the same answer
 on easy data — and `nan` on hard data. Which is the worst possible failure mode:
-it works in testing and breaks in production.
+it works while you're testing and breaks once it's in use.
 
 The rule: **your model outputs logits; the loss function owns the squashing.**
-Apply sigmoid or softmax only at inference, when you genuinely want a probability
+Apply sigmoid or softmax only at inference, when you want a probability
 to show somebody.
 </Aside>
 
@@ -221,7 +220,7 @@ find those five lines first. Everything else is scaffolding around them.
 `opt.zero_grad()` is not optional, and forgetting it does not error.
 
 PyTorch **accumulates** into `.grad` rather than overwriting, because that lets
-you split one large batch across several backward passes — a genuinely useful
+you split one large batch across several backward passes — a useful
 feature that costs you this footgun.
 
 Without `zero_grad()`, step 50 uses the sum of the first fifty gradients. The
@@ -494,7 +493,7 @@ print("eval()  mode:            ", b, " <- deterministic")
 Three runs, three different answers — from the *same model* on the *same data*.
 
 In `train()` mode, dropout randomly zeroes 30% of the hidden units on every
-forward pass, so the same input genuinely gives a different answer each time. In
+forward pass, so the same input really does give a different answer each time. In
 `eval()` mode dropout becomes a no-op and every unit contributes.
 
 And that randomness is the entire point of dropout. It forces the network not to

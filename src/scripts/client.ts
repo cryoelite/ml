@@ -8,6 +8,7 @@
    ========================================================================== */
 
 import { runtime, DEFAULT_JUPYTER_URL, DEFAULT_JUPYTER_TOKEN, type Sink, probeJupyter } from "./runtime";
+import { wireFruitDemo } from "./demo";
 
 /* -------------------------------------------------------------------------- */
 /* Code cells                                                                  */
@@ -392,10 +393,13 @@ function wireConceptMaps() {
     };
     input.addEventListener("change", () => apply(input.checked));
 
-    // Fit by default when the map cannot fit at its natural size anyway.
+    // Fit by default when the map cannot fit at its natural size anyway — and
+    // never turn fitting *off* for a map that was rendered fitted on purpose
+    // (the compact one on the front page), because unfitting it re-introduces
+    // the clipped-map bug this whole function exists to avoid.
     const svg = map.querySelector("svg");
     const natural = Number(svg?.getAttribute("width") ?? 0);
-    apply(natural > 0 && scroll.clientWidth < natural * 0.75);
+    apply(input.checked || (natural > 0 && scroll.clientWidth < natural * 0.95));
   }
 }
 
@@ -438,6 +442,7 @@ function boot() {
   wireNavToggle();
   wireConceptMaps();
   wireFilter();
+  wireFruitDemo();
 }
 
 if (document.readyState === "loading") {

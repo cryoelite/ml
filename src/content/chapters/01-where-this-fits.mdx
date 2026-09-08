@@ -1,6 +1,6 @@
 ---
-title: "Where this actually fits"
-blurb: "A working classifier in eight lines, the only vocabulary you actually need, and the honest answer to why none of this worked until about ten minutes ago."
+title: "Where this all fits"
+blurb: "A working model in eight lines of code, the handful of words you will hear over and over, and why almost none of this worked until recently."
 order: 1
 day: 1
 part: orientation
@@ -8,7 +8,8 @@ minutes: 75
 introduces: ["ml", "classical", "supervised"]
 ---
 
-Before any explaining, here is a machine learning model. Press **Run**.
+Before we explain anything at all, here is a machine learning model. You do
+not need to understand a word of it yet. Press **Run** and see what happens.
 
 ```python run setup title="the whole thing"
 from sklearn.datasets import load_digits
@@ -23,32 +24,40 @@ model = LogisticRegression(max_iter=5000).fit(X_train, y_train)
 print(f"accuracy on digits it has never seen: {model.score(X_valid, y_valid):.1%}")
 ```
 
-The first time it runs it takes a few seconds, because your browser is quietly
-downloading a whole Python. After that it's instant. Go on — it's already done.
+The first time takes a few seconds, because your browser is quietly downloading
+a whole copy of Python. After that it's instant.
 
-So. That thing just read handwriting. Not handwriting it had seen before —
-handwriting it had never laid eyes on — and it got about nineteen out of twenty
-right.
+<Says who="juno">
+If you skipped the button: go back and press it. This site is built around
+running things, and reading about a result is not the same as watching one
+appear. Nothing installs, nothing breaks, and you can press it as many times as
+you like.
+</Says>
 
-Now here is the part I'd love you to sit with for a second, because it is the
-strangest thing on this page and it's easy to read straight past.
+What just happened: the computer read handwriting. Somebody scanned in 1797
+handwritten digits; the program was shown about seventy per cent of them along
+with the right answers, and then tested on the rest — digits it had never seen.
+It got roughly nineteen out of twenty right.
+
+The part worth sitting with is this one.
 
 **Nobody told it what a 7 looks like.**
 
-Nowhere in those eight lines did anyone describe a stroke, or handle the case
-where the crossbar is missing, or write a rule about the little hook some people
-put on a 9. There isn't a single `if` statement about digits anywhere. There
-isn't a single *fact about digits* anywhere. And yet.
+Nowhere in those eight lines does anyone describe a pen stroke, or deal with the
+7s that have a crossbar and the 7s that don't, or mention the little hook some
+people put on a 9. There is no instruction about digits anywhere in there. There
+isn't a single *fact* about digits anywhere in there. And it reads handwriting
+anyway.
 
 <Aside type="key">
-You didn't write the rules. You handed over examples, and something went and
-found the rules for you. That inversion is the entire subject. Everything else —
-all sixteen chapters of it — is mechanism.
+Nobody wrote the rules. Somebody handed over examples, and a program went and
+found the rules. That swap is what the whole subject is about. Everything in the
+other fifteen chapters is the machinery for doing it.
 </Aside>
 
 ## The inversion
 
-Here's a shape you know extremely well:
+Here is a shape worth having in front of you:
 
 <div class="table-scroll">
 
@@ -62,17 +71,22 @@ Here's a shape you know extremely well:
 Read the second row again. You hand over the questions *and* the answers, and
 what comes back is the method.
 
-That's a genuinely odd trade, and the reason it's worth making is something you
-already know in your bones. You've written the top row for years, and you know
-exactly which problems it's bad at: the ones where you can't state the rule.
+That is an odd sort of trade, and it is only worth making for a particular kind
+of problem: the kind where you cannot say what the rule is.
 
-You can specify a JSON parser completely. Sit down, think hard, and every case is
-writable. Now try to specify "is this photo a cat." Not *recognise* one — you can
-do that in 40 milliseconds without trying. **Specify** it. Write the conditions.
+Here is the difference, and you can test it on yourself right now. Think of how
+you sort your post into "keep" and "bin". You could probably write that down —
+these envelopes, from these senders, in these months. It would be tedious, but
+you could do it.
 
-You can't. Not because you don't know a cat when you see one, but because the
-knowing isn't in a form your fingers can type. It's in there, and it won't come
-out.
+Now think about how you know a photograph has a cat in it. Not *whether* it does
+— you can tell in about a twentieth of a second without trying. Try to write down
+the steps. What exactly do you look for first? How do you handle a cat that's
+mostly behind a chair? A black cat in a dark room? A cat from behind?
+
+You can't write it down. Not because you don't know a cat when you see one, but
+because the knowing isn't in a form you can spell out. It's in there and it won't
+come out in words.
 
 Machine learning is, mostly, a set of tools for getting knowledge out of that
 locked room by showing examples through the window.
@@ -113,16 +127,24 @@ it's where nearly all the recent noise lives.
 
 **A model** is the fitted thing itself — the function with its numbers filled in.
 `model` in the code above is a model. A file of weights is a model. When someone
-says "we deployed the model," they shipped a function.
+says "we deployed the model", they put a function somewhere other software can
+call it.
 
 <Aside type="nice">
-An unfortunate consequence of that nesting: a linear regression from 1805 is,
+An awkward consequence of that nesting: a straight-line fit from 1805 is,
 technically and correctly, artificial intelligence. Which means "AI-powered" is a
 claim entirely compatible with a spreadsheet formula.
 
-Being able to ask *"which layer of that nest do you mean?"* — politely, in a
-meeting — turns out to be a genuinely useful professional skill.
+Being able to ask *which layer of that nest do you mean?* — politely — turns out
+to be quite useful.
 </Aside>
+
+<Says who="basil">
+Worth knowing while you read anything written for the public: the four words
+above get used interchangeably by people who should know better, and sometimes by
+people who benefit from the confusion. When a product says it uses AI, it may
+mean a language model, and it may mean an average.
+</Says>
 
 Three more words and we can get back to the interesting part:
 
@@ -148,9 +170,10 @@ pixel. That's it. That is the entire model — 650 floating-point numbers.
 Everything it learned from 1257 examples of human handwriting is sitting in
 those 650 numbers and nowhere else.
 
-To classify an image it scores each of the ten digits — multiply every pixel by
-that digit's weight, add them up — and picks the winner. Let's do it by hand,
-with no scikit-learn anywhere, just so you can see there's nothing up my sleeve.
+To decide what an image is, it gives each of the ten digits a score — multiply
+every pixel by that digit's weight, add them all up — and picks whichever scores
+highest. We can do that ourselves, without the library, so you can see there is
+nothing hidden.
 
 ```python run title="inference, from scratch"
 import numpy as np
@@ -171,7 +194,7 @@ economically interesting at all.
 
 <Reveal title="Why a weighted sum, though? Where does that come from?" kind="math">
 
-Here's the nice way to see it.
+There is a nice way to see it.
 
 Each row of `w` is a **template** — a 64-number picture of what that digit tends
 to look like. The <M id="dot-product" /> between an image and a template comes
@@ -182,8 +205,8 @@ So "which digit is this?" quietly becomes "which template does this image agree
 with most?", and agreement is measured by a dot product. That's all a linear
 classifier ever is: a shelf of templates and a way to measure agreement.
 
-And you don't have to believe me, because the templates are pictures and we can
-just look at them:
+You don't have to take that on trust, because the templates are pictures and we
+can look at them:
 
 ```python run title="what the model learned"
 import matplotlib.pyplot as plt
@@ -216,11 +239,13 @@ Fixing exactly that is what layers are for, and that's
 **"I ran it and got a slightly different number."** Good — that means you're
 paying attention. Small differences come from library versions and the browser's
 maths. Anything in the 94–96% range is the same result. If you get something
-wildly different, something is genuinely wrong and I'd want to know.
+wildly different, something is wrong and I'd want to know.
 
-**"`@` is a matrix multiply? Since when?"** Since Python 3.5. It's a real
-operator that exists mostly for this. Hover the underlined
-<Py id="matmul">matrix multiply</Py> above for the two-line version.
+**"What is that `@` symbol?"** It multiplies two grids of numbers together in
+the particular way described just above — every row against every column. Python
+has a dedicated symbol for it because this operation turns up constantly here.
+Hover the underlined <Py id="matmul">matrix multiply</Py> for a short
+explanation, and there's a longer one in the appendix.
 
 **"I don't see how multiplying pixels by numbers 'recognises' anything."** You're
 not missing something — that reaction is correct and it's the right thing to be
@@ -228,19 +253,19 @@ suspicious of. Open the fold above and *look at the templates*. That's the
 moment it usually clicks: the numbers are a picture, and the multiplication is
 asking "how much does this look like that?"
 
-**"Where did the 650 numbers come from?"** Deliberately not answered yet. That's
-chapters 4 and 5, and it's the best part. For today all I want is for you to
-believe they're *just numbers*, and that a model is a function someone found
-rather than a mind someone summoned.
+**"Where did the 650 numbers come from?"** We are deliberately not answering
+that yet — it's chapters 4 and 5. For today the thing to hold onto is that they
+are *just numbers*. A model is a recipe someone's program found, not a mind
+somebody summoned.
 </Stuck>
 
-## So why didn't this work until about ten minutes ago?
+## So why is all this suddenly everywhere?
 
-This is the question I'd most like you to leave today with, because the answer
-isn't the one most people assume, and it tells you something about where the
-field goes next.
+Machine learning has been in the news for about a decade. It is reasonable to
+assume that something was invented about a decade ago. Mostly, that isn't what
+happened.
 
-Here's the surprise: **the ideas are old.**
+**The ideas are old.**
 
 The perceptron — a single artificial neuron, trained by exactly the method you'll
 build in chapter 5 — was built as *physical hardware* in 1958. Backpropagation,
@@ -250,8 +275,8 @@ networks were in production reading cheques for the US Postal Service in the
 early 1990s. LSTMs, which handled sequences for the next two decades, are from
 1997.
 
-So "we finally thought of it" is not the answer. The thinking was done. Three
-other things had to show up.
+So "somebody finally thought of it" isn't the answer. The thinking was done
+decades ago. Three other things had to turn up first.
 
 **Data.** A model fits itself to examples, so it needs examples, and for most of
 this history nobody had any. The dataset that broke the field open was ImageNet:
@@ -263,45 +288,46 @@ Before that, nobody on Earth had a million labelled anything.
 **Compute — and specifically the right *shape* of compute.** You saw above that
 inference is a matrix multiply. Training is an enormous number of them. And it
 turns out somebody had already built a machine for doing vast numbers of parallel
-multiply-accumulates, for reasons entirely to do with drawing triangles quickly
-in video games. When people started running neural networks on graphics cards
-around 2009, the same experiment got roughly fifty times faster overnight.
+multiplications and additions at once, for reasons entirely to do with drawing
+triangles quickly in video games. Graphics cards. When people started running
+neural networks on graphics cards around 2009, the same experiment ran roughly
+fifty times faster.
 
-That number matters more than it looks. An idea that takes six months to test is
-not an idea you can *iterate* on. An idea that takes three days is. Fifty times
-faster didn't just speed up the work; it changed what kind of work was possible.
+That number matters more than it first looks. An idea that takes six months to
+test is not an idea you can tinker with. An idea that takes three days is.
+Fifty times faster didn't only speed the work up; it changed which experiments
+were worth trying at all.
 
-**A handful of deeply unglamorous tricks.** Better weight initialisation. ReLU
-instead of sigmoid, so gradients survive many layers
-([why](/appendix/math/#relu)). Dropout. Batch normalisation. Adam. Individually
-each one is a paragraph of arithmetic that would embarrass nobody. Collectively
-they moved deep networks from "trainable in principle" to "trainable on a
-Tuesday."
+**A pile of small, unglamorous fixes.** Better starting values for the numbers.
+A simpler bend in the middle of the network, so the training signal survives many
+layers ([why](/appendix/math/#relu)). Dropout, batch normalisation, Adam — all of
+which you will meet later, and none of which is more than a paragraph of
+arithmetic on its own. Together they moved deep networks from "should work in
+principle" to "works on a Tuesday afternoon".
 
-You can date the moment all three met: **September 2012**, when AlexNet won the
-ImageNet competition with a 15.3% error rate against the runner-up's 26.2%. In a
-mature benchmark, where everyone has been grinding out fractions of a percent for
-years, a ten-point gap isn't a win. It's the sound of a field changing direction.
+All three arrived at once in **September 2012**, when a network called AlexNet
+won an image-recognition competition, getting 15.3% of the pictures wrong against
+the runner-up's 26.2%. On a competition where everyone had been fighting over
+fractions of a percent for years, a ten-point gap was enough to change what the
+whole field worked on.
 
 <Wonder>
-There's a pattern hiding in that story, and once you see it you'll see it
-everywhere.
+There's a pattern in that story, and it repeats.
 
-Almost every "breakthrough" in this field is an **old idea meeting newly
-sufficient scale**. Transformers (2017) made attention — an idea from 2014 —
-cheap enough to scale up. Diffusion models are 2015 mathematics that turned
-practical around 2021. Neural networks themselves are a 1950s idea that needed
-sixty years of hardware.
+Nearly every "breakthrough" here is an **old idea that finally became affordable**.
+Transformers (2017) took attention, an idea from 2014, and made it cheap enough
+to build big. Diffusion models are 2015 mathematics that became practical around
+2021. Neural networks themselves are a 1950s idea that had to wait sixty years
+for the hardware.
 
-So when you read that something in this field is impossible, it's worth quietly
-asking: *impossible, or merely currently expensive?* Those two have very
-different futures, and telling them apart is most of what it means to have good
-taste here.
+So when somebody says a thing in this field is impossible, it is worth asking
+whether they mean impossible or merely expensive at the moment. Those two have
+quite different futures.
 </Wonder>
 
 ## When the answer is not machine learning
 
-I want to put this early rather than late, because it's where judgement lives and
+This belongs early rather than late, because it is where the judgement lives and
 almost nobody teaches it.
 
 **When you can just write the rule.** Tax calculation is defined in legislation.
@@ -315,32 +341,33 @@ wrong answer means a wrong medication, the model is at best an input to a human
 decision, and should be built and described that way.
 
 **When you have no data.** Two hundred examples of a rare event is not a training
-set, it's an anecdote. Sometimes the genuinely correct project is spending six
+set, it's an anecdote. Sometimes the correct project is spending six
 months building the pipeline that collects the data, and shipping the model next
 year. That's a much less fun sentence to say in a planning meeting, and it is
 often the right one.
 
-**When a lookup table would do.** A startling amount of shipped "AI" is a
-`GROUP BY` with better marketing. Try the boring thing first and *measure it*.
-That's your baseline. If your clever model can't beat it, you found that out in
-an afternoon instead of a quarter.
+**When a simple sum would do.** A surprising amount of what gets sold as "AI"
+is an average, or a count, with a better name. Try the boring version first and
+*measure how well it does*. That number is your baseline. If the clever model
+can't beat it, you found that out in an afternoon rather than three months in.
 
 <Aside type="warn">
-The expensive failure in industry is almost never choosing the wrong
-architecture. It's spending four months building a model for a problem where the
-data could never have supported an answer in the first place.
+The expensive mistake is almost never picking the wrong kind of model. It is
+spending four months building one for a problem where the data could never have
+answered the question in the first place.
 
-The skill that prevents it is framing, and it's the whole of
-[Chapter 3](/learn/03-the-shape-of-problems/).
+The skill that prevents that is knowing how to frame a problem, and it's the
+whole of [Chapter 3](/learn/03-the-shape-of-problems/).
 </Aside>
 
 ## The map
 
-Everything so far is one branch of something bigger. Here's the whole thing.
+Everything so far is one branch of something larger. Here is the shape of the
+whole thing.
 
-You will not understand most of this yet. That's not a failure, it's the design —
-I'd rather you have somewhere to *put* things as they arrive than meet each one
-in a vacuum. Come back after every part and watch it fill in.
+Most of it won't mean anything yet, and that's expected. It is here so that you
+have somewhere to put each new idea as it arrives, rather than meeting each one
+on its own with no context. Come back after every part and watch it fill in.
 
 <ConceptMap compact />
 
@@ -351,52 +378,54 @@ single biggest source of early confusion:
 reinforcement.) *What shape is the learned function?* (linear model, tree, neural
 network.) *What makes the fitting work?* (losses, gradients, validation.)
 
-Every project answers all three. They're independent choices. A tree can be
-supervised or not; a neural network can be trained on labels or on the data
-itself. Keeping the three axes apart in your head will make papers about half as
-confusing, starting immediately.
+Every project answers all three, and the answers are independent of each other.
+A tree can be supervised or not; a neural network can be trained on labelled
+examples or on raw data. Keeping the three questions apart makes a lot of writing
+about this field much easier to follow.
 
 <TryThis title="Before you go">
-Pick something you've actually built — a real feature from real work. Ask
-yourself which of these it is:
+Think of a decision somebody makes over and over — at your work, in a hobby, in
+a household. Sorting applications, marking homework, deciding which emails
+matter, spotting a bad batch on a production line. Then ask which of these three
+it is:
 
-1. A rule you could write down, and did.
-2. A rule you could write down, but it's a horrible tangle of special cases that
-   keeps growing.
-3. A rule you genuinely could not write down, so the feature doesn't exist.
+1. A rule somebody could write down, and has.
+2. A rule somebody could write down, but it's a growing tangle of exceptions and
+   special cases that nobody quite trusts any more.
+3. A rule nobody can write down at all, so it stays a judgement call.
 
 <Fragment slot="hint">
-Category 2 is the interesting one, and it's more common than people expect.
-Think about validation logic, ranking, routing, anything with a `# TODO: this
-heuristic is a mess` above it.
+The second one is the interesting category, and it is more common than people
+expect. Look for anything where the instructions have a lot of "except when"
+in them.
 </Fragment>
 
 <Fragment slot="answer">
-There's no marking scheme here — the point is the habit.
+There's no right answer here — the point is the habit of asking.
 
-Category 2 and category 3 are where machine learning earns its keep, and
-category 2 is the one people miss. A tangle of special cases that keeps growing
-is a rule being *fitted to data by hand, slowly, by you*. That's the same job,
-done worse.
+Categories 2 and 3 are where machine learning earns its keep, and 2 is the one
+people miss. A growing tangle of exceptions is a rule being fitted to examples
+by hand, slowly, by a person. That is the same job as machine learning, done the
+hard way.
 
-Category 1 is where people most often waste a quarter. If you can write the rule
-and it's stable, write the rule.
+Category 1 is where most wasted effort goes. If the rule can be written down and
+it doesn't keep changing, write the rule.
 
-Hold onto whichever example you picked. In chapter 3 we'll turn it into a
-problem with a shape, and by chapter 16 you'll know whether it was worth doing.
+Hold onto whichever example you picked. In chapter 3 we'll give it a shape, and
+by chapter 16 you'll be able to say whether it was worth doing.
 </Fragment>
 </TryThis>
 
 ## Where you're going
 
-By the end of the fortnight you'll have built, by hand, out of nothing but
-<Py id="ndarray">NumPy arrays</Py>: a linear model, a gradient descent
-optimiser, a neural network, and the backpropagation pass that trains it.
+By the end of the fortnight you will have built, from scratch and with nothing
+clever hidden inside it: a model that fits a straight line, the search procedure
+that finds its numbers, a neural network, and the method that trains one.
 
-Then you'll do the whole lot again in PyTorch in a tenth of the code — and,
-because you built it once yourself, you'll know exactly what the library is doing
-on your behalf. That's not a purity thing. It's the only durable way to debug
-something.
+Then you'll build the whole lot again using a library called PyTorch, in about a
+tenth of the code. Doing it the long way first is the point. When something goes
+wrong later — and it will — you'll know what the library is doing on your behalf,
+which is the difference between fixing a problem and guessing at it.
 
 You'll also be able to open a paper, read the first page, and know which boxes on
 that map it lives in. That skill, more than any particular architecture, is what

@@ -12,7 +12,7 @@ Chapter 12 noted in passing that a model learns the distribution it was shown,
 including the parts you wish weren't in it. That sentence deserves more than a
 passing mention.
 
-This isn't a lecture, and I'm not going to ask you to sign anything. It's a list
+This is not a lecture and there is nothing to sign. It is a list
 of specific, mechanical failure modes — the kind that follow from things you
 already understand about how these systems work — and what you can actually do
 about them from the position of the person writing the code.
@@ -112,7 +112,7 @@ because that's what minimising average loss *means*.
 <Aside type="key">
 **Always report your metric sliced by every group you can identify.**
 
-Not because of a policy. Because an aggregate number genuinely does not tell you
+Not because of a policy. Because an aggregate number does not tell you
 whether the system works, and you'd want to know that about any system you
 shipped.
 
@@ -127,7 +127,7 @@ accuracy numbers were averages.
 
 ## 4. "Fairness" is several incompatible things
 
-Here's a genuinely uncomfortable technical fact, and I'd rather you meet it here
+Here's a uncomfortable technical fact, and I'd rather you meet it here
 than in a review meeting.
 
 There are multiple reasonable definitions of fairness, and they are
@@ -137,7 +137,7 @@ There are multiple reasonable definitions of fairness, and they are
 - **Equal opportunity** — the same true-positive rate across groups.
 - **Predictive parity** — the same precision across groups.
 
-If base rates genuinely differ between groups, you cannot satisfy all three at
+If base rates differ between groups, you cannot satisfy all three at
 once. This is a theorem, not an engineering shortfall — it was proved in the
 context of the COMPAS recidivism debate, where two sides were each correctly
 pointing at a different definition and talking past each other.
@@ -219,7 +219,7 @@ leverage:
    decision, not a modelling one.
 
 4. **Keep a human in the loop for consequential decisions**, and design so the
-   human genuinely decides. A screen with an accept button and a queue of 400 is
+   human decides. A screen with an accept button and a queue of 400 is
    not a human in the loop; it's a human rubber-stamping at speed.
 
 5. **Log enough to audit.** Chapter 16's point, with a second reason. Inputs,
@@ -238,5 +238,5 @@ observability, pointed at a slightly different question: **not just "is this
 right on average?" but "who is it wrong for, and what happens to them?"**
 
 You're going to be one of very few people who can actually see the answer. That's
-not a burden so much as a genuinely interesting part of the job.
+not a burden so much as a interesting part of the job.
 </Aside>

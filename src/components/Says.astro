@@ -1,0 +1,27 @@
+---
+/**
+ * Somebody from the cast, saying something.
+ *
+ * Use it sparingly and only for things a person would actually say out loud —
+ * a reassurance, a warning, a "hang on, what?". Prose that just happens to be
+ * information belongs in the prose, not in a speech bubble.
+ */
+import Portrait from "./Portrait.astro";
+import { byId } from "../lib/cast";
+
+interface Props {
+  who: string;
+  /** Flip the bubble to the left of the face. Useful for a back-and-forth. */
+  flip?: boolean;
+}
+const { who, flip = false } = Astro.props;
+const m = byId[who];
+if (!m) throw new Error(`Unknown character "${who}" — see src/lib/cast.ts`);
+---
+<div class={`says says--${m.tone} ${flip ? "says--flip" : ""}`.trim()}>
+  <span class="says__who">
+    <Portrait who={who} />
+    <span class="says__name">{m.name}</span>
+  </span>
+  <div class="says__bubble"><slot /></div>
+</div>

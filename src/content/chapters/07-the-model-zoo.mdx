@@ -1,6 +1,6 @@
 ---
-title: "The model zoo (and why it isn't all neural networks)"
-blurb: "Trees, forests, boosting and nearest neighbours — what each one quietly assumes, and the uncomfortable fact that on tabular data they still win."
+title: "The model zoo"
+blurb: "Trees, forests, boosting and nearest neighbours — what each one quietly assumes, and why on table-shaped data they still beat neural networks."
 order: 7
 day: 7
 part: foundations
@@ -12,15 +12,14 @@ You now have the machinery: a model, a loss, an optimiser, and a validation set
 that doesn't lie to you. Today we do the second axis of [the map](/map/) — what
 *shape* the learned function is allowed to take.
 
-Let me give you the uncomfortable headline first, because it can genuinely save
-you months:
+One thing up front, because it saves a lot of wasted effort:
 
-**On ordinary tabular data, gradient-boosted trees usually beat neural
-networks.**
+**On ordinary table-shaped data, a method called gradient boosting usually beats
+neural networks.**
 
-Not sometimes. Usually. If your data is a spreadsheet, start there. We'll spend
-the middle of this chapter on exactly why, because the reasons are concrete and
-knowing them will make you better at choosing.
+Not sometimes — usually. If your data looks like a spreadsheet, that's where to
+start. The middle of this chapter is about why, because the reasons are concrete
+and knowing them makes choosing much easier.
 
 ## Everything shares one interface
 
@@ -34,9 +33,10 @@ X_tr, X_va, y_tr, y_va = train_test_split(X, y, test_size=0.3, random_state=0, s
 print(X_tr.shape, y_tr.shape)
 ```
 
-<Py id="fit-predict">`fit` and `predict`</Py>. That's the entire scikit-learn
-API — and it's why comparing five completely different model families is a
-for-loop rather than a project.
+<Py id="fit-predict">`fit` and `predict`</Py>. Every model in the scikit-learn
+library answers to those two words and nothing else: `fit` to learn from
+examples, `predict` to answer a new question. Which is why trying five completely
+different kinds of model is a loop rather than a project.
 
 ```python run title="five families, one loop"
 from sklearn.linear_model import LogisticRegression
@@ -142,7 +142,7 @@ pairs, scoring each by how much it purifies the children.
 
 And note *greedy* — therefore not optimal. A split that looks mediocre right now
 might have enabled two brilliant splits below it, and the tree will never find
-out, because it already committed. Finding the genuinely optimal tree is NP-hard,
+out, because it already committed. Finding the truly optimal tree is NP-hard,
 which is why nobody does it and everybody uses the greedy version quite happily.
 </Aside>
 
@@ -210,7 +210,7 @@ engineering underneath: better handling of missing values, native categorical
 features, histogram-based splitting for speed.
 
 scikit-learn's `HistGradientBoostingClassifier` is a LightGBM-style
-implementation sitting in the standard library, and it's genuinely competitive —
+implementation sitting in the standard library, and it's competitive —
 which is why this chapter uses it rather than making you install anything.
 
 Between roughly 2015 and 2020, gradient-boosted trees won the overwhelming
@@ -220,7 +220,7 @@ generation of very good data scientists whose main tool is a tree.
 
 ## Why trees still beat neural networks on tables
 
-This genuinely surprises people who've absorbed the "deep learning solved
+This surprises people who've absorbed the "deep learning solved
 everything" story. The reasons are concrete, and I think they're worth
 understanding rather than memorising.
 
@@ -239,7 +239,7 @@ values, wildly different scales, features that only matter above a threshold —
 tree just splits and moves on. A neural network needs all of that normalised away
 by hand, first, by you.
 
-**The target is often genuinely piecewise-constant.** "Approve the loan if income
+**The target is often piecewise-constant.** "Approve the loan if income
 > X and credit history > Y" is a step function. Trees *are* step functions.
 Neural networks have to approximate a step using smooth activations, and they
 spend capacity doing it.
@@ -306,7 +306,7 @@ for kern in ["linear", "poly", "rbf"]:
 ```
 
 <Wonder title="The kernel trick">
-This is one of the genuinely beautiful ideas in machine learning, and it takes
+This is one of the beautiful ideas in machine learning, and it takes
 one paragraph.
 
 Notice that many algorithms only ever touch the data through
@@ -395,7 +395,7 @@ for i in order:
     print(f"{d.feature_names[i]:26s} {rf.feature_importances_[i]:.3f}")
 ```
 
-Genuinely useful. It tells you what to go and collect more of, and what you can
+useful. It tells you what to go and collect more of, and what you can
 stop collecting entirely.
 
 But treat it with a healthy suspicion, for two reasons.
@@ -502,7 +502,7 @@ stack.
 </Fragment>
 </TryThis>
 
-That's the classical toolkit — and it's a genuinely good one that will solve a
+That's the classical toolkit — and it's a good one that will solve a
 great many real problems.
 
 Tomorrow we take the other branch: what happens when you stop choosing features

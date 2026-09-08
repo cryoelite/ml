@@ -3,6 +3,11 @@ import { getCollection } from "astro:content";
 import Base from "../layouts/Base.astro";
 import ConceptMap from "../components/ConceptMap.astro";
 import Doodle from "../components/Doodle.astro";
+import Portrait from "../components/Portrait.astro";
+import Says from "../components/Says.astro";
+import FruitDemo from "../components/FruitDemo.astro";
+import { CAST } from "../lib/cast";
+import { withBase } from "../lib/base";
 
 const chapters = (await getCollection("chapters", ({ data }) => !data.draft)).sort(
   (a, b) => a.data.order - b.data.order,
@@ -12,61 +17,172 @@ const first = chapters[0];
 const total = chapters.reduce((n, c) => n + c.data.minutes, 0);
 
 const PARTS = [
-  { id: "orientation",   title: "Orientation",        art: "inversion",
-    gist: "What this field actually is, where it sits next to normal programming, and a working model running in your browser before any theory." },
-  { id: "foundations",   title: "How learning works", art: "hill",
-    gist: "Loss, gradients, overfitting. The machinery is identical whether you're fitting a line or a language model, so we build it once, by hand." },
-  { id: "deep-learning", title: "Deep learning",      art: "layers",
-    gist: "Neural networks built from matrix multiplies, then backpropagation derived on paper, then the same thing in PyTorch in a tenth of the code." },
-  { id: "frontier",      title: "The modern stack",   art: "beam",
-    gist: "Convolutions, embeddings, attention, transformers — and how a next-token predictor became something that answers your questions." },
-  { id: "practice",      title: "Doing it for real",  art: "ship",
-    gist: "Reading papers, picking metrics, shipping a model, and knowing when the honest answer is that machine learning isn't the tool." },
+  { id: "orientation",   title: "Getting our bearings", art: "inversion",
+    gist: "What this subject actually is, how it differs from ordinary programming, and a working model running in your browser before we explain a single thing about it." },
+  { id: "foundations",   title: "How learning happens", art: "hill",
+    gist: "How a program measures how wrong it is, and how it uses that to get less wrong. This part is small and it never changes — a language model learns the same way the fruit demo does." },
+  { id: "deep-learning", title: "Neural networks",      art: "layers",
+    gist: "What a neural network is made of, worked out on paper first, and then the same thing again in PyTorch in a tenth of the code." },
+  { id: "frontier",      title: "The modern stack",     art: "beam",
+    gist: "Pictures, words, and attention — and how a program that only ever guesses the next word ended up being able to answer questions." },
+  { id: "practice",      title: "Doing it for real",    art: "ship",
+    gist: "Reading a research paper without drowning, choosing what to measure, putting a model somewhere people can use it, and noticing when machine learning is the wrong tool." },
 ];
-import { withBase } from "../lib/base";
 ---
 
 <Base title="Gradient">
   <main class="home" id="main">
     <div class="hero">
       <div>
-        <h1 class="home__title">Machine learning,<br />from the ground up.</h1>
+        <p class="home__eyebrow">A slow, friendly walk through</p>
+        <h1 class="home__title">how machines<br />learn things.</h1>
         <p class="home__lede">
-          Fourteen days. Every code block runs, right here in the page. Written
-          for someone who already ships software and would like to know
-          <em>where every piece fits</em> — not a survey, not a maths course, and
-          not a tour of one library's API.
+          Start from nothing. You don't need to be a programmer, and the maths
+          never goes past what school gave you. Nearly all the code on this site
+          runs right here in the page — you press a button, and it goes.
         </p>
         <div class="home__cta">
-          {first && <a class="btn btn--primary" href={withBase(`/learn/${first.id}/`)}>Start day one →</a>}
-          <a class="btn btn--ghost" href={withBase("/map/")}>See the whole map</a>
-          <a class="btn btn--ghost" href={withBase("/setup/")}>Set up your machine</a>
+          {first && <a class="btn btn--primary" href={withBase(`/learn/${first.id}/`)}>Start at the beginning →</a>}
+          <a class="btn btn--ghost" href={withBase("/map/")}>See where it all goes</a>
         </div>
       </div>
       <div class="hero__art"><Doodle name="pipWave" /></div>
     </div>
 
+    <h2>So what is machine learning?</h2>
+    <p>
+      Normally, if you want a computer to do something, you tell it exactly what
+      to do. First this, then that, and if such-and-such then this other thing.
+      Somebody works out every step and writes them all down, and the computer
+      follows them without ever knowing what any of it is for. That's ordinary
+      programming, and for anything you can spell out completely, it works
+      beautifully.
+    </p>
+    <p>
+      The catch is that most of what people know can't be spelled out. You can
+      pick your friend out of a crowd in about a tenth of a second. Now try
+      writing down how. Not <em>do it</em> — describe it. What exactly do you
+      check, and in what order? You could sit there all week and not get it
+      down, and you would still spot your friend instantly.
+    </p>
+    <p>
+      Machine learning is what people do about that. Instead of writing the
+      steps, you gather examples — a pile of photos, each one already labelled
+      with whose face it is — and you hand them to a program whose job is to
+      work out the steps itself. It doesn't come up with anything a person would
+      recognise as instructions. It comes up with a long arithmetic recipe that
+      happens to give the right answers, and it finds that recipe by starting
+      with a hopeless one and nudging it towards better, over and over, a
+      few thousand times.
+    </p>
+    <p>
+      That's the idea. Everything on this site is either that idea in more
+      detail, or the machinery that makes it work on something harder than
+      fruit.
+    </p>
+
+    <Says who="wren">
+      <p>
+        Hello. Something to hang onto while you read: nobody ever tells these
+        programs what a face <em>is</em>. They only ever see examples. Whatever
+        the program ends up knowing, it worked out on its own, from pictures.
+        That is still a strange thing to be true, and it's fine to keep finding
+        it strange.
+      </p>
+    </Says>
+
+    <h2>Here, have a go</h2>
+    <p>
+      Below is a board of fruit. Each dot is one piece of fruit that somebody
+      weighed and tasted: further right means sweeter, further up means bigger.
+      Red ones are apples, blue ones are blueberries.
+    </p>
+    <p>
+      Nobody has told the computer anything about fruit. Press{" "}
+      <strong>teach it</strong> and it will start with a line in a random,
+      useless place and shuffle it around until the apples are on one side and
+      the blueberries are on the other. Then switch to <strong>ask it</strong>,
+      click somewhere empty, and it will tell you what it reckons goes there.
+    </p>
+
+    <FruitDemo />
+
+    <p>
+      That is a real machine learning model, not a cartoon of one. The same
+      handful of ideas — a way of scoring how wrong you are, and a rule for
+      getting less wrong — are what run underneath the systems that read your
+      handwriting and finish your sentences. They're just doing it with rather
+      more than two numbers per fruit.
+    </p>
+
+    <h2>Who's here</h2>
+    <p>
+      Four people turn up in the margins now and then. You'll get to know who's
+      who by the face before you read the label.
+    </p>
+    <ul class="cast-strip">
+      {CAST.map((m) => (
+        <li class={`cast-card cast-card--${m.tone}`}>
+          <Portrait who={m.id} class="cast-card__face" />
+          <div>
+            <p class="cast-card__name">{m.name}</p>
+            <p class="cast-card__role">{m.role}</p>
+          </div>
+        </li>
+      ))}
+    </ul>
     <div class="pip-note">
       <Doodle name="pip" decorative />
       <p>
-        This is Pip. Pip rolls downhill, which turns out to be the entire
-        algorithm behind everything here — you'll meet the joke properly on day
-        five.
+        And this is Pip, who is a ball. Pip's entire skill is rolling downhill,
+        which sounds like a joke until chapter five, where it turns out to be
+        how essentially all of this works.
       </p>
     </div>
 
-    <h2>How this works</h2>
+    <h2>Who this is for</h2>
     <p>
-      Press <strong>Run</strong> on any code block and Python starts inside your
-      browser. No install, nothing to configure, works offline, works on a plane.
-      The three chapters that need real PyTorch say so and connect to a kernel on
-      your own machine instead.
+      Anyone who wants to know how this stuff works. There's no entrance exam.
+      If you've never written a line of code, you're in the right place — the
+      code is explained as it appears, and you can run all of it by pressing a
+      button rather than installing anything.
     </p>
     <p>
-      Python constructs are underlined and explained on hover — once, with the
-      Rust construct you'd already reach for. Derivations are folded away, so the
-      path reads end to end without opening a single one, and every one of them is
-      there the moment you want it.
+      It was put together by someone who writes software for a living, and there
+      are a few notes tucked away for people in the same boat — comparisons to
+      languages you might already know, that sort of thing. Those are always
+      folded shut and labelled, and nothing later depends on them. If they mean
+      nothing to you, walk straight past.
+    </p>
+
+    <Says who="moss" flip>
+      <p>
+        One promise, from someone who has been lost in this material more than
+        once: if a paragraph stops making sense, that is almost always the
+        writing's fault, not yours. Where people reliably get stuck, there's a
+        box waiting with the confusion written out and answered.
+      </p>
+    </Says>
+
+    <h2>How the code works</h2>
+    <p>
+      When you press <strong>Run</strong> on a block of code, your browser
+      quietly downloads a copy of Python and runs the code inside the page. The
+      first time takes a few seconds; after that it's instant. Nothing gets
+      installed, nothing is sent anywhere, and it all keeps working on a plane.
+    </p>
+    <p>
+      Three of the later chapters need a heavier toolkit than a browser can
+      hold. Those say so plainly, and there's a{" "}
+      <a href={withBase("/setup/")}>setup guide</a> that walks through getting
+      Python onto your own machine — on Windows, macOS or Linux — a step at a
+      time, assuming nothing.
+    </p>
+    <p>
+      Words from Python are underlined the first time they appear; hover or tap
+      one and a short explanation comes up. Anything mathematical is folded
+      away, so you can read the whole path without opening a single derivation,
+      and every one of them is there the moment you're curious.
     </p>
 
     <h2>The path</h2>
@@ -76,7 +192,7 @@ import { withBase } from "../lib/base";
           const items = chapters.filter((c) => c.data.part === part.id);
           if (!items.length) return null;
           return (
-            <div class="part">
+            <div class={`part part--${i}`}>
               <div class="part__head">
                 <span class="part__art"><Doodle name={part.art} decorative /></span>
                 <h3>Part {["I", "II", "III", "IV", "V"][i]} · {part.title}</h3>
@@ -93,27 +209,32 @@ import { withBase } from "../lib/base";
       }
     </div>
     <p class="home__meta">
-      {chapters.length} chapters · about {Math.round(total / 60)} hours of reading
-      and running, spread over two weeks.
+      {chapters.length} chapters · roughly {Math.round(total / 60)} hours of
+      reading and pressing buttons. Two weeks at an hour a day, or a month at
+      half that. It isn't a race and nothing expires.
     </p>
 
-    <h2>And when you want more</h2>
+    <h2>When you want more</h2>
     <p>
-      Keeping a promise about two weeks means leaving things out, and a lot of
-      what got left out is lovely. It lives in
-      <a href={withBase("/extras/")}>{extras.length} extras</a> — the deeper whys, the roads
-      not taken, and the things you only learn by shipping. Nothing in the
-      fourteen days depends on any of it, which is exactly what makes it safe to
-      write.
+      Keeping to two weeks means leaving things out, and plenty of what got left
+      out is worth reading. It lives in{" "}
+      <a href={withBase("/extras/")}>{extras.length} extras</a> — the deeper
+      whys, the roads not taken, and the things you only find out by trying.
+      Nothing in the main path needs any of it.
     </p>
 
-    <h2>Where it all fits</h2>
+    <h2>Where it all fits together</h2>
     <p>
-      Before anything else, the shape of the field. Solid boxes are taught here;
-      dashed ones exist and are deliberately out of scope. You won't understand
-      most of it yet — that's the design. Come back after each part and watch it
+      Here's the shape of the subject on one screen. Solid boxes are taught
+      here; dashed ones exist but are outside what we cover. Most of it won't
+      mean anything yet — that's expected, and it's the reason the map is on the
+      first page rather than the last. Come back after each part and watch it
       fill in.
     </p>
     <ConceptMap compact />
+    <p class="home__meta">
+      <a href={withBase("/map/")}>Open the map on its own page</a> for the full
+      size, where every box explains itself when you hover over it.
+    </p>
   </main>
 </Base>

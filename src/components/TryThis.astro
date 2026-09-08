@@ -8,6 +8,7 @@
  *
  * Use the `hint` slot for the nudge that unsticks someone without spoiling it.
  */
+import Portrait from "./Portrait.astro";
 interface Props {
   title?: string;
   /** Label for the fold — "answer", "one way to do it", "what I got". */
@@ -18,7 +19,7 @@ const hasHint = Astro.slots.has("hint");
 const hasAnswer = Astro.slots.has("answer");
 ---
 <div class="try">
-  <p class="try__label">{title}</p>
+  <p class="try__label"><Portrait who="juno" class="try__face" />{title}</p>
   <div class="try__prompt"><slot /></div>
   {hasHint && (
     <details class="try__fold try__fold--hint">

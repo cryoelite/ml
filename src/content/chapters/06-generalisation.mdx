@@ -1,6 +1,6 @@
 ---
-title: "Generalisation, or: the only number that matters"
-blurb: "Training accuracy is a lie you tell yourself. How to build a validation set that doesn't lie back, and what to do when the gap opens up."
+title: "Doing well on things you have not seen"
+blurb: "How well a model does on questions it has already been shown tells you almost nothing. Setting aside a fair test, and what to do when the gap opens up."
 order: 6
 day: 6
 part: foundations
@@ -20,7 +20,7 @@ sees, and it is *perfect* by the measure we've been using so far.
 
 So we need a better measure. That's today.
 
-I'll say up front: this is where most real projects fail, and the failures are
+This is where most real projects fail, and the failures are
 boring, repetitive, and completely avoidable once you've seen them once. Which is
 what we're about to do.
 
@@ -73,7 +73,7 @@ the noise — and then between the points it does something completely unhinged.
 
 Degree 4 is about right.
 
-Now here's the uncomfortable part, and I want to state it plainly: **the degree-18
+And here is the uncomfortable part, stated plainly: **the degree-18
 model has the lowest training error of the three.** If you picked your model by
 training error, you'd pick the worst one. Every time.
 
@@ -128,7 +128,7 @@ Same story. Same warning at degree 18.
 
 And we never once looked at the truth.
 
-That's the whole trick, and I'd argue it's the most important methodological idea
+That is the idea, and I think it is the most important methodological idea
 in the entire field. Data you didn't train on is a stand-in for the future.
 
 <div class="table-scroll">
@@ -184,7 +184,7 @@ print(f"time-based    R^2 = {b:.3f}   <- what you would actually get")
 The random split let the model train on Tuesday and Thursday, and then asked it
 to predict Wednesday.
 
-It will never, ever get to do that in production. Wednesday comes before
+It will never, ever get to do that in real life. Wednesday comes before
 Thursday. You do not get to see Thursday first.
 
 **Your split has to reproduce the structure of the real prediction task.** That
@@ -290,8 +290,7 @@ for name, reg in [("none  ", LinearRegression()),
 
 Look at that "largest |coef|" column for the unregularised fit. Enormous numbers.
 
-That's what overfitting looks like *numerically*, and I find it a genuinely
-useful thing to have seen. To thread a wiggly curve through every point, the
+That's what overfitting looks like *numerically*, and I find it a useful thing to have seen. To thread a wiggly curve through every point, the
 polynomial needs huge positive and negative coefficients that very nearly cancel
 each other out — a violently unstable balancing act that happens to pass through
 your dots.
@@ -367,7 +366,7 @@ which world you're in at all times.
 
 <SideQuest title="Where the classical story stops being true" time="7 min" why="Modern networks break the textbook overfitting curve, and you'll meet this in papers.">
 
-Everything above is the textbook bias–variance picture. It is genuinely how small
+Everything above is the textbook bias–variance picture. It is how small
 and medium models behave, and it was the settled wisdom for about forty years.
 
 It also does not survive contact with modern deep learning, and it's worth
@@ -458,7 +457,7 @@ single row, which a tree can always do if you let it — while validation just
 stalls. That's the gap in its purest, most undeniable form. It is our
 `lookup_table` from the top of the page, wearing a nicer outfit.
 
-**The baseline is 63%.** So a model sitting at 88% is genuinely doing something —
+**The baseline is 63%.** So a model sitting at 88% is doing something —
 but it's rather less impressive than "88%" sounds when you say it in a meeting.
 Always, always quote against the baseline.
 
@@ -468,7 +467,7 @@ dataset. Picking one over the other based on a single split is reading tea
 leaves.
 
 That last one is, I think, the most commonly committed statistical error in
-applied machine learning. It happens daily, in production, and on every
+applied machine learning. It happens daily, in real systems, and on every
 leaderboard you've ever looked at. You now know how to not do it, which puts you
 ahead of a startling number of people with the job title.
 </Fragment>

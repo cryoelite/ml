@@ -11,6 +11,8 @@ import Stuck from "../../components/Stuck.astro";
 import TryThis from "../../components/TryThis.astro";
 import Wonder from "../../components/Wonder.astro";
 import Doodle from "../../components/Doodle.astro";
+import Says from "../../components/Says.astro";
+import Portrait from "../../components/Portrait.astro";
 
 export async function getStaticPaths() {
   const extras = (await getCollection("extras", ({ data }) => !data.draft)).sort(
@@ -22,7 +24,7 @@ export async function getStaticPaths() {
 const { entry } = Astro.props;
 const { Content, headings } = await render(entry);
 const d = entry.data;
-const components = { Cell, Py, M, Aside, Reveal, SideQuest, Stuck, TryThis, Wonder, Doodle };
+const components = { Cell, Py, M, Aside, Reveal, SideQuest, Stuck, TryThis, Wonder, Doodle, Says, Portrait };
 
 const KIND_LABEL: Record<string, string> = {
   history: "how we got here",

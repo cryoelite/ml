@@ -12,10 +12,17 @@ design philosophy — if you change a decision here, change it there too.
 
 ## 1. What this is
 
-A static website that teaches machine learning in fourteen days, written for a
-backend engineer who writes Rust, can pick up Python, and wants to use the field
-well — not to invent architectures, but to know where every piece sits and read a
-paper without drowning.
+A static website that teaches machine learning in fourteen days, **written for
+someone who has never programmed**. No prior code, no maths past school. The goal
+is not to produce researchers: it is to leave a reader able to use the field
+sensibly, know where every piece sits, and read a paper without drowning.
+
+The author is a programmer, and a small amount of material is aimed at readers in
+the same position — mostly Python-versus-Rust comparisons. **All of it is folded
+shut, labelled "if you already write code", and load-bearing for nothing.** That
+constraint is the point of v2 and should be preserved: a reader who has never
+programmed must be able to go from the first page to the last without opening
+one.
 
 Two properties make it unusual and constrain nearly every decision:
 
@@ -26,15 +33,30 @@ Two properties make it unusual and constrain nearly every decision:
 
 | | |
 |---|---|
-| Version | **1.0.0** — single source of truth is `package.json` |
+| Version | **2.0.0** — single source of truth is `package.json` |
 | Chapters | 16, five parts, ~50k words — the two-week spine |
 | Extras | 15, ~28k words — optional, and **nothing in the spine depends on them** |
-| Python appendix | 46 entries, each with a Rust *analogy* |
+| Python appendix | 46 entries, most with a folded note for programmers |
 | Maths appendix | 31 entries, each with its symbols named |
-| Runnable cells | 253, all executed before any change lands |
+| Runnable cells | 254, all executed before any change lands |
 | Drawings | 25 hand-authored SVGs, one shared filter |
-| Client JS | ~4.5 KB gzipped, excluding Pyodide |
+| Cast | 4 DiceBear portraits, generated once into `src/lib/cast-art.ts` |
+| Client JS | ~5 KB gzipped, excluding Pyodide and confetti |
 | Pages built | 39 |
+
+### What changed in 2.0
+
+1. **Audience.** Rewritten for readers new to programming. Chapter 2 was
+   `02-python-for-rust-programmers` and is now `02-meeting-python`, opening with
+   a *"if you have never written any code at all"* side quest. The Python
+   appendix is "The Python we use", not "Python for Rust people".
+2. **Register.** A sweep removed the marketing/reveal voice — 114 uses of
+   "genuinely", suspense constructions ("that's the whole ball game", "here's the
+   surprise"), and workplace framing that assumed a job in software.
+3. **A cast.** Wren, Basil, Juno and Moss, one per callout type. See §7.
+4. **The front page** gained an interactive demo (`src/scripts/demo.ts`) and lost
+   its clipped concept map.
+5. **`<Aside type="rust">` renders as a folded `<details>`**, not an open box.
 
 ---
 
@@ -194,7 +216,9 @@ zod — a bad field fails the build, which is intentional.
 - Extras must never be required by a chapter. Link them as offers, not steps.
 - Every `py` entry's `rust` field is an **analogy, not a translation**. Where
   there is no Rust equivalent (broadcasting, `**kwargs`, decorators, autograd),
-  say so explicitly rather than inventing one.
+  say so explicitly rather than inventing one. It renders as a folded
+  `<details>` on the appendix page only — deliberately **not** on the hover card,
+  which has to be readable in one glance by someone who has never seen Rust.
 - Every `math` entry names every symbol. That is the entire point of the page.
 
 ---
@@ -210,7 +234,7 @@ colourful and calm at once — learn the palette once, read it at a glance forev
 |---|---|
 | `--accent` (teal) | the path: links, nav, Run buttons |
 | `--amber` | sidetracks: "nice to know", `SideQuest` |
-| `--rust` | the bridge back to Rust |
+| `--rust` | the folded notes for readers who already program |
 | `--violet` | mathematics |
 | `--berry` | you, doing something: `TryThis` |
 | `--sky` | `Wonder` — the zoom-out |
@@ -231,6 +255,25 @@ filter is what makes exact geometry look hand-drawn and, more usefully, makes al
 **Pip**, the mascot, is not decoration: Pip rolls downhill, which is literally the
 algorithm the subject is built on, so Pip on a slope in chapter 5 is the joke and
 the lesson in one picture.
+
+**The cast.** `src/lib/cast.ts` + `src/lib/cast-art.ts`. Four portraits in
+DiceBear's *big-smile* style ("Custom Avatar" by Ashley Seo, CC BY 4.0 — the
+attribution is on `/colophon/` and must stay). They are **generated once** by
+`bun scripts/gen-cast.mjs` and committed as SVG strings, so the people on the
+site do not silently change when a dependency updates. Re-run that script only if
+you want to redraw somebody, and look at the result before committing.
+
+**The front-page demo.** `src/components/FruitDemo.astro` + `src/scripts/demo.ts`.
+A real two-feature logistic regression trained by gradient descent on a canvas —
+chapters 4 and 5 with the maths hidden. `canvas-confetti` is loaded by dynamic
+`import()` only when the reader reaches 100%, inside a `try`, so it can never
+break the demo.
+
+**The clipped-map trap.** `.conceptmap--compact` caps the scroll box at 22rem.
+`.conceptmap.is-fit` has to out-specify that cap or a scaled-down map loses its
+bottom half — which is exactly the bug that produced the v2 fix. The compact map
+also ships `is-fit` and a checked box from the server, and
+`wireConceptMaps()` will never turn fitting *off* for it.
 
 ---
 
@@ -472,9 +515,15 @@ Hard-won. Each of these cost real time.
 
 ## 10. Voice and pedagogy
 
-The prose was deliberately revised away from a terse documentation register. If
-you write here, match it:
+The prose was deliberately revised away from a terse documentation register, and
+then again (v2) away from a marketing one. If you write here, match it:
 
+- **Explain; do not perform.** No suspense ("ready? here it is"), no announcing
+  that something is important instead of showing why, no superlatives, no
+  "genuinely" as an intensifier. A teacher who is not selling anything.
+- **Assume no programming experience.** Gloss every developer term the first
+  time (*kernel*, *in production*, *API*) or avoid it. Anything that only makes
+  sense to a programmer goes in `<Aside type="rust">`, which is folded shut.
 - Warm, curious, direct address. Short sentences. No filler enthusiasm, no
   exclamation spam, no condescension.
 - **Set up a pattern the reader believes, then run it backwards** until the
@@ -494,6 +543,18 @@ Three components come from Perkins (§11) and encode the pedagogy:
   answer, so the answer is folded, with a separate `hint` slot before it.
 - **`Wonder`** — the zoom-out. Never load-bearing, always open, because you should
   stumble into these rather than go looking.
+
+And two more from v2:
+
+- **`Says`** — one of the cast, speaking. Only for things a person would actually
+  say out loud (a reassurance, a warning, a "hang on, what?"). Prose that merely
+  contains information belongs in the prose.
+- **`Portrait`** — a bare face, used inside the callouts above.
+
+The cast is bound one-to-one to box types, and that binding is the whole value:
+Wren = `Wonder`, Basil = `Aside type="warn"`, Juno = `TryThis`, Moss = `Stuck`.
+Do not use a face for a box it doesn't own. Pip stays a hand-drawn ball with no
+face, because Pip is gradient descent rather than a person.
 
 ---
 

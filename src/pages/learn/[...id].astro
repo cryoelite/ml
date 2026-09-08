@@ -12,6 +12,8 @@ import TryThis from "../../components/TryThis.astro";
 import Wonder from "../../components/Wonder.astro";
 import ConceptMap from "../../components/ConceptMap.astro";
 import Doodle from "../../components/Doodle.astro";
+import Says from "../../components/Says.astro";
+import Portrait from "../../components/Portrait.astro";
 import { chapterDoodle } from "../../lib/doodles";
 
 export async function getStaticPaths() {
@@ -41,14 +43,14 @@ const d = entry.data;
 // Every component the Markdown may reach for, including `Cell`, which the
 // remark plugin injects from ```python run fences.
 const components = {
-  Cell, Py, M, Aside, Reveal, SideQuest, Stuck, TryThis, Wonder, ConceptMap, Doodle,
+  Cell, Py, M, Aside, Reveal, SideQuest, Stuck, TryThis, Wonder, ConceptMap, Doodle, Says, Portrait,
 };
 const art = chapterDoodle[entry.id];
 import { withBase } from "../../lib/base";
 ---
 
 <Doc title={d.title} description={d.blurb} current={entry.id} headings={headings}>
-  <div class="opener">
+  <div class={`opener opener--${d.part}`}>
     <div>
       <h1>{d.title}</h1>
       <p class="lede">{d.blurb}</p>

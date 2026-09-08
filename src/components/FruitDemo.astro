@@ -1,0 +1,49 @@
+---
+/**
+ * The front-page demo: a board of fruit, and a line that learns to tell them
+ * apart. All the behaviour is in src/scripts/demo.ts; this is only the shape
+ * of it.
+ *
+ * It runs before the reader has installed anything, read anything, or agreed
+ * to anything, which is the point — the first honest answer to "what is
+ * machine learning" should be something you can poke.
+ */
+---
+<figure class="fruit">
+  <figcaption class="fruit__head">
+    <span class="fruit__title">A board of fruit</span>
+    <span class="fruit__sub">click to add · then teach it</span>
+  </figcaption>
+
+  <div class="fruit__stage">
+    <canvas class="fruit__canvas" width="640" height="380"
+            aria-label="A chart of fruit, sweetness across and size up. Apples sit in the upper left, blueberries in the lower right, and a line learns to separate them."></canvas>
+  </div>
+
+  <div class="fruit__controls">
+    <div class="fruit__tools" role="group" aria-label="What clicking does">
+      <label class="fruit__tool fruit__tool--apple">
+        <input type="radio" name="fruit-tool" value="1" checked />
+        <span>apples</span>
+      </label>
+      <label class="fruit__tool fruit__tool--berry">
+        <input type="radio" name="fruit-tool" value="0" />
+        <span>blueberries</span>
+      </label>
+      <label class="fruit__tool fruit__tool--ask">
+        <input type="radio" name="fruit-tool" value="ask" />
+        <span>ask it</span>
+      </label>
+    </div>
+    <div class="fruit__buttons">
+      <button type="button" class="btn btn--primary" data-fruit="teach">Teach it</button>
+      <button type="button" class="btn btn--ghost" data-fruit="reset">Start over</button>
+    </div>
+  </div>
+
+  <p class="fruit__status" role="status">
+    Every dot is one fruit somebody weighed and tasted. Apples are bigger and
+    less sweet; blueberries are smaller and sweeter. Press <strong>teach it</strong>
+    {" "}and watch the line go looking for the difference.
+  </p>
+</figure>

@@ -35,7 +35,7 @@ distribution is a consequence of your current parameters — which breaks essent
 every assumption chapter 6 relied on.
 
 <Aside type="key">
-That third point is the one that makes RL genuinely harder, and it's worth
+That third point is the one that makes RL harder, and it's worth
 dwelling on.
 
 In supervised learning your dataset is fixed. You can shuffle it, split it, and
@@ -219,8 +219,7 @@ network, updated occasionally. Otherwise you're chasing a target that moves ever
 time you take a step — and it diverges.
 
 <Aside type="warn">
-Both fixes exist because bootstrapping plus function approximation is genuinely
-unstable, in a way tabular Q-learning is not.
+Both fixes exist because bootstrapping plus function approximation is unstable, in a way tabular Q-learning is not.
 
 The tabular version has convergence guarantees. Add a neural network and those
 guarantees evaporate — a fact sometimes called the *deadly triad*: bootstrapping,
@@ -312,5 +311,5 @@ impossible. Building one — and dealing with the gap between it and reality —
 often the whole project.
 
 **The good starting points:** Sutton and Barto's *Reinforcement Learning: An
-Introduction* is the standard text and genuinely readable. Spinning Up in Deep RL
+Introduction* is the standard text and readable. Spinning Up in Deep RL
 is the practical companion. Both assume roughly what you now have.

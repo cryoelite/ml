@@ -1,6 +1,6 @@
 ---
-title: "Neural networks, built from matrix multiplies"
-blurb: "A hidden layer and one nonlinearity is the whole idea. Build the forward pass by hand, train it by brute force, and discover exactly why backpropagation had to be invented."
+title: "Neural networks, built from multiply and add"
+blurb: "One hidden layer and one bend is the whole idea. Build it by hand, train it by brute force, and see exactly why backpropagation had to be invented."
 order: 8
 day: 8
 part: deep-learning
@@ -11,9 +11,9 @@ introduces: ["nn", "mlp"]
 A neural network is a linear model, then a squashing function, then another
 linear model.
 
-That's it. That's the architectural idea, and I want you to have it in one
-sentence before anybody shows you a diagram with circles and arrows, because the
-diagrams make it look mysterious and it isn't.
+That's the whole idea, and it's worth having in one sentence before anyone
+shows you a diagram full of circles and arrows. The diagrams make it look
+mysterious. It isn't.
 
 Everything else you'll ever hear about — convolutions, attention, residual
 connections, normalisation layers — is a constraint bolted onto that sandwich.
@@ -95,7 +95,7 @@ plt.tight_layout()
 <M id="relu">ReLU</M> is `max(0, z)`. Negative numbers become zero, positive
 numbers are left alone.
 
-I know. It looks far too simple to be the thing that unlocked deep learning, and
+I know. It looks far too simple to be the thing that made deep learning work, and
 that reaction is completely reasonable. So here's why it matters, and it's a
 lovely bit of reasoning.
 
@@ -212,7 +212,7 @@ for hidden in [4, 16, 64]:
 constant is a whole forward pass.
 
 <Aside type="warn">
-Let's extrapolate, because the numbers are genuinely startling.
+Let's extrapolate, because the numbers are startling.
 
 A small vision model has 10 million parameters. So one gradient step needs 20
 million forward passes. At a millisecond each, that's **five and a half hours**
@@ -486,8 +486,7 @@ away half the distribution.
 **Question 4** is 385 parameters. The formula for a dense layer is
 `in * out + out` — one weight per connection, one bias per output.
 
-Being able to count parameters from an architecture description is a genuinely
-useful skill. It tells you your memory cost, and it's the first sanity check to
+Being able to count parameters from an architecture description is a useful skill. It tells you your memory cost, and it's the first sanity check to
 run when a paper's numbers look odd.
 </Fragment>
 </TryThis>

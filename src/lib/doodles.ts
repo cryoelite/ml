@@ -552,7 +552,7 @@ export const doodles: Record<string, Doodle> = {
 /** Which drawing opens which chapter. */
 export const chapterDoodle: Record<string, string> = {
   "01-where-this-fits": "inversion",
-  "02-python-for-rust-programmers": "snake",
+  "02-meeting-python": "snake",
   "03-the-shape-of-problems": "shapes",
   "04-your-first-model": "lineFit",
   "05-how-learning-happens": "hill",

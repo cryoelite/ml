@@ -6,10 +6,14 @@
  *
  *   key   — the sentence to carry out of this section
  *   nice  — a sibling idea, a dead end, some history. Skippable by design.
- *   rust  — the bridge from what you already know
+ *   rust  — for readers who already program. Folded shut, because most
+ *           readers don't, and an aside about Rust in front of somebody who
+ *           has never written a line of code is just a wall.
  *   warn  — a place people reliably get hurt
  *   math  — a notational aside, not a derivation (use <Reveal kind="math"> for those)
  */
+import Portrait from "./Portrait.astro";
+
 interface Props {
   type?: "key" | "nice" | "rust" | "warn" | "math";
   title?: string;
@@ -18,12 +22,26 @@ const { type = "nice", title } = Astro.props;
 const DEFAULTS: Record<string, string> = {
   key: "Worth keeping",
   nice: "Nice to know, not needed",
-  rust: "You already know this one",
+  rust: "If you already write code",
   warn: "Careful here",
   math: "About the notation",
 };
+const label = title ?? DEFAULTS[type];
 ---
-<aside class={`aside aside--${type}`}>
-  <span class="aside__label">{title ?? DEFAULTS[type]}</span>
-  <slot />
-</aside>
+{
+  type === "rust" ? (
+    <details class="aside aside--rust">
+      <summary>
+        <span class="aside__label">{label}</span>
+        <span class="aside__hint">skip freely — nothing later needs it</span>
+      </summary>
+      <div class="aside__body"><slot /></div>
+    </details>
+  ) : (
+    <aside class={`aside aside--${type}`}>
+      {type === "warn" && <Portrait who="basil" class="aside__face" />}
+      <span class="aside__label">{label}</span>
+      <slot />
+    </aside>
+  )
+}

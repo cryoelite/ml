@@ -1,6 +1,6 @@
 ---
 title: "Large language models"
-blurb: "From next-token prediction to something that answers your question: tokenisation, scaling laws, the three training stages, and exactly what temperature does."
+blurb: "From guessing the next word to answering a question: tokens, scaling laws, the three stages of training, and what the temperature setting does."
 order: 14
 day: 14
 part: frontier
@@ -8,20 +8,28 @@ minutes: 100
 introduces: ["rlhf", "scaling"]
 ---
 
-A language model does exactly one thing: given some text, predict what comes
+A language model does exactly one thing: given some text, guess what comes
 next.
 
-That's the whole job description. Every capability you've ever seen from one —
-answering, translating, refactoring, summarising, refusing — is that single
-operation, scaled up and then shaped. I know that sounds like an oversimplification
-made for teaching. It isn't. By the end of today you'll have built each piece.
+That's the whole job description. Everything you have seen one do — answering,
+translating, summarising, rewriting, declining — comes out of that single
+operation, made very large and then shaped. That sounds like a simplification
+made for teaching. It isn't; by the end of today you'll have built each piece.
 
 ## Tokens
 
-Models don't see characters, and they don't see words. They see **tokens** —
-produced by a compression algorithm fitted to a corpus.
+<Says who="wren">
+It is worth pausing on how strange this is before we take it apart. Everything a
+language model appears to know — history, arithmetic, the shape of an apology —
+it picked up as a side effect of getting better at guessing the next chunk of
+text. Nobody sat down and taught it any of those things directly.
+</Says>
 
-Let's just build the algorithm. It's shorter than you'd think.
+Models don't see letters, and they don't see words. They see **tokens** —
+chunks of text, some of them whole words, some of them fragments, worked out
+ahead of time by a procedure that looks for common pairs.
+
+We can build that procedure. It's shorter than you'd expect.
 
 ```python run setup title="byte-pair encoding, implemented"
 import numpy as np, matplotlib.pyplot as plt
@@ -89,7 +97,7 @@ inexplicable stupidity.
 
 **Why models are bad at spelling and arithmetic.** "strawberry" might be two or
 three tokens. The model never sees the individual letters at all — so counting
-the r's is genuinely, structurally hard for it, in the way that counting the
+the r's is structurally hard for it, in the way that counting the
 atoms in a brick is hard for you. Likewise `1234` might be one token and `1235`
 another, with no structural relationship between them. Digit-by-digit
 tokenisation, which newer models use, is a direct fix for exactly this.
@@ -135,7 +143,7 @@ for w, c in bg["the"].most_common():
     print(f"   {w:14s} {c / sum(bg['the'].values()):.3f}")
 ```
 
-That's a language model. A genuinely terrible one — its context is a single word —
+That's a language model. A terrible one — its context is a single word —
 but a language model.
 
 And here's the useful framing: a transformer is *this*, with a context of a
@@ -329,7 +337,7 @@ when you want it to know something.
 
 ## In-context learning
 
-Now the genuinely unexpected part. Put a few examples in the prompt, and the
+Now the unexpected part. Put a few examples in the prompt, and the
 model does the task — with no gradient updates at all.
 
 ```python run title="the shape of a few-shot prompt"
@@ -425,7 +433,7 @@ needed to reach p of the mass — so it adapts: few tokens when the model is
 confident, more when it isn't. Top-p is generally the better default.
 
 **"If the base model has the knowledge, why does fine-tuning ever help?"** Because
-behaviour is genuinely learnable: output format, refusal style, domain tone,
+behaviour is learnable: output format, refusal style, domain tone,
 tool-calling syntax. Those are real things worth buying. Just don't expect facts.
 
 **"Is a bigram model really a language model?"** Yes, completely — it assigns a
@@ -476,7 +484,7 @@ because the loop exits once no adjacent pair occurs twice. There is simply nothi
 left worth merging.
 
 The same shape holds at real scale, for the same reason: early merges capture
-genuinely frequent pairs, later ones capture increasingly rare ones, and the
+frequent pairs, later ones capture increasingly rare ones, and the
 return per merge falls away.
 
 That's why production vocabularies sit around 30k–200k tokens rather than
@@ -508,7 +516,7 @@ for p in [0.5, 0.9, 0.99]:
 ```
 
 Now notice how strongly top-p interacts with temperature, because this catches
-people out in production.
+people once it is out in the world.
 
 At high temperature the distribution flattens — so the nucleus *grows*, and
 admits more of the tail. Which is precisely the moment you least wanted it to.

@@ -1,6 +1,6 @@
 ---
-title: "Vision: convolutions and borrowed weights"
-blurb: "Why a dense layer is the wrong tool for pixels, what a convolution actually assumes, and the single technique that makes computer vision practical on 200 images."
+title: "Pictures: convolutions and borrowed weights"
+blurb: "Why the network from chapter eight is the wrong tool for photographs, what a convolution assumes, and how to train a good classifier on 200 pictures."
 order: 11
 day: 11
 part: frontier
@@ -8,11 +8,12 @@ minutes: 100
 introduces: ["cnn", "vit", "transfer"]
 ---
 
-An image is just numbers, so a dense network can happily eat one.
+A photograph is just numbers, so the network from chapter 8 can happily take
+one as input.
 
-It shouldn't. And the reason is worth understanding *precisely*, because the same
-line of reasoning produces every remaining architecture in this book. Get it once
-here and chapters 12, 13 and 14 will feel like variations rather than surprises.
+It shouldn't, and the reason is worth getting exactly right, because the same
+reasoning produces every remaining design in this book. Understand it once here
+and chapters 12, 13 and 14 will read as variations rather than surprises.
 
 ## Why not just flatten it?
 
@@ -88,7 +89,7 @@ plt.tight_layout()
 **Nine numbers** turned an image into an edge map.
 
 Change the nine numbers and you get a completely different detector — blur,
-sharpen, horizontal edges, whatever you like. And here's the thing: *learning the
+sharpen, horizontal edges, whatever you like. And the useful part: *learning the
 nine numbers* is exactly, precisely what a convolutional layer does. Nothing more.
 
 ```python run title="weight sharing, counted"
@@ -382,7 +383,7 @@ sequence of tokens, and a plain transformer
 
 *Given enough data.*
 
-And that caveat is the genuinely interesting part. A ViT has **no built-in
+And that caveat is the interesting part. A ViT has **no built-in
 assumption** about locality or translation. It has to learn from data what a CNN
 was handed for free.
 
@@ -456,7 +457,7 @@ for label, k, s, p in [("conv 5x5 no pad", 5, 1, 0), ("maxpool 2", 2, 2, 0),
     print(f"{label:18s} -> {size}x{size}")
 ```
 
-Question 2 is the one I'd love you to sit with, because it's the whole chapter in
+Question 2 is the one worth sitting with, because it's the whole chapter in
 miniature.
 
 Applying an edge detector to an edge map gives you a **second derivative**. It

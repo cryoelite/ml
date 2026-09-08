@@ -1,6 +1,6 @@
 ---
 title: "Without labels — and the branches not taken"
-blurb: "Clustering, PCA and autoencoders in practice, then an honest tour of everything this path skipped and what it would cost you to pick it up."
+blurb: "Clustering, PCA and autoencoders in practice, then a plain tour of everything this path skipped and what picking it up would cost."
 order: 15
 day: 14
 part: practice
@@ -195,7 +195,7 @@ predict it, get free labels. Third time we've met it.
 
 And autoencoders hand you **anomaly detection** for free: train on normal data,
 and anything that reconstructs badly is unlike what you trained on. That's a
-genuinely useful production pattern, and it needs no labelled anomalies — which
+useful production pattern, and it needs no labelled anomalies — which
 is exactly the situation you're usually in, because if you had labelled anomalies
 you'd have trained a classifier.
 
@@ -220,7 +220,7 @@ knowledge, or bring a human, or reframe it as something supervised.
 
 ## The branches this path did not take
 
-Everything below is real, used in production somewhere today, and deliberately
+Everything below is real, in use somewhere today, and deliberately
 out of scope for a fortnight.
 
 This section exists so the names aren't strangers — because knowing **where a
@@ -231,7 +231,7 @@ fuller treatment in the [extras](/extras/) if it catches your eye.
 
 **GANs** (2014) pit a generator against a discriminator: one makes fakes, the
 other tries to spot them, and both improve by competing. They produced the first
-genuinely convincing synthetic faces and were the story of the late 2010s.
+convincing synthetic faces and were the story of the late 2010s.
 
 They're also notoriously unstable to train. *Mode collapse* — where the generator
 finds one good output and stops exploring — is a permanent hazard. Largely
@@ -261,7 +261,7 @@ conversion cost nothing, because the labels were free by construction.
 That's a move worth being able to recognise, because it's the same shape as
 self-supervision in chapter 3 and the autoencoder above. **When a problem is
 hard, look for a related prediction problem whose answers you already have.** It
-comes up again and again, and it's one of the genuinely transferable ideas in
+comes up again and again, and it's one of the transferable ideas in
 this field.
 </Wonder>
 
@@ -269,7 +269,7 @@ this field.
 
 Learning from delayed, evaluative reward rather than from correct answers. The
 agent's own actions determine what data it sees next — which is precisely what
-makes it genuinely harder than everything else in this book.
+makes it harder than everything else in this book.
 
 Vocabulary you'll meet: *state*, *action*, *policy*, *value function*,
 *Q-learning*, *policy gradient*, *PPO*. It's how game-playing and robot control
@@ -281,7 +281,7 @@ off it.
 ### Graph neural networks
 
 Message passing over the edges of a graph, so each node's representation is built
-from its neighbours'. The right tool when your data genuinely *is* a graph:
+from its neighbours'. The right tool when your data really *is* a graph:
 molecules, social networks, fraud rings, road systems.
 
 And notice the pattern from [Chapter 11](/learn/11-vision-and-transfer/) — it's

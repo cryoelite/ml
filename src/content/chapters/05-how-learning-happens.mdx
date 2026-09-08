@@ -1,6 +1,6 @@
 ---
-title: "How learning actually happens"
-blurb: "Gradient descent from scratch: the loop that trains everything from a two-parameter line to a frontier language model, and the three ways it goes wrong."
+title: "How learning happens"
+blurb: "Gradient descent from scratch — the loop that trains everything from a two-number line to a language model, and the three ways it goes wrong."
 order: 5
 day: 5
 part: foundations
@@ -8,15 +8,14 @@ minutes: 100
 introduces: ["machinery", "loss", "gd"]
 ---
 
-Yesterday's closed-form solution works for linear least squares. And for nothing
-else, ever.
+Yesterday we solved for the best line with a formula. That formula works for
+straight lines and for almost nothing else.
 
-Today you learn the method that works for *everything* — and here's the thing I'd
-love you to hold onto as we go: at the scale of a frontier language model, with
-its four hundred billion parameters and its warehouse of GPUs, the training loop
-is still recognisably the fifteen lines you're about to write.
-
-Not analogous to them. Recognisably them.
+Today is the method that works for everything. It is worth knowing, before we
+start, how far it goes: the largest language models in the world, with hundreds
+of billions of numbers to adjust and a warehouse of hardware to adjust them on,
+are trained by the fifteen lines you are about to write. Not something like
+them — those lines, with more numbers.
 
 ## The idea
 
@@ -26,10 +25,17 @@ have no map.
 But you can feel the slope under your feet. So you take a small step downhill.
 And then you do it again.
 
-That's it. That is <M id="gradient-descent">gradient descent</M>, and there is
-genuinely nothing more to it. The <M id="gradient">gradient</M> tells you which
-way is uphill; you go the other way; the step size is a number you choose and
-then immediately regret.
+<Says who="wren">
+This is the bit worth stopping on, because it's the answer to a question you may
+have been carrying since chapter one. Nobody solves for the right numbers. They
+start with wrong ones and improve them, over and over, feeling their way. That's
+what "learning" means here, and it's all it means.
+</Says>
+
+That's it. That is <M id="gradient-descent">gradient descent</M>. The
+<M id="gradient">gradient</M> is the slope — it tells you which way is uphill;
+you go the other way; and how big a step to take is a number you choose, and
+then usually reconsider.
 
 <Aside type="key">
 Every optimiser you will ever meet — SGD, momentum, RMSProp, Adam, AdamW, Lion,
@@ -248,7 +254,7 @@ times as many steps for the same compute. And more noisy steps beat fewer clean
 ones, almost every time.
 
 <Wonder title="The noise is not a compromise. It's a feature.">
-This is one of my favourite things in the subject, so let me take a moment.
+This is one of the nicer things in the subject, and it's worth a moment.
 
 You'd assume the noisy gradient is simply the price you pay for going fast — a
 regrettable approximation you'd remove if you could afford to.
@@ -366,7 +372,7 @@ $$
 \theta_{t+1} = \theta_t - \eta\,\frac{\hat{m}_t}{\sqrt{\hat{v}_t} + \epsilon}
 $$
 
-That division is the whole trick. $\hat{m}$ is "which way have I consistently been
+That division is the point. $\hat{m}$ is "which way have I consistently been
 going" (momentum) and $\sqrt{\hat{v}}$ is "how big are this parameter's gradients
 typically" (the per-parameter scaling). Dividing one by the other gives a step
 that's about the same *size* for every parameter regardless of its gradient
@@ -470,7 +476,7 @@ turn into `nan` purely because a feature got multiplied by 1000.
 
 **"How would I ever guess the right learning rate on a real problem?"** You
 wouldn't, and nobody does. You run the learning-rate finder above, or you try
-powers of ten. This is genuinely empirical, and everybody — including the people
+powers of ten. This is empirical, and everybody — including the people
 training frontier models — is doing the same slightly embarrassing thing.
 </Stuck>
 

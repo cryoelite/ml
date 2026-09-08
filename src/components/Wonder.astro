@@ -11,6 +11,7 @@
  * have to go looking.
  */
 import Doodle from "./Doodle.astro";
+import Portrait from "./Portrait.astro";
 
 interface Props {
   title?: string;
@@ -19,6 +20,7 @@ const { title = "Isn't that lovely" } = Astro.props;
 ---
 <aside class="wonder">
   <span class="wonder__spark"><Doodle name="sparkle" decorative /></span>
+  <Portrait who="wren" class="wonder__face" />
   <p class="wonder__label">{title}</p>
   <div class="wonder__body"><slot /></div>
 </aside>

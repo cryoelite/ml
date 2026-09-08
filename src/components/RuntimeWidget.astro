@@ -36,17 +36,23 @@ import { withBase } from "../lib/base";
         <span>
           <strong>On this machine</strong>
           <em>
-            A real Jupyter kernel over its websocket API — running on
-            <strong>your</strong> machine, not this site's server. Full PyTorch and
-            Apple MPS. Start one with <code>bun run kernel</code>, or see the
-            <a href={withBase("/setup/")}>setup guide</a> if you have not yet.
+            A real Jupyter kernel over its websocket API — running on{" "}
+            <b class="runtime__yours">your</b> machine, not this site's server.
+            Full PyTorch and Apple MPS.{" "}
+            <a href={withBase("/setup/")}>How do I start one?</a>
           </em>
-          <span class="runtime__field">
-            <input name="url" type="url" aria-label="Jupyter server URL" spellcheck="false" />
+
+          <span class="runtime__fields">
+            <span class="runtime__field">
+              <span class="runtime__flabel">Server</span>
+              <input name="url" type="url" aria-label="Jupyter server URL" spellcheck="false" />
+            </span>
+            <span class="runtime__field">
+              <span class="runtime__flabel">Token</span>
+              <input name="token" type="text" aria-label="Jupyter token" spellcheck="false" />
+            </span>
           </span>
-          <span class="runtime__field">
-            <input name="token" type="text" aria-label="Jupyter token" spellcheck="false" />
-          </span>
+
           <span class="runtime__test">
             <button class="cell__btn runtime__probe" type="button">Test connection</button>
             <output class="runtime__result" data-kind="" aria-live="polite"></output>

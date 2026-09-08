@@ -12,7 +12,7 @@ interface Props {
 }
 const {
   title,
-  description = "A friendly, ground-up path into machine learning — sixteen chapters, all of them runnable.",
+  description = "A slow, friendly walk through how machines learn. Sixteen chapters, no programming experience needed, and nearly all the code runs in the page.",
 } = Astro.props;
 const full = title === "Gradient" ? title : `${title} · Gradient`;
 import { withBase } from "../lib/base";
@@ -63,7 +63,7 @@ import { withBase } from "../lib/base";
         <span class="masthead__mark"><Doodle name="pip" decorative /></span>
         <span class="masthead__name">Gradient</span>
         <span class="masthead__version" title={`Version ${VERSION}`}>{VERSION_LABEL}</span>
-        <span class="masthead__tag">machine learning, from the ground up</span>
+        <span class="masthead__tag">how machines learn, from the beginning</span>
       </a>
       <span class="masthead__spacer"></span>
       <nav class="masthead__links" aria-label="Sections">
@@ -77,6 +77,20 @@ import { withBase } from "../lib/base";
     </header>
 
     <slot />
+
+    <footer class="footer">
+      <span class="footer__pip"><Doodle name="pip" decorative /></span>
+      <p>
+        <strong>Gradient</strong> — how machines learn, from the beginning.
+        Written for people who are new to all of it.
+      </p>
+      <nav aria-label="More">
+        <a href={withBase("/colophon/")}>How this was made</a>
+        <a href={withBase("/setup/")}>Setup</a>
+        <a href={withBase("/map/")}>The map</a>
+      </nav>
+      <span class="footer__ver">{VERSION_LABEL}</span>
+    </footer>
 
     <script>
       import "../scripts/client";

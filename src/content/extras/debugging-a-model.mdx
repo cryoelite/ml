@@ -14,7 +14,7 @@ A model that's wrong trains happily to a mediocre number and says nothing at all
 There's no stack trace. Every line ran. The loss went down. It's just... not good,
 and you have no idea why.
 
-That's a genuinely unfamiliar debugging situation for most engineers, and the
+That's a unfamiliar debugging situation for most engineers, and the
 instinct it produces — start changing hyperparameters — is almost always the wrong
 one.
 
@@ -168,7 +168,7 @@ What the numbers mean:
 - **Enormous, or `nan`** → exploding. Lower the learning rate, clip the gradient
   norm, check for a `log(0)`.
 - **Fine, but the loss won't move** → the learning rate is too small, or you're at
-  a genuinely flat spot. Try 10× larger before anything more exotic.
+  a flat spot. Try 10× larger before anything more exotic.
 
 ## 5. Compare against the dumbest possible model
 
@@ -180,7 +180,7 @@ print(f"always-majority accuracy: {(y_true == majority.long()).float().mean():.1
 print("\nany model that doesn't beat this has learned nothing, whatever its loss curve did")
 ```
 
-Chapter 6's baseline, deployed as a debugging tool. It's astonishing how often a
+Chapter 6's baseline, used as a debugging tool. It is surprising how often a
 model that "trains fine" is sitting below the majority-class baseline, and the
 loss curve looks completely normal the whole time.
 
@@ -216,7 +216,7 @@ just find which broken configuration is least broken.
 
 The failure mode I'd most like you to avoid: spending a day tuning a model whose
 labels were misaligned. Everything you learn in that day is noise, and the
-experience is genuinely demoralising in a way that makes people conclude they're
+experience is demoralising in a way that makes people conclude they're
 bad at this.
 
 They're not bad at this. They debugged in the wrong order.
