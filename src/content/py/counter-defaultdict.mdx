@@ -1,0 +1,33 @@
+---
+title: 'Counter and defaultdict'
+lib: 'stdlib'
+summary: 'Two dictionary subclasses that remove the "is this key there yet?" boilerplate from counting and grouping.'
+signature: 'Counter(iterable)  |  defaultdict(list)'
+example: |-
+  from collections import Counter
+  Counter("mississippi").most_common(3)
+output: "[('i', 4), ('s', 4), ('p', 2)]"
+rust: '`Counter` is a `HashMap<T, usize>` with the increment written for you; `defaultdict` is `entry(k).or_insert_with(V::default)` applied automatically on every access.'
+docs: 'https://docs.python.org/3/library/collections.html'
+docsLabel: 'collections ↗'
+---
+
+`Counter` counts things and sorts them for you. `most_common(k)` is the method
+you will actually use, and it is how the byte-pair encoder in
+[chapter 14](/learn/14-llms/) finds the most frequent adjacent pair.
+
+`defaultdict(list)` gives every missing key a fresh empty list on first access,
+so grouping becomes one line instead of three:
+
+```
+groups = defaultdict(list)
+for item in items:
+    groups[item.key].append(item)
+```
+
+The trap worth knowing: **merely reading a missing key from a `defaultdict`
+creates it.** So `if d[k]:` silently inserts `k`, and a dictionary you only meant
+to query quietly grows. Use `d.get(k)` when you are asking rather than building.
+
+`Counter` also does arithmetic — `a + b` merges counts, `a - b` subtracts — which
+is occasionally exactly what you want and easy to forget exists.

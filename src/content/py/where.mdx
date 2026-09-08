@@ -1,0 +1,27 @@
+---
+title: 'np.where'
+lib: 'numpy'
+summary: 'A vectorised ternary: pick from one array where a condition holds and another where it does not.'
+signature: 'np.where(condition, if_true, if_false)'
+example: |-
+  x = np.array([-2., 5., -1., 3.])
+  np.where(x > 0, x, 0.0)          # this is ReLU
+output: 'array([0., 5., 0., 3.])'
+rust: 'It is `iter().map(|x| if cond(x) { a } else { b }).collect()`, done on the whole array at once with no loop and no branch prediction.'
+docs: 'https://numpy.org/doc/stable/reference/generated/numpy.where.html'
+docsLabel: 'numpy.where ↗'
+---
+
+Three arguments: a boolean array, a value for where it is true, and a value for
+where it is false. All three broadcast, so scalars mix freely with arrays.
+
+It is how you write a branch without writing a branch — which matters because a
+Python `if` inside a loop over a million elements is a million interpreter round
+trips, and `np.where` is one C call.
+
+You will meet it as ReLU (above), as clipping, as masking padded positions in a
+transformer, and as replacing sentinel values with `NaN`.
+
+One-argument `np.where(cond)` does something completely different and returns the
+*indices* where the condition holds. That is a historical wart; `np.nonzero` is
+the clearer spelling for the same thing.

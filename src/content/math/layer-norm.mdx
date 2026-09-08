@@ -1,0 +1,38 @@
+---
+title: 'Layer normalisation'
+summary: 'Rescale each example''s feature vector to zero mean and unit variance. Unlike batch norm, it never looks at other examples.'
+formula: '\text{LN}(x) = \gamma \odot \frac{x - \mu}{\sqrt{\sigma^2 + \epsilon}} + \beta'
+docs: 'https://arxiv.org/abs/1607.06450'
+docsLabel: 'Ba, Kiros & Hinton, 2016 ↗'
+prereqs: ['variance-bias']
+symbols:
+  - sym: '\mu, \sigma^2'
+    means: 'mean and variance computed across the features of THIS example'
+  - sym: '\gamma, \beta'
+    means: 'learned scale and shift, so the layer can undo the normalisation if that helps'
+  - sym: '\epsilon'
+    means: 'a tiny constant, around 1e-5, purely to avoid dividing by zero'
+  - sym: '\odot'
+    means: 'elementwise multiplication'
+---
+
+Normalise each example's vector using statistics from that vector alone.
+
+The contrast with **batch normalisation** is the whole point. Batch norm computes
+its statistics across the batch, one figure per feature — which makes every
+example's output depend on which other examples happened to be in the batch with
+it. That is fine for a fixed-size image batch and a genuine problem for variable
+length sequences, small batches, and inference on a single item.
+
+Layer norm has no such coupling, which is why every transformer uses it.
+
+The $\gamma$ and $\beta$ matter more than they look: without them, normalisation
+would be a constraint the model could not escape. With them, the model can learn
+to scale or shift the normalised values back — so normalisation becomes a helpful
+default rather than a straitjacket.
+
+**Pre-norm versus post-norm** is worth recognising in papers. The original
+transformer normalised *after* the residual addition; modern practice normalises
+*before* the sublayer, which leaves the residual path completely clean and makes
+very deep stacks trainable without a learning-rate warmup. Chapter 13's block is
+pre-norm.

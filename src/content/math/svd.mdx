@@ -1,0 +1,37 @@
+---
+title: 'Singular value decomposition'
+summary: 'Any matrix factors into a rotation, a scaling, and another rotation. The workhorse behind PCA, pseudo-inverses and low-rank approximation.'
+formula: 'A = U \Sigma V^{\top}'
+docs: 'https://en.wikipedia.org/wiki/Singular_value_decomposition'
+docsLabel: 'Wikipedia ↗'
+prereqs: ['matrix-multiplication']
+symbols:
+  - sym: 'U, V'
+    means: 'orthogonal matrices — rotations, which preserve lengths and angles'
+  - sym: '\Sigma'
+    means: 'a diagonal matrix of singular values, always non-negative, sorted descending'
+  - sym: '\top'
+    means: 'transpose — flip rows and columns'
+---
+
+Every matrix, of any shape, factors this way. That is a surprisingly strong
+statement: whatever linear map $A$ performs, it can always be decomposed into
+*rotate, stretch along axes, rotate again*.
+
+The singular values in $\Sigma$ say how much stretching happens in each
+direction, sorted largest first. Keep only the top $k$ and you get the **best
+possible rank-$k$ approximation** of the matrix, in the least-squares sense — a
+result strong enough to have a name (Eckart–Young).
+
+That is why SVD is everywhere:
+
+- **PCA** is the SVD of your centred data. The rows of $V^\top$ are the principal
+  components, and the singular values squared are the variance explained.
+- **Low-rank approximation** — image compression, and the "LoRA" fine-tuning that
+  trains a small rank-$r$ update instead of a full weight matrix.
+- **Pseudo-inverse** — the numerically stable way to solve least squares when the
+  normal equations would be singular.
+
+In practice always reach for `np.linalg.svd` over forming $X^\top X$ and
+inverting it. Squaring the matrix squares its condition number, which is a fast
+way to lose precision you did not have to lose.

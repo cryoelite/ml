@@ -1,0 +1,71 @@
+---
+import { getCollection } from "astro:content";
+import Doc from "../../layouts/Doc.astro";
+import Doodle from "../../components/Doodle.astro";
+
+const extras = (await getCollection("extras", ({ data }) => !data.draft)).sort(
+  (a, b) => a.data.order - b.data.order,
+);
+
+const KINDS = [
+  { id: "theory",  title: "The deeper why",   gist: "Places where the fortnight says “it just works like this” and you would rather know why it works like this." },
+  { id: "sibling", title: "The roads not taken", gist: "Methods that are perfectly good and simply did not fit. Worth recognising by name when a paper or a colleague reaches for one." },
+  { id: "craft",   title: "Things you learn by shipping", gist: "The unglamorous parts nobody writes a chapter about, and everybody eventually needs." },
+  { id: "history", title: "How we got here",   gist: "The field has a memory, and knowing it makes the present far less arbitrary." },
+  { id: "culture", title: "The field as a human thing", gist: "Papers, people, incentives, and the harm this technology is capable of doing." },
+];
+const total = extras.reduce((n, e) => n + e.data.minutes, 0);
+---
+
+<Doc title="Extras" description="Everything that is worth reading and did not fit in a fortnight.">
+  <div class="opener">
+    <div>
+      <h1>Extras</h1>
+      <p class="lede">
+        Everything that is genuinely worth reading and genuinely does not fit in
+        a fortnight.
+      </p>
+    </div>
+    <div class="opener__art"><Doodle name="seedling" /></div>
+  </div>
+
+  <p>
+    The sixteen chapters are a promise: two weeks, and you come out able to build
+    things and read papers. Keeping that promise means leaving things out, and
+    quite a lot of what got left out is lovely.
+  </p>
+  <p>
+    So it lives here instead. {extras.length} pieces, about {Math.round(total / 60)} hours
+    if you read every one. <strong>Nothing in the sixteen chapters depends on any
+    of this.</strong> That is the whole point — you can ignore this page entirely,
+    finish the path, and have missed nothing you needed. Come back when something
+    in a chapter made you curious and you want to pull on the thread.
+  </p>
+
+  {
+    KINDS.map((kind) => {
+      const items = extras.filter((e) => e.data.kind === kind.id);
+      if (!items.length) return null;
+      return (
+        <section>
+          <h2 id={kind.id}>{kind.title}</h2>
+          <p>{kind.gist}</p>
+          <ul class="extras-grid">
+            {items.map((e) => (
+              <li>
+                <a class="extra-card" href={`/extras/${e.id}/`}>
+                  <span class="extra-card__title">{e.data.title}</span>
+                  <span class="extra-card__blurb">{e.data.blurb}</span>
+                  <span class="extra-card__meta">
+                    <span class="extra-card__tag">{e.data.minutes} min</span>
+                    {e.data.after && <span>after chapter {e.data.after.slice(0, 2)}</span>}
+                  </span>
+                </a>
+              </li>
+            ))}
+          </ul>
+        </section>
+      );
+    })
+  }
+</Doc>

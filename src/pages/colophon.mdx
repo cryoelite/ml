@@ -7,23 +7,28 @@ description: "What this is built from, every decision that shaped it, and what w
 
 import Aside from "../components/Aside.astro";
 import Reveal from "../components/Reveal.astro";
+import SideQuest from "../components/SideQuest.astro";
+import Doodle from "../components/Doodle.astro";
 
 # Colophon
 
-You are about to spend two weeks reading something. It seems only fair to tell
-you what it is trying to do, what it decided not to do, and where it is built on
-opinions rather than facts.
+You're about to spend two weeks reading something, so it seems only fair to tell
+you what it's trying to do, what it decided *not* to do, and which bits are
+opinions wearing the costume of facts.
+
+If you know why something was built the way it was, you read it differently — and
+usually better.
 
 ## The brief
 
 One reader: a backend engineer who writes Rust, can pick up Python, and wants to
-learn machine learning properly in a fortnight — not to build new architectures,
-but to use the field effectively, know where every piece sits, and be able to
-read a paper without drowning.
+learn machine learning properly in a fortnight. Not to invent new architectures —
+to *use* the field well, know where every piece sits, and read a paper without
+drowning.
 
 Everything below follows from that.
 
-## Six decisions
+## Eight decisions
 
 ### 1. Results first, then mechanism
 
@@ -31,67 +36,133 @@ Everything below follows from that.
 eight lines, before defining a single term. Only then does it take the model
 apart.
 
-This is fastai's philosophy and it is right. The alternative — three chapters of
-linear algebra before anything runs — loses people who would have been perfectly
-capable, because motivation is a resource and abstraction spends it. The
-compromise everywhere here: **show it working, then show why, then show what
-breaks.**
+That's fastai's philosophy and I think it's right. The alternative — three
+chapters of linear algebra before anything runs — loses people who would have been
+perfectly capable, because **motivation is a resource and abstraction spends it**.
+
+The rhythm everywhere here: show it working, then show why, then show what breaks.
 
 ### 2. Build it by hand, then throw it away
 
 Chapters 8 and 9 build a neural network and its backward pass in NumPy, with
 gradient checking. Chapter 10 replaces the lot with eleven lines of PyTorch.
 
-That looks wasteful and it is the most deliberate choice on the site. You cannot
-debug `nan` loss, a silently-zero gradient, or a layer that will not learn if the
-library is a black box. Two days of derivation buys a year of not guessing.
+That looks wasteful, and it's the most deliberate choice on the site.
+
+You cannot debug a `nan` loss, a silently-zero gradient, or a layer that won't
+learn if the library is a black box. Two days of derivation buys a year of not
+guessing. People who skip those chapters don't write worse code — they write the
+same code and then can't fix it.
 
 ### 3. Depth is available, never compulsory
 
-The spine is meant to read straight through without opening a single collapsed
-section. Every derivation, every "but why is it like that", every historical
-detour is folded away behind a **derivation** or **deep dive** toggle.
+The spine reads straight through without opening a single fold. Every derivation,
+every "but why is it like that", every historical detour is behind a toggle.
 
 This is the direct answer to *depth tied to relevance*. The reader who wants the
-chain rule worked out symbol by symbol can have it; the reader who wants to know
-what backpropagation *is* does not have to scroll past it.
+chain rule worked out symbol by symbol can have it. The reader who wants to know
+what backpropagation **is** doesn't have to scroll past it.
 
-### 4. Classified asides
+### 4. The fortnight is a promise, so the extras exist
 
-Colour is used to classify, never to decorate. Five kinds, and they are load-bearing:
+The single hardest constraint here was keeping two weeks to two weeks. A great
+deal of genuinely lovely material doesn't fit.
 
-<Aside type="key">**Worth remembering** — the sentence to keep from a section.</Aside>
-<Aside type="nice">**Nice to know** — a sibling idea, a dead end, some history. Skippable on purpose.</Aside>
-<Aside type="rust">**Coming from Rust** — the bridge to what you already know.</Aside>
-<Aside type="warn">**Where people get hurt** — a real failure mode, usually a silent one.</Aside>
-
-The point of the second one is the *nice to know* tier you asked for: things that
-exist, that you can leave without, and that you now have a name for.
-
-### 5. The map, not just the table of contents
-
-A linear book has to pick an order, and any order hides the shape of the field.
-[The map](/map/) is the antidote — 51 nodes, solid where the tutorial teaches
-them and dashed where it does not, so the boundary of the two weeks is visible
-rather than implied.
-
-Its most important content is structural: three axes hang off machine learning
-(*what feedback*, *what function shape*, *what fitting machinery*) and conflating
-them is the single largest source of early confusion. That is very hard to say in
-a list and obvious in a tree.
-
-### 6. Every code block runs
-
-Not a screenshot, not a fence you copy elsewhere. 177 cells, executable in place,
-sharing state down the page like a notebook. The exercises have runnable stubs
-and the solutions are collapsed beside them.
+So it lives in the [extras](/extras/) instead — fifteen full pieces, grouped by
+*why* they exist: the deeper whys, the roads not taken, the things you only learn
+by shipping, how we got here, and the field as a human activity.
 
 <Aside type="key">
-And they are **checked**. `scripts/check_cells.py` extracts every runnable cell
-and executes it in document order in one namespace per chapter — which is exactly
-how you would meet them. It is run before every change lands. Several claims in
-these chapters were wrong until it said so, and the numbers in the prose are the
-numbers the code actually produced.
+The rule that makes this work: **nothing in the sixteen chapters depends on any
+extra.** Not one reference is load-bearing.
+
+That's a promise in both directions. Skip every one and the path is complete.
+Open them and you're not being handed filler to justify a longer table of
+contents.
+</Aside>
+
+### 5. Classified asides, and named hard parts
+
+Colour classifies; it never decorates. After one chapter you read the colour
+without reading the label:
+
+<Aside type="key">**Worth keeping** — the sentence to carry out of a section.</Aside>
+<Aside type="nice">**Nice to know, not needed** — a sibling idea, a dead end, some history.</Aside>
+<Aside type="rust">**You already know this one** — the bridge from what you have.</Aside>
+<Aside type="warn">**Careful here** — a real failure mode, usually a silent one.</Aside>
+
+Three components were added for this pass, and they come from David Perkins'
+*Making Learning Whole*, which you sent:
+
+**"If something isn't clicking"** boxes name the places people reliably get
+stuck — in the reader's own words — and answer them. Perkins calls this *working
+on the hard parts*, and his argument is that the sticking points are known in
+advance, so pretending otherwise just means everyone trips privately and
+concludes they're the stupid one.
+
+**"Your turn"** boxes put the answer behind a fold, with a separate nudge before
+it. The learning happens in the gap between reading the question and opening the
+answer, and an answer in plain sight removes the gap.
+
+**"Isn't that lovely"** boxes are the zoom-out — the connection to something far
+away, the fact that lands, the reason somebody bothered. Never load-bearing,
+always open, because you should stumble into them rather than go looking.
+
+### 6. The map, not just a table of contents
+
+A linear book has to pick an order, and any order hides the shape of the field.
+[The map](/map/) is the antidote — 51 nodes, solid where this teaches them and
+dashed where it doesn't, so the boundary of the fortnight is *visible* rather
+than implied.
+
+Its most important content is structural: three axes hang off machine learning
+(*what feedback*, *what function shape*, *what fitting machinery*), and running
+them together is the single largest source of early bewilderment. That's very
+hard to say in a list and obvious in a tree.
+
+### 7. Every code block runs, and every number is measured
+
+Not screenshots. Not fences you copy elsewhere. **253 cells**, executable in
+place, sharing state down the page like a notebook. Exercises have runnable
+stubs and the solutions are folded beside them.
+
+<Aside type="key">
+And they're **checked**. `scripts/check_cells.py` extracts every runnable cell and
+executes it in document order, in one namespace per file — exactly how you'd meet
+them. It runs before every change lands.
+
+This is not ceremony. Writing this thing, the checker caught: a diagnostic that
+labelled underfitting as overfitting, a claimed parameter ratio that was off by a
+factor of seventeen, a claimed speed-up that was 84× rather than "over a
+hundred", an embedding demo where *guitar* and *rust* scored 0.996 similar, a
+compression example whose own printed conclusion was false, and a demonstration of
+RNN memory decay that demonstrated nothing at all.
+
+Every number quoted in the prose is a number the code produced. Where a result is
+weak, it says so — chapter 15's anomaly detector reports 14% detection at a 5%
+false-alarm rate, because that's what it gets, and a friendlier example would have
+taught you less.
+</Aside>
+
+### 8. It's allowed to be fun
+
+The original draft was correct, dense and a bit cold. That's the default register
+for technical writing and I don't think it's the right one for *teaching*.
+
+So: a warmer voice throughout, and 25 hand-drawn SVG illustrations. There's a
+mascot — Pip, the round thing that rolls downhill — which exists for a reason
+rather than for decoration. Rolling downhill is literally the algorithm the whole
+subject is built on, so when Pip turns up on a slope in chapter 5, the joke and
+the lesson are the same picture.
+
+<Aside type="nice">
+The drawings are stroke-based SVG in `src/lib/doodles.ts`, and they all pass
+through one filter: a `feTurbulence` plus `feDisplacementMap` that nudges every
+path by a pixel or so.
+
+That single filter is what makes geometrically exact shapes look hand-drawn — and,
+more usefully, makes them all look drawn by the *same* hand. Twenty-five drawings,
+one wobble.
 </Aside>
 
 ## The Rust bridge
@@ -100,37 +171,35 @@ You know an ownership model, a type system and an iterator API. Those are exactl
 the concepts that make Python confusing, because Python looks similar and behaves
 differently.
 
-So the Python appendix carries, for each entry, *how a Rust programmer already
-thinks about this* — an **analogy, not a translation**. Half of these have no Rust
-equivalent (broadcasting, `**kwargs`, decorators, autograd) and pretending
-otherwise would mislead you. Where the honest answer is "there isn't one", the
-entry says so.
+So every Python appendix entry carries *how a Rust programmer already thinks about
+this* — an **analogy, not a translation**. Quite a few have no Rust equivalent at
+all (broadcasting, `**kwargs`, decorators, autograd), and pretending otherwise
+would mislead you. Where the honest answer is "there isn't one", the entry says
+so.
 
-The four differences that recur, and that cost an hour each if nobody says them:
-no ownership, no `Result`, annotations are not types, and NumPy slices alias like
-`&mut` with no borrow checker to stop you.
+The four differences that recur, and cost an hour each if nobody says them out
+loud: no ownership, no `Result`, annotations aren't types, and NumPy slices alias
+like `&mut` with no borrow checker to stop you.
 
 ## Hover cards
 
 Python constructs and mathematical results are underlined inline and open a card
-on hover with a signature, one sentence, one example, its output, and the Rust
-note. Longer explanations live on the appendix pages, one click away.
+on hover: a signature, one sentence, one example, its output, and the Rust note.
+Longer explanations are one click away on the appendix pages.
 
-The model is the documentation comment: the most useful thing at the top, an
-example immediately, and a link to the real docs — [docs.python.org](https://docs.python.org/3.14/)
-for stdlib, the library's own reference otherwise. Every card degrades to a plain
-link with JavaScript off.
+The model is the documentation comment — most useful thing at the top, an example
+immediately, a link to the real docs. Every card degrades to a plain link with
+JavaScript off.
 
 ## How Python runs
 
 Two backends behind one interface, because the two goals conflict.
 
 **Browser (default).** Pyodide — CPython 3.14 compiled to WebAssembly — in a
-module worker, vendored into `public/pyodide/` so it works offline and when
-deployed. It ships numpy, pandas, scikit-learn, scipy, matplotlib and sympy,
-which covers everything through hand-built neural networks. That is roughly 70%
-of the curriculum with **zero** prerequisites, for you and for anyone you send a
-link to.
+module worker, vendored into `public/pyodide/` so it works offline *and* when
+deployed. It ships numpy, pandas, scikit-learn, scipy, matplotlib and sympy, which
+covers everything through hand-built neural networks. Roughly 70% of the
+curriculum with **zero** prerequisites, for you and for anyone you send a link to.
 
 **Local kernel.** A real Jupyter kernel over its standard websocket API, for the
 PyTorch chapters. Full torch, full MPS, your own hardware.
@@ -142,18 +211,19 @@ Both were bugs before they were decisions.
 The first attempt loaded Pyodide from jsDelivr with `importScripts` in a classic
 worker. It failed twice: some environments block cross-origin `importScripts`
 inside a worker, and some browsers only permit *module* workers, where
-`importScripts` does not exist at all. The fix — a module worker doing a dynamic
+`importScripts` doesn't exist at all. The fix — a module worker doing a dynamic
 `import()` of `pyodide.mjs` — is also strictly better.
 
 Vendoring followed the same logic. `scripts/vendor-pyodide.mjs` copies the core
 from `node_modules` and downloads the wheel closure for the packages the
 curriculum uses: 56 MB, gitignored, and after that the site needs no network at
-all. A CDN dependency in a local-first tutorial is a contradiction, and the
-failure mode when it breaks is an opaque network error that teaches the reader
-nothing.
+all.
+
+A CDN dependency in a local-first tutorial is a contradiction, and the failure
+mode when it breaks is an opaque network error that teaches the reader nothing.
 </Reveal>
 
-## What it is built with
+## What it's built with
 
 <div class="table-scroll">
 
@@ -168,91 +238,146 @@ nothing.
 | [Bun](https://bun.sh) | 1.3 | Package manager and runner |
 | [uv](https://docs.astral.sh/uv/) | 0.12 | The Python side, in `lab/` |
 | [Ruff](https://docs.astral.sh/ruff/) | 0.16 | Linting the Python |
-| Source Serif 4 · Inter · JetBrains Mono | 5.3 | Self-hosted via Fontsource; no font CDN |
+| Source Serif 4 · Inter · Nunito · JetBrains Mono | 5.x | Self-hosted via Fontsource; no font CDN |
 
 </div>
 
 One custom remark plugin, `src/lib/remark-runnable-cells.mjs`, turns a
-` ```python run ` fence into a `<Cell/>` component. That is what keeps the source
-of every chapter plain Markdown instead of hand-written JSX around every snippet.
+` ```python run ` fence into a `<Cell/>` component. That's what keeps every
+chapter's source plain Markdown rather than hand-written JSX wrapped around every
+snippet.
 
-Total client-side JavaScript, excluding Pyodide: about 14 KB gzipped. Every page
-is complete static HTML; the script only ever adds behaviour.
+Total client-side JavaScript, excluding Pyodide: **about 4.5 KB gzipped**. Every
+page is complete static HTML; the script only ever adds behaviour.
 
 ## Design
 
-Light only, by request. Warm off-white paper, near-black ink, one accent
-(a deep teal) with amber, rust and violet reserved for the aside classes. Body
-text is a serif at 18.5px over a 34rem measure, because you are going to read it
-for two weeks and a serif at a comfortable measure is kinder than a sans at full
-width.
+Light only, by request. Warm cream paper, near-black ink, and a palette where
+every hue is bound to one kind of content — teal for the path, amber for
+sidetracks, rust for the Rust bridge, violet for maths, berry for *your turn*,
+sky for the moments of wonder.
 
-Three columns on a wide screen — chapters, text, and what is on this page —
+That binding is what lets it be colourful and calm at once: you learn the palette
+in one chapter and then read it at a glance forever. Nothing is coloured to be
+pretty; it's pretty because it's consistent.
+
+Body text is a serif at 18.5px over a 34rem measure, because you're going to read
+it for a fortnight and a serif at a comfortable measure is kinder than a sans at
+full width. Headings and UI use a rounded sans, which is most of where the
+friendlier feel comes from.
+
+Three columns on a wide screen — chapters, text, and what's on this page —
 collapsing to one on a phone. The nav never reorders: the reading path is the
 product.
 
 <Aside type="nice">
-The influence is [docs.fast.ai](https://docs.fast.ai), by your reference, with the
-density lowered and the type given room. The other influences are book-shaped
-rather than docs-shaped: *Crafting Interpreters* for the "build it and then
-explain it" rhythm, and the Rust Book for the discipline of putting the failure
-modes in the main text instead of a footnote.
+The layout influence is [docs.fast.ai](https://docs.fast.ai), by your reference,
+with the density lowered and the type given room.
+
+The other influences are book-shaped rather than docs-shaped: *Crafting
+Interpreters* for the build-it-then-explain-it rhythm, and the Rust Book for the
+discipline of putting failure modes in the main text instead of a footnote.
+
+The voice owes most to Eddie Woo — set up a pattern the reader already believes,
+run it backwards until the surprising thing is forced, then zoom out and say
+plainly that it's beautiful. That move is why chapter 9 asks *why right-to-left*
+instead of just asserting it, and why chapter 12 makes you notice that a one-hot
+times a matrix is a row lookup rather than telling you.
 </Aside>
 
 ## Sources
 
-The mathematics and the from-scratch implementations were checked against **Seth
-Weidman, *Deep Learning from Scratch: Building with Python from First Principles*
-(O'Reilly, 2019)**, which is what you actually attached — the file was labelled as
-the fastai book but contains Weidman's. It is a good book and a better fit for the
-derivations here than the label would have been.
+Three books, and it's worth being precise about which did what.
 
-The teaching philosophy is **fastai's** — Howard and Gugger, *Deep Learning for
-Coders with fastai and PyTorch* — whose top-down, get-it-working-first approach
-this borrows and inverts in places. The [fastbook notebooks](https://github.com/fastai/fastbook)
-are free.
+**Seth Weidman, *Deep Learning from Scratch* (O'Reilly, 2019).** The mathematics
+and the from-scratch implementations were checked against this. Note that it's not
+what its filename claimed — the file was labelled as the fastai book and contains
+Weidman's. It's a good book and a better fit for these derivations than the label
+would have been.
+
+**Jeremy Howard and Sylvain Gugger, *Deep Learning for Coders with fastai and
+PyTorch* (O'Reilly, 2020).** The teaching philosophy: top-down, get it working
+first, theory when you need it. This borrows that and inverts it in places. The
+[fastbook notebooks](https://github.com/fastai/fastbook) are free.
+
+**David Perkins, *Making Learning Whole* (Jossey-Bass, 2009).** The structural
+pass. Perkins' seven principles are the reason chapter 1 trains a real classifier
+before defining a term (*play the whole game*), why the "if something isn't
+clicking" boxes exist (*work on the hard parts*), why the map is at the front
+(*uncover the hidden game*), and why chapter 16 is about learning without a
+curriculum (*learn the game of learning*).
 
 Specific results are cited where they appear: Cybenko and Hornik on universal
 approximation, Vaswani et al. on attention, Kaplan et al. and Hoffmann et al. on
-scaling, Belkin et al. on double descent.
+scaling, Belkin et al. on double descent, He et al. on residual connections.
 
 ## What was left out, and why
 
-- **Reinforcement learning.** A separate discipline with its own vocabulary and
-  failure modes. Two weeks cannot hold both. Named and placed on the map.
+- **Reinforcement learning** as a chapter. A separate discipline with its own
+  vocabulary and failure modes. Named, placed on the map, and given
+  [a full extra](/extras/reinforcement-learning/) instead.
 - **Proofs.** Convergence guarantees, VC dimension, PAC learning. Beautiful, and
-  they will not change what you build.
-- **A distributed training chapter.** You would need more than one GPU to follow
-  it.
-- **Prompt engineering.** It moves faster than any document can, and it is
+  they won't change what you build.
+- **Distributed training.** You'd need more than one GPU to follow it.
+- **Prompt engineering.** It moves faster than any document can, and it's
   downstream of understanding what the model is doing.
-- **Deployment tooling.** Docker, Kubernetes, model registries. You are a backend
-  engineer; a model is a function, and you already know how to ship functions.
+- **Deployment tooling.** Docker, Kubernetes, model registries. You're a backend
+  engineer; a model is a function and you already ship functions.
 
 <Aside type="key">
 The consistent rule: leave out anything you can pick up in an afternoon *once you
-have the frame*, and keep anything that is hard to acquire later. The frame is
-the deliverable. The details are search results.
+have the frame*, and keep anything that's hard to acquire later.
+
+The frame is the deliverable. The details are search results.
 </Aside>
 
-## Where it is opinionated
+## Where it's opinionated
 
-Three claims here are judgements rather than facts, and you should know which.
+Four claims here are judgements rather than facts, and you should know which.
 
 **"Gradient boosting usually beats neural networks on tabular data."** Well
-supported and not universal. Contested at the margins, and the margin moves.
+supported, not universal, contested at the margins — and the margin moves.
 
 **"Build it by hand first."** Plenty of excellent practitioners went top-down and
-never wrote a backward pass. The argument for doing it is debuggability, and it
-is an argument, not a proof.
+never wrote a backward pass. The argument is debuggability. It's an argument, not
+a proof.
 
 **"Frame the problem before you model."** The least controversial and the most
 ignored.
 
+**"Depth is exponentially more efficient than width."** Empirical, well-evidenced,
+and not a theorem. The universal approximation theorem says the opposite is
+*possible*; the field went deep because it kept working.
+
+## The shape of it, in numbers
+
+<div class="table-scroll">
+
+| | |
+|---|---|
+| Chapters | 16, across five parts |
+| Extras | 15, none of them required |
+| Python appendix | 46 entries, each with a Rust analogy |
+| Maths appendix | 31 entries, each with its symbols named |
+| Runnable cells | 253, all executed before every change lands |
+| Drawings | 25, one hand |
+| Words of prose | about 91,000 |
+| Client JavaScript | 4.5 KB gzipped |
+
+</div>
+
 ## Corrections
 
 The cell checker catches broken code, not wrong prose. If a claim here is wrong,
-it is wrong in a file you can edit: chapters are in
-`src/content/chapters/*.mdx`, the appendices in `src/content/py/` and
-`src/content/math/`, and the map in `src/lib/conceptmap.ts`.
+it's wrong in a file you can edit: chapters in `src/content/chapters/`, extras in
+`src/content/extras/`, appendices in `src/content/py/` and `src/content/math/`,
+the map in `src/lib/conceptmap.ts`, and the drawings in `src/lib/doodles.ts`.
 
+<div class="pip-note">
+  <Doodle name="pipThink" decorative />
+  <p>
+    And if something here didn't land — a section that dragged, an explanation
+    that assumed too much, a joke that didn't work — that's the most useful thing
+    you could tell me.
+  </p>
+</div>

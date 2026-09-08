@@ -2,6 +2,7 @@
 import { getCollection, render } from "astro:content";
 import Doc from "../../layouts/Doc.astro";
 import { inlineCode } from "../../lib/inline";
+import Doodle from "../../components/Doodle.astro";
 
 const entries = (await getCollection("py")).sort((a, b) =>
   a.data.title.localeCompare(b.data.title),
@@ -17,18 +18,29 @@ const rendered = await Promise.all(
   current="appendix-python"
   description="Every Python feature used in the tutorial, explained once, with the Rust construct you already reach for."
 >
-  <h1>Python for Rust people</h1>
-  <p class="lede">
-    Every Python construct the chapters use, explained once. Each entry carries
-    the sentence that maps it onto something you already know — not a
-    translation, an <em>analogy</em>, because half of these have no Rust
-    equivalent and pretending otherwise would mislead you.
+  <div class="opener">
+    <div>
+      <h1>Python for Rust people</h1>
+      <p class="lede">
+        Every Python construct the chapters use, explained once — each with the
+        sentence that maps it onto something you already know.
+      </p>
+    </div>
+    <div class="opener__art"><Doodle name="snake" /></div>
+  </div>
+
+  <p>
+    An <em>analogy</em>, mind you, not a translation. A good few of these have no
+    Rust equivalent at all — broadcasting, <code>**kwargs</code>, decorators,
+    autograd — and pretending otherwise would mislead you. Where the honest
+    answer is &ldquo;there isn&rsquo;t one&rdquo;, the entry says so.
   </p>
 
   <p>
-    You do not read this page. You arrive at one entry of it from a dotted
-    underline in a chapter, read four lines, and go back. It is here as a page at
-    all so that the whole surface is greppable and printable.
+    You&rsquo;re not really meant to read this page top to bottom. You arrive at
+    one entry from a dotted underline in a chapter, read four lines, and go back.
+    It exists as a page so the whole surface is searchable, printable, and
+    browsable on a day when you feel like browsing.
   </p>
 
   <div class="filterbar">

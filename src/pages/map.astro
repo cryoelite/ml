@@ -1,6 +1,7 @@
 ---
 import Doc from "../layouts/Doc.astro";
 import ConceptMap from "../components/ConceptMap.astro";
+import Doodle from "../components/Doodle.astro";
 ---
 
 <Doc
@@ -8,47 +9,75 @@ import ConceptMap from "../components/ConceptMap.astro";
   current="map"
   description="The whole field on one page: what machine learning is a branch of, and what branches off it."
 >
-  <h1>The map</h1>
-  <p class="lede">
-    A book has to pick an order, and any order hides the shape of the field. This
-    page is the antidote. Read it once now — you will not understand most of it —
-    then come back after every few chapters and watch it fill in.
+  <div class="opener">
+    <div>
+      <h1>The map</h1>
+      <p class="lede">
+        A book has to pick an order, and any order hides the shape of the field.
+        This page is the antidote.
+      </p>
+    </div>
+    <div class="opener__art"><Doodle name="compass" /></div>
+  </div>
+
+  <p>
+    Read it once now. You won't understand most of it — that's expected, and it's
+    the point. I'd much rather you have somewhere to <em>put</em> things as they
+    arrive than meet each one in a vacuum. Come back after every few chapters and
+    watch it fill in.
   </p>
 
   <p>
-    Three things hang off <em>machine learning</em>, and confusing them is the
-    single most common source of early bewilderment. They are not three items on
-    one list; they answer three different questions, and every project answers
+    Three things hang off <em>machine learning</em>, and running them together is
+    the single most common source of early bewilderment. They aren't three items
+    on one list — they answer three different questions, and every project answers
     all three at once.
   </p>
 
   <ol>
-    <li><strong>What feedback do you get?</strong> Supervised, unsupervised, self-supervised, reinforcement. This decides what data you have to go and collect.</li>
+    <li><strong>What feedback do you get?</strong> Supervised, unsupervised, self-supervised, reinforcement. This decides what data you have to go and collect, which is the expensive, hard-to-reverse decision.</li>
     <li><strong>What shape is the learned function?</strong> Linear model, tree, neural network. This decides your accuracy ceiling and your compute bill.</li>
     <li><strong>What makes the fitting work?</strong> Losses, gradients, backpropagation, validation. You need all of it whatever you picked above.</li>
   </ol>
 
   <p>
     So &ldquo;supervised learning with gradient-boosted trees, tuned against a
-    validation split&rdquo; is one answer from each column — not a single thing
-    with a long name.
+    validation split&rdquo; is one answer from each column. Not one thing with a
+    long name — three small decisions wearing a trench coat.
+  </p>
+
+  <p>
+    Once you can hear the three separately, a startling amount of jargon simply
+    resolves itself.
   </p>
 
   <ConceptMap />
 
   <p>
     Solid boxes are taught here and link to the chapter. Dashed boxes are real,
-    used in production somewhere today, and deliberately out of scope — they are
+    used in production somewhere today, and deliberately out of scope — that's
     the <em>nice to know</em> tier. Hover any box for a one-line description.
   </p>
 
   <h2>What this map is not</h2>
   <p>
-    It is not a history and it is not a hierarchy of importance. A dashed box
-    such as <em>Gaussian processes</em> is not a lesser idea than a solid one; it
-    is an idea that a two-week path cannot reach without cutting something better
-    spent. The point of drawing them is that you will meet the names, and knowing
-    <em>where a name lives</em> is most of what it takes to read a paper without
-    drowning.
+    It isn't a history, and it isn't a ranking. A dashed box like <em>Gaussian
+    processes</em> is not a lesser idea than a solid one — it's an idea a
+    fortnight can't reach without cutting something better spent.
   </p>
+  <p>
+    The reason to draw them anyway is that you <em>will</em> meet the names, and
+    knowing <em>where a name lives</em> is most of what it takes to read a paper
+    without drowning. Several of the dashed boxes have a full piece waiting in the
+    <a href="/extras/">extras</a> when you're curious.
+  </p>
+
+  <div class="pip-note">
+    <Doodle name="pipThink" decorative />
+    <p>
+      A habit worth keeping for good: when you meet something new, find where it
+      sits on this map. Almost everything is a new supervision signal, a new model
+      family, or a new piece of the fitting machinery.
+    </p>
+  </div>
 </Doc>

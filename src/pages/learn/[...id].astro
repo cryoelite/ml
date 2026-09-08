@@ -6,10 +6,19 @@ import Py from "../../components/Py.astro";
 import M from "../../components/M.astro";
 import Aside from "../../components/Aside.astro";
 import Reveal from "../../components/Reveal.astro";
+import SideQuest from "../../components/SideQuest.astro";
+import Stuck from "../../components/Stuck.astro";
+import TryThis from "../../components/TryThis.astro";
+import Wonder from "../../components/Wonder.astro";
 import ConceptMap from "../../components/ConceptMap.astro";
+import Doodle from "../../components/Doodle.astro";
+import { chapterDoodle } from "../../lib/doodles";
 
 export async function getStaticPaths() {
   const chapters = (await getCollection("chapters", ({ data }) => !data.draft)).sort(
+    (a, b) => a.data.order - b.data.order,
+  );
+  const extras = (await getCollection("extras", ({ data }) => !data.draft)).sort(
     (a, b) => a.data.order - b.data.order,
   );
   return chapters.map((entry, i) => ({
@@ -18,30 +27,65 @@ export async function getStaticPaths() {
       entry,
       prev: chapters[i - 1] ?? null,
       next: chapters[i + 1] ?? null,
+      // Extras that hang off this chapter, offered at the end rather than
+      // interrupting the spine.
+      related: extras.filter((e) => e.data.after === entry.id),
     },
   }));
 }
 
-const { entry, prev, next } = Astro.props;
+const { entry, prev, next, related } = Astro.props;
 const { Content, headings } = await render(entry);
 const d = entry.data;
 
 // Every component the Markdown may reach for, including `Cell`, which the
 // remark plugin injects from ```python run fences.
-const components = { Cell, Py, M, Aside, Reveal, ConceptMap };
+const components = {
+  Cell, Py, M, Aside, Reveal, SideQuest, Stuck, TryThis, Wonder, ConceptMap, Doodle,
+};
+const art = chapterDoodle[entry.id];
 ---
 
 <Doc title={d.title} description={d.blurb} current={entry.id} headings={headings}>
-  <h1>{d.title}</h1>
-  <p class="lede">{d.blurb}</p>
-
-  <p class="chapter-meta">
-    <span class="pill">Day {d.day}</span>
-    <span>{d.minutes} min read + play</span>
-    <span>Chapter {d.order}</span>
-  </p>
+  <div class="opener">
+    <div>
+      <h1>{d.title}</h1>
+      <p class="lede">{d.blurb}</p>
+      <p class="chapter-meta">
+        <span class="pill">Day {d.day}</span>
+        <span>{d.minutes} min read + play</span>
+        <span>Chapter {d.order}</span>
+      </p>
+    </div>
+    {art && <div class="opener__art"><Doodle name={art} /></div>}
+  </div>
 
   <Content components={components} />
+
+  {
+    related.length > 0 && (
+      <section class="related">
+        <h2 id="if-you-want-more">If you want to pull on a thread</h2>
+        <p>
+          None of this is needed for the next chapter. It is here because
+          something above might have made you curious.
+        </p>
+        <ul class="extras-grid">
+          {related.map((e) => (
+            <li>
+              <a class="extra-card" href={`/extras/${e.id}/`}>
+                <span class="extra-card__title">{e.data.title}</span>
+                <span class="extra-card__blurb">{e.data.blurb}</span>
+                <span class="extra-card__meta">
+                  <span class="extra-card__tag">{e.data.minutes} min</span>
+                </span>
+              </a>
+            </li>
+          ))}
+        </ul>
+      </section>
+    )
+  }
 
   <nav class="pager" aria-label="Chapter navigation">
     {

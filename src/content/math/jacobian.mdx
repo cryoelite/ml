@@ -1,0 +1,40 @@
+---
+title: 'Jacobian'
+summary: 'The matrix of every partial derivative of a vector function. Backpropagation is a chain of these, multiplied right to left.'
+formula: 'J_{ij} = \frac{\partial f_i}{\partial x_j}'
+docs: 'https://en.wikipedia.org/wiki/Jacobian_matrix_and_determinant'
+docsLabel: 'Wikipedia ↗'
+prereqs: ['partial-derivative', 'gradient', 'chain-rule']
+symbols:
+  - sym: 'J'
+    means: 'the Jacobian matrix — one row per output, one column per input'
+  - sym: 'f_i'
+    means: 'the i-th component of the output'
+  - sym: 'x_j'
+    means: 'the j-th component of the input'
+---
+
+A [gradient](/appendix/math/#gradient) is what you get when a function has one
+output. When it has many, you need one gradient per output — stack them as rows
+and you have the Jacobian.
+
+For a function $\mathbb{R}^n \to \mathbb{R}^m$ it is $m \times n$: how much each
+output changes when each input moves.
+
+The chain rule for compositions is then just matrix multiplication:
+
+$$J_{f \circ g} = J_f \cdot J_g$$
+
+And that single fact explains [backpropagation's](/learn/09-backpropagation/) cost
+model. A deep network's Jacobian is a long product $J_n \cdots J_2 J_1$, and
+matrix multiplication is associative — so you may bracket it however you like,
+and the bracketings cost wildly different amounts.
+
+Bracketing left to right (forward mode) costs in proportion to the number of
+*inputs*. Right to left (reverse mode) costs in proportion to the number of
+*outputs*. Machine learning has $10^{11}$ inputs and exactly one output, so
+reverse mode wins by a factor of $10^{11}$.
+
+Frameworks never build these matrices. They compute Jacobian-*vector* products,
+which is the same arithmetic without ever materialising something with $10^{22}$
+entries.

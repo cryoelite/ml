@@ -1,0 +1,328 @@
+---
+title: "How machines generate things"
+blurb: "VAEs, GANs and diffusion — three answers to one hard question. The third one won, and the reason it won is a move worth stealing for problems that have nothing to do with images."
+order: 21
+minutes: 13
+kind: "sibling"
+after: "15-unsupervised-and-the-rest"
+covers: ["gan", "diffusion"]
+---
+
+Everything in the sixteen chapters was **discriminative**: given $x$, predict
+$y$. Even the language model, which feels creative, is predicting a next token.
+
+Generation asks something harder. Not "what label does this have" but **"produce a
+new thing that could plausibly have come from this distribution."**
+
+There's no target to compare against. There's no right answer. What does the loss
+function even say?
+
+Three families answered that question differently. Watching them is a good way to
+see how a field converges on an idea.
+
+## Why it's hard
+
+```python run setup title="the space of possible images"
+import numpy as np, matplotlib.pyplot as plt
+
+for h, w in [(8, 8), (28, 28), (256, 256)]:
+    pixels = h * w
+    print(f"{h}x{w} greyscale: 256^{pixels} = 10^{pixels * np.log10(256):,.0f} possible images")
+print("\nalmost all of which are static. the ones that look like anything")
+print("occupy a vanishingly thin sliver of that space.")
+```
+
+That's the problem in one line. Generating an image means landing on the
+**manifold** of things that look like images — a set so small, relative to the
+space it sits in, that random sampling will never once find it.
+
+So a generative model has to learn where that sliver *is*.
+
+## Attempt 1: autoencoders, and why they don't quite work
+
+Chapter 15 built an autoencoder: compress to a bottleneck, reconstruct.
+
+Obvious idea — sample a random point in the latent space, decode it, get a new
+image. Let's see why that fails.
+
+```python run title="the latent space has holes"
+rng = np.random.default_rng(0)
+
+# Pretend: a trained autoencoder's latent codes for the training set.
+# Real training data clusters; it does not fill the space.
+codes = np.concatenate([
+    rng.normal([-3, 2], 0.4, (60, 2)),
+    rng.normal([3, 1], 0.4, (60, 2)),
+    rng.normal([0, -3], 0.4, (60, 2)),
+])
+samples = rng.uniform(-5, 5, (40, 2))       # what "sample the latent space" does
+
+plt.figure(figsize=(4.6, 3.6))
+plt.scatter(codes[:, 0], codes[:, 1], s=14, label="training codes")
+plt.scatter(samples[:, 0], samples[:, 1], s=22, marker="x", c="crimson",
+            label="random samples")
+plt.legend(fontsize=8); plt.xticks([]); plt.yticks([]); plt.tight_layout()
+
+from scipy.spatial import cKDTree
+dist, _ = cKDTree(codes).query(samples)
+print(f"median distance from a random sample to the nearest real code: {np.median(dist):.2f}")
+print("most samples land in empty space, and the decoder was never trained there.")
+```
+
+A plain autoencoder learns to encode *the training set*. Nothing constrains what
+happens between the clusters, so decoding a point from the gaps produces
+whatever the network happens to do there — which is usually a blur.
+
+**VAEs** (variational autoencoders, 2013) fix this by adding a term to the loss
+that pushes the latent distribution toward a standard Gaussian. Now the space is
+filled, and sampling works.
+
+The cost is that VAEs produce characteristically *blurry* output — because they
+optimise a reconstruction loss, and when the model is uncertain between two
+plausible completions, the loss-minimising answer is the average of them. An
+average of two faces is a blurry face.
+
+<Aside type="key">
+That blur is worth understanding, because it's a general property rather than a
+VAE quirk.
+
+**Any model trained with a per-pixel reconstruction loss will hedge.** Squared
+error's optimum under uncertainty is the mean, and the mean of several sharp
+possibilities is one unsharp thing.
+
+Which tells you the shape of the fix: to get sharp output, you need a loss that
+doesn't reward averaging. That's exactly what the next two families do, by two
+completely different routes.
+</Aside>
+
+## Attempt 2: GANs, and the arms race
+
+Goodfellow's 2014 idea is genuinely clever: **if you can't write down a loss for
+"looks real", learn one.**
+
+Two networks. A **generator** turns noise into images. A **discriminator** tries
+to tell real from generated. The generator's loss is the discriminator's failure.
+
+```python run title="the adversarial loop, in miniature"
+def sigmoid(z): return 1 / (1 + np.exp(-z))
+
+# Real data: a 1-D distribution. Generator: learns a mean and spread.
+real = rng.normal(4.0, 0.8, 400)
+g_mean, g_std = 0.0, 1.0
+d_w, d_b = 0.0, 0.0                      # a linear discriminator
+
+for step in range(400):
+    fake = rng.normal(g_mean, abs(g_std), 400)
+    # discriminator: push real toward 1, fake toward 0
+    pr, pf = sigmoid(d_w * real + d_b), sigmoid(d_w * fake + d_b)
+    d_w += 0.02 * (((1 - pr) * real).mean() - (pf * fake).mean())
+    d_b += 0.02 * ((1 - pr).mean() - pf.mean())
+    # generator: move so the discriminator calls its output real
+    fake = rng.normal(g_mean, abs(g_std), 400)
+    pf = sigmoid(d_w * fake + d_b)
+    g_mean += 0.05 * (d_w * (1 - pf)).mean()
+
+print(f"real distribution : mean 4.00")
+print(f"generator learned : mean {g_mean:.2f}")
+print("no reconstruction loss anywhere — it learned only by being judged")
+```
+
+The generator never sees a real example. It only ever receives the gradient of
+"how convinced was the judge," and that's enough to find the distribution.
+
+GANs produced the first genuinely convincing synthetic faces, and for about six
+years they were how generation worked.
+
+<Aside type="warn">
+And they are famously miserable to train.
+
+**Mode collapse.** The generator finds one output that fools the discriminator
+and produces only that. It has "won" the game while completely failing the task —
+which is what happens when your loss is a game rather than a measurement.
+
+**No progress signal.** The loss doesn't tell you anything. Both losses can look
+stable while the output is rubbish, because they're measuring a *relative*
+balance between two moving parts.
+
+**Balance.** If either network gets too strong the other stops learning. Keeping
+them matched is an art with a large folklore literature attached.
+
+The underlying reason is structural: this is a minimax problem, not a
+minimisation. You're not descending a landscape — you're looking for an
+equilibrium between two players who keep moving. Everything in chapter 5 assumed
+a fixed landscape, and none of that reasoning applies here.
+</Aside>
+
+## Attempt 3: diffusion, and the move that won
+
+Now the one that took over — and I think it's one of the most satisfying ideas in
+modern machine learning, because it converts an impossible problem into a boring
+one.
+
+**Forward process.** Take a real image. Add a little Gaussian noise. Repeat, a
+thousand times, until it's pure static. This requires no learning at all — you
+are adding the noise, so you know exactly what you added.
+
+**Reverse process.** Train a network to look at a noisy image and predict *the
+noise that was added*.
+
+And that's an ordinary supervised regression problem. With perfect labels. For
+free.
+
+```python run title="the forward process, which needs no learning"
+signal = np.sin(np.linspace(0, 4 * np.pi, 200))
+
+fig, ax = plt.subplots(1, 5, figsize=(11, 1.9))
+betas = np.linspace(0, 1, 5)
+for a, b in zip(ax, betas):
+    # x_t = sqrt(1-b) * x_0 + sqrt(b) * noise   — the standard schedule
+    noisy = np.sqrt(1 - b) * signal + np.sqrt(b) * rng.normal(0, 1, 200)
+    a.plot(noisy, lw=0.8); a.set_ylim(-3, 3)
+    a.set_title(f"noise level {b:.2f}", fontsize=8); a.axis("off")
+plt.tight_layout()
+print("left: the real thing.  right: pure noise.  no model involved yet.")
+```
+
+```python run title="learning to denoise, and then generating"
+# A tiny concrete case: the "data" is points on a circle.
+def real_batch(n):
+    a = rng.uniform(0, 2 * np.pi, n)
+    return np.stack([np.cos(a), np.sin(a)], 1) * (1 + rng.normal(0, 0.03, (n, 1)))
+
+H = 128
+W1 = rng.normal(0, np.sqrt(2 / 4), (4, H)); b1 = np.zeros(H)
+W2 = rng.normal(0, np.sqrt(2 / H), (H, H)); b2 = np.zeros(H)
+W3 = rng.normal(0, np.sqrt(2 / H), (H, 2)); b3 = np.zeros(2)
+
+def feats(x, t):
+    """The denoiser has to know HOW noisy the input is, so t goes in as a feature."""
+    return np.concatenate([x, t.reshape(-1, 1), np.cos(np.pi * t).reshape(-1, 1)], 1)
+
+def predict_noise(x, t):
+    i = feats(x, t)
+    h1 = np.tanh(i @ W1 + b1)
+    h2 = np.tanh(h1 @ W2 + b2)
+    return i, h1, h2, h2 @ W3 + b3
+
+for step in range(9000):
+    x0 = real_batch(256)
+    t = rng.uniform(0.002, 0.998, 256)                     # random noise level
+    noise = rng.normal(0, 1, (256, 2))
+    xt = np.sqrt(1 - t)[:, None] * x0 + np.sqrt(t)[:, None] * noise
+
+    i, h1, h2, pred = predict_noise(xt, t)
+    d = 2 * (pred - noise) / 256                           # plain MSE on the noise
+    d2 = (d @ W3.T) * (1 - h2 ** 2)
+    d1 = (d2 @ W2.T) * (1 - h1 ** 2)
+    W3 -= 0.01 * h2.T @ d;  b3 -= 0.01 * d.sum(0)
+    W2 -= 0.01 * h1.T @ d2; b2 -= 0.01 * d2.sum(0)
+    W1 -= 0.01 * i.T @ d1;  b1 -= 0.01 * d1.sum(0)
+
+print(f"final denoising MSE: {((pred - noise) ** 2).mean():.4f}")
+
+# Generate. At each step: predict the noise, back out an estimate of the clean
+# point, then re-noise it to the next (lower) level. That is DDIM sampling.
+x = rng.normal(0, 1, (500, 2))
+levels = np.linspace(0.998, 0.002, 200)
+for k, t in enumerate(levels):
+    _, _, _, eps = predict_noise(x, np.full(len(x), t))
+    x0_hat = np.clip((x - np.sqrt(t) * eps) / np.sqrt(1 - t), -3, 3)
+    s = levels[k + 1] if k + 1 < len(levels) else 0.0
+    x = np.sqrt(1 - s) * x0_hat + np.sqrt(s) * eps
+
+radii = np.linalg.norm(x, axis=1)
+print(f"generated points: mean radius {radii.mean():.3f} (target 1.000)")
+print(f"fraction landing on the circle: {((radii > 0.85) & (radii < 1.15)).mean():.0%}")
+```
+
+```python run title="what came out"
+fig, ax = plt.subplots(1, 2, figsize=(7.4, 3.4))
+truth = real_batch(400)
+ax[0].scatter(truth[:, 0], truth[:, 1], s=6); ax[0].set_title("training data")
+ax[1].scatter(x[:, 0], x[:, 1], s=6, c="crimson"); ax[1].set_title("generated from noise")
+for a in ax: a.set_xlim(-2, 2); a.set_ylim(-2, 2); a.set_xticks([]); a.set_yticks([])
+plt.tight_layout()
+```
+
+The model was never shown a circle, and nothing in its loss mentioned one. It was
+only ever asked "what noise is in this point?" — an ordinary regression — and
+running that answer backwards recovers the distribution.
+
+Roughly three quarters of the generated points land on the ring. The stragglers
+are honest:
+this is a 128-unit network trained for a few seconds in a browser, and a real
+diffusion model is a large U-Net trained for GPU-weeks. The point isn't the
+fidelity — it's that the fidelity is a matter of scale, and the *mechanism* is
+what you just read.
+
+<Wonder title="The move worth stealing">
+Step back from images entirely, because the *shape* of what just happened is
+general and it's the reason this page is worth reading.
+
+Generating from a distribution is hard. There's no target, no loss, no supervised
+signal. Two families of methods spent a decade attacking it directly, with
+adversarial games and variational bounds and a great deal of instability.
+
+Diffusion's answer was to **not attack it directly**. Instead: find a related
+problem that is (a) easy, (b) supervised, and (c) invertible.
+
+Destroying data is easy — you can do it in one line, and you know exactly what
+you did. So learn to *undo* the easy thing, and run it backwards.
+
+That's the same move as self-supervision in chapter 3 (hide a word, predict it),
+and the same move as the autoencoder in chapter 15 (destroy information through a
+bottleneck, reconstruct it). Three times now, in three different contexts:
+
+> **When a problem has no labels, look for a reversible corruption whose labels
+> you generate yourself.**
+
+I think that's one of the genuinely transferable ideas in this field — the kind
+you can carry to a problem nobody has written a paper about. If you're ever stuck
+with data and no targets, ask what you could break on purpose.
+</Wonder>
+
+## Why diffusion beat GANs
+
+Concretely:
+
+**A stable objective.** Plain regression on noise. It's chapter 5's landscape, not
+a two-player game. The loss goes down and means something.
+
+**A real progress signal.** You can watch it train and know whether it's working,
+which sounds mundane and is enormously valuable.
+
+**Mode coverage.** Diffusion is fitted to the whole distribution, so it doesn't
+collapse onto one output the way an adversarial generator can.
+
+**Steerable.** Conditioning on text (or anything else) is easy to add, because you
+just feed it to the denoiser. That's what made text-to-image possible.
+
+The cost: **slow generation.** A GAN generates in one forward pass; diffusion
+needs tens to hundreds of denoising steps. A great deal of recent work — improved
+samplers, distillation, consistency models — is about buying that back, and it's
+largely succeeded.
+
+## Where they all ended up
+
+<div class="table-scroll">
+
+| | Trains stably | Sample quality | Speed | Still used for |
+|---|---|---|---|---|
+| **VAE** | yes | blurry | fast | latent spaces *inside* other models |
+| **GAN** | no | sharp | very fast | real-time and on-device generation |
+| **Diffusion** | yes | sharp | slow | images, video, audio, molecules |
+| **Autoregressive** | yes | sharp | slow | text, and increasingly everything |
+
+</div>
+
+Two closing notes.
+
+VAEs didn't disappear — Stable Diffusion runs its diffusion process inside a VAE's
+compressed latent space rather than on raw pixels, which is most of why it's
+affordable. The blurry-decoder problem matters much less when the diffusion model
+is doing the detail.
+
+And chapter 14's language model is a generative model too, by the fourth route:
+autoregressive factorisation. Generate one token at a time, each conditioned on
+everything before. It's the oldest idea on this list and it's currently winning
+in the most domains — which is a fittingly untidy place to end.

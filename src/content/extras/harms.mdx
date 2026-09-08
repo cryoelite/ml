@@ -1,0 +1,242 @@
+---
+title: "The ways this goes wrong for people"
+blurb: "Not an ethics lecture. A concrete list of the failure modes that hurt real people, why they happen mechanically, and what you can actually do about them as the person building the thing."
+order: 51
+minutes: 12
+kind: "culture"
+after: "12-embeddings-and-tabular"
+covers: ["deploy"]
+---
+
+Chapter 12 noted in passing that a model learns the distribution it was shown,
+including the parts you wish weren't in it. That sentence deserves more than a
+passing mention.
+
+This isn't a lecture, and I'm not going to ask you to sign anything. It's a list
+of specific, mechanical failure modes — the kind that follow from things you
+already understand about how these systems work — and what you can actually do
+about them from the position of the person writing the code.
+
+Because you often *can* do something, and it's usually cheap, and it's usually
+easier before the thing ships than after.
+
+## 1. The training data contains the past
+
+This is the central one, and everything else is a variation.
+
+A model fitted to historical decisions learns to reproduce historical decisions.
+If those decisions were biased, the model is a bias-reproduction machine with
+better throughput and a veneer of objectivity.
+
+The mechanism is not mysterious. It's chapter 1's inversion, working exactly as
+specified: you supplied examples, and it found the rules. If the examples encode
+a pattern of who got hired, or who got a loan, or who got stopped, then that
+pattern *is* the signal, and the model will find it because finding it reduces
+the loss.
+
+**The famous cases follow this shape exactly.** A hiring model trained on a
+decade of a company's own hiring decisions learns that decade's preferences. A
+recidivism model trained on re-arrest data learns policing patterns, because
+re-arrest measures police attention as much as it measures crime. A healthcare
+model trained on historical *spend* as a proxy for *need* learns that groups who
+historically received less care need less care.
+
+<Aside type="key">
+Notice that last one, because it's the sharpest.
+
+The healthcare model wasn't trained on race. It was trained on cost. But cost was
+a proxy for need, and access to care differed by group — so "how much was spent
+on this patient" quietly encoded "how much access did this patient have."
+
+**Removing the sensitive attribute does not remove the bias.** In a rich feature
+set, protected characteristics are usually reconstructible from postcode,
+purchase history, name, device, and a dozen other things.
+
+This is the single most common misconception in the area, and it's worth being
+very clear about: dropping the `race` column does not make a model race-blind. It
+makes the model's use of race *unmeasurable*, which is strictly worse — you've
+kept the behaviour and lost the ability to audit it.
+</Aside>
+
+## 2. Feedback loops make it worse over time
+
+Chapter 16 introduced feedback loops as a data-quality problem. They're also a
+fairness problem, and the mechanism compounds.
+
+A predictive policing model sends more officers to areas with more recorded
+crime. More officers means more recorded crime in those areas. The next training
+run sees the increase and sends more officers.
+
+Nothing in that loop is a bug. Every component works as designed. The system
+converges on a conclusion it manufactured itself.
+
+The same shape appears in content recommendation (show what's engaged with →
+that gets engaged with more → recommend it harder), credit (deny → no repayment
+history → look riskier → deny), and hiring (screen out → no track record → screen
+out).
+
+**The mitigation is structural, not statistical:** hold out a slice of decisions
+that bypass the model, so you keep observing what would have happened. It costs
+something real. It's the only way to keep seeing the world rather than your own
+reflection.
+
+## 3. Aggregate metrics hide subgroup failure
+
+```python run title="93% accurate, and failing one user in ten"
+import numpy as np
+rng = np.random.default_rng(0)
+
+n_major, n_minor = 9000, 1000
+correct = np.concatenate([
+    rng.random(n_major) < 0.96,      # the majority group
+    rng.random(n_minor) < 0.68,      # a group with far less training data
+])
+group = np.array(["majority"] * n_major + ["minority"] * n_minor)
+
+print(f"overall accuracy      : {correct.mean():.1%}")
+for g in ["majority", "minority"]:
+    m = group == g
+    print(f"  {g:9s} ({m.sum():5,d}) : {correct[m].mean():.1%}")
+print("\nThe headline number is fine. One in ten users gets a system that")
+print("fails nearly a third of the time, and no aggregate metric shows it.")
+```
+
+A single accuracy number averages over everybody, and averaging is exactly the
+operation that hides a minority.
+
+This is mechanically inevitable and worth internalising: a group that is 10% of
+your data contributes 10% of the weight to your loss. The optimiser is doing
+precisely what you asked. It is trading their accuracy for the majority's,
+because that's what minimising average loss *means*.
+
+<Aside type="key">
+**Always report your metric sliced by every group you can identify.**
+
+Not because of a policy. Because an aggregate number genuinely does not tell you
+whether the system works, and you'd want to know that about any system you
+shipped.
+
+This is the cheapest intervention on this entire page — three lines of `groupby`
+— and it catches more real problems than anything else here.
+</Aside>
+
+The best-known instance: commercial face analysis systems evaluated in 2018 were
+found to have error rates under 1% for lighter-skinned men and above 30% for
+darker-skinned women. The published accuracy numbers were high. The published
+accuracy numbers were averages.
+
+## 4. "Fairness" is several incompatible things
+
+Here's a genuinely uncomfortable technical fact, and I'd rather you meet it here
+than in a review meeting.
+
+There are multiple reasonable definitions of fairness, and they are
+**mathematically incompatible** except in degenerate cases.
+
+- **Demographic parity** — the same positive rate across groups.
+- **Equal opportunity** — the same true-positive rate across groups.
+- **Predictive parity** — the same precision across groups.
+
+If base rates genuinely differ between groups, you cannot satisfy all three at
+once. This is a theorem, not an engineering shortfall — it was proved in the
+context of the COMPAS recidivism debate, where two sides were each correctly
+pointing at a different definition and talking past each other.
+
+```python run title="you have to choose, and the choice has consequences"
+# Two groups, different base rates, one shared threshold.
+rng = np.random.default_rng(1)
+def group_stats(n, base_rate, sep=1.1):
+    y = (rng.random(n) < base_rate).astype(int)
+    s = np.where(y == 1, rng.normal(sep, 1, n), rng.normal(0, 1, n))
+    return y, s
+
+for name, base in [("group A", 0.30), ("group B", 0.10)]:
+    y, s = group_stats(4000, base)
+    pred = (s > 1.0).astype(int)
+    tp = ((pred == 1) & (y == 1)).sum(); fp = ((pred == 1) & (y == 0)).sum()
+    fn = ((pred == 0) & (y == 1)).sum()
+    print(f"{name}: base rate {y.mean():.0%}   flagged {pred.mean():.1%}   "
+          f"precision {tp/max(tp+fp,1):.2f}   recall {tp/max(tp+fn,1):.2f}")
+print("\nSame model, same threshold. The rates differ because the base rates do.")
+print("Equalising any one column requires unequalising another.")
+```
+
+The practical consequence: **somebody has to choose which definition applies to
+this system, and it should be an explicit, documented, accountable decision** —
+not an accident of whichever default the library shipped with.
+
+Your job as the engineer is often to surface the choice clearly enough that
+somebody with the authority to make it, makes it.
+
+## 5. Confident wrongness at scale
+
+A language model produces fluent, well-formatted, confident text. Fluency is what
+it was optimised for; correctness was never a term in the loss.
+
+Chapter 14 covered the mechanism. The harm is what happens when that output meets
+a person who has no way to tell — a fabricated citation in a legal filing, an
+invented drug interaction, a confidently wrong summary of somebody's medical
+history.
+
+The scale is the part that's new. One person being confidently wrong is an
+ordinary Tuesday. A system being confidently wrong ten million times a day, in a
+consistent direction, is a different kind of object.
+
+**What helps:** show sources and make them checkable. Constrain output shape.
+Keep the arithmetic in code. Design the interface so the human is deciding rather
+than approving. Make uncertainty visible rather than smoothing it away.
+
+## 6. The costs land somewhere
+
+Two things that are easy not to think about, and worth thinking about once:
+
+**The data came from somewhere.** Training corpora contain people's writing,
+photographs, medical records and code, frequently gathered without meaningful
+consent. Whatever your view on the law, "was this obtained in a way the people
+involved would recognise as fair?" is a question with a real answer.
+
+**Someone did the labelling.** Content moderation and annotation work — including
+labelling the material that makes a model refuse things — is often outsourced,
+low-paid, and psychologically harmful. It's a real cost, borne by real people,
+and it's largely invisible in the product.
+
+## What you can actually do
+
+Not everything here is in your control. Quite a lot is. From most to least
+leverage:
+
+1. **Slice every metric by every group you can identify.** Three lines. Do it
+   before you report a single aggregate number, and put the slices in the same
+   document.
+
+2. **Write down what the model is for, and what it isn't.** A short model card:
+   intended use, training data, evaluation, known failure modes. Half a page.
+   It's the artefact that stops a churn model being repurposed as a hiring
+   filter eighteen months later by somebody who wasn't in the room.
+
+3. **Ask where the labels came from.** Not "what's the schema" — who decided,
+   under what pressure, measuring what. The healthcare case above was a labelling
+   decision, not a modelling one.
+
+4. **Keep a human in the loop for consequential decisions**, and design so the
+   human genuinely decides. A screen with an accept button and a queue of 400 is
+   not a human in the loop; it's a human rubber-stamping at speed.
+
+5. **Log enough to audit.** Chapter 16's point, with a second reason. Inputs,
+   outputs, model version. Without it "why did it decline this?" is unanswerable,
+   and unanswerable is its own kind of harm.
+
+6. **Say the uncomfortable thing early.** "We don't have enough data on this
+   group to know if it works for them" is cheap in week two and expensive in
+   month nine. You're often the only person in the room who can tell.
+
+<Aside type="key">
+None of this requires you to be an ethicist, and none of it requires a committee.
+
+It's mostly the same instinct you already have about correctness and
+observability, pointed at a slightly different question: **not just "is this
+right on average?" but "who is it wrong for, and what happens to them?"**
+
+You're going to be one of very few people who can actually see the answer. That's
+not a burden so much as a genuinely interesting part of the job.
+</Aside>

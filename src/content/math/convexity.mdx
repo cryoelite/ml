@@ -1,0 +1,34 @@
+---
+title: 'Convexity'
+summary: 'A function whose chords lie above it. It has exactly one minimum, which is why classical optimisation cared about it so much.'
+formula: 'f(\alpha x + (1-\alpha)y) \le \alpha f(x) + (1-\alpha) f(y)'
+docs: 'https://en.wikipedia.org/wiki/Convex_function'
+docsLabel: 'Wikipedia ↗'
+symbols:
+  - sym: '\alpha'
+    means: 'any weight between 0 and 1 — it traces the straight line between x and y'
+  - sym: '\le'
+    means: 'the function is never above the straight line joining two of its points'
+---
+
+Read the formula as a picture: pick any two points on the curve, draw the straight
+line between them, and the function stays underneath it. A bowl is convex; a
+landscape with hills and hollows is not.
+
+The consequence is the whole reason anyone cares: **a convex function has exactly
+one minimum, and any downhill method finds it.** No local traps, no dependence on
+where you started, and often a provable convergence rate.
+
+Squared error with a linear model is convex. So is logistic regression's loss, and
+an SVM's. Adding an L2 penalty makes a convex problem *strictly* convex, which
+also makes the solution unique.
+
+Neural networks are wildly non-convex, and for years that was a serious and
+respectable objection to them — you could prove nothing. What changed was not the
+mathematics but the empirical discovery that in very high dimensions the
+non-convexity mostly does not bite: critical points are overwhelmingly saddles
+rather than minima, and the minima you do reach are about equally good.
+
+That story is the [gradient descent extra](/extras/why-gradient-descent-works/),
+and it is a good example of a field advancing by measurement when theory could
+not follow.

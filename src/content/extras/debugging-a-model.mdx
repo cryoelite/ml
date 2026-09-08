@@ -1,0 +1,271 @@
+---
+title: "Debugging a model that won't learn"
+blurb: "A model that trains to a bad number gives you no stack trace and no error. Here's the ordered checklist that finds the problem, from the cheapest test to the most expensive."
+order: 31
+minutes: 13
+kind: "craft"
+after: "10-pytorch"
+---
+
+When ordinary code is wrong, it usually tells you. It throws, or it returns
+something obviously mad, or a test goes red.
+
+A model that's wrong trains happily to a mediocre number and says nothing at all.
+There's no stack trace. Every line ran. The loss went down. It's just... not good,
+and you have no idea why.
+
+That's a genuinely unfamiliar debugging situation for most engineers, and the
+instinct it produces — start changing hyperparameters — is almost always the wrong
+one.
+
+Here's the checklist instead, ordered from cheapest test to most expensive. Work
+down it. Don't skip, because the cheap ones catch most of it.
+
+## 0. Can it overfit ten examples?
+
+Before anything else. This is the single highest-value test in the whole list and
+it takes about a minute.
+
+```python run local setup title="the first test, always"
+import torch, torch.nn as nn, numpy as np
+
+torch.manual_seed(0)
+X = torch.randn(10, 4)
+y = torch.randint(0, 3, (10,))          # 10 examples, 3 classes
+
+model = nn.Sequential(nn.Linear(4, 32), nn.ReLU(), nn.Linear(32, 3))
+opt = torch.optim.AdamW(model.parameters(), lr=1e-2)
+loss_fn = nn.CrossEntropyLoss()
+
+for step in range(300):
+    opt.zero_grad()
+    loss = loss_fn(model(X), y)
+    loss.backward(); opt.step()
+    if step % 100 == 99:
+        acc = (model(X).argmax(1) == y).float().mean()
+        print(f"step {step+1:3d}  loss {loss.item():.5f}  train accuracy {acc:.0%}")
+```
+
+**A working setup memorises ten examples to 100% accuracy and near-zero loss.**
+That's not a good model — it's a *proof that gradients flow from your loss back to
+your parameters*.
+
+If it can't do this, stop. Nothing further matters, and no amount of
+hyperparameter tuning will help, because the plumbing is broken.
+
+<Aside type="key">
+If this test fails, your bug is one of:
+
+- The optimiser isn't seeing your parameters (wrong `model.parameters()`, a layer
+  built in `forward` instead of `__init__`, a tensor that isn't an `nn.Parameter`)
+- `requires_grad=False` somewhere it shouldn't be
+- You forgot `opt.step()`, or `opt.zero_grad()`
+- The labels don't line up with the inputs
+- The loss doesn't actually depend on the model output (it happens)
+- A `.detach()` or a `torch.no_grad()` in the middle of the graph
+
+Every one of those is a *code* bug with a definite answer, not a tuning problem.
+Find it before you touch a learning rate.
+</Aside>
+
+## 1. Is the loss at initialisation what it should be?
+
+You can predict this number, and checking it catches a whole class of bugs
+instantly.
+
+```python run local title="the loss you should see before training"
+for k in [2, 3, 10, 1000]:
+    print(f"{k:5d} classes -> untrained cross-entropy should be ln({k}) = {np.log(k):.4f}")
+
+logits = torch.zeros(500, 10)
+labels = torch.randint(0, 10, (500,))
+print("\nmeasured with 10 classes and zero logits:",
+      round(nn.CrossEntropyLoss()(logits, labels).item(), 4))
+```
+
+An untrained classifier should predict uniformly, so its loss should be
+$\ln(k)$ — about 0.69 for 2 classes, 2.30 for 10, 6.91 for 1000.
+
+If your starting loss is *much higher*, your initialisation is too large and the
+model is starting out confidently wrong. If it's much *lower*, something is
+leaking the answer.
+
+The same trick works for regression: an untrained model should score roughly the
+variance of your target. If it doesn't, check your scaling.
+
+## 2. Print every shape
+
+```python run local title="shapes, and the silent broadcast"
+pred = torch.randn(32, 1)      # what nn.Linear(h, 1) gives you
+targ = torch.randn(32)         # what your labels look like
+
+print("pred", tuple(pred.shape), " targ", tuple(targ.shape))
+print("difference broadcasts to", tuple((pred - targ).shape), "<- 1024 numbers, not 32")
+print("\nMSE on the broadcast   :", round(((pred - targ) ** 2).mean().item(), 4))
+print("MSE done correctly     :", round(((pred.squeeze() - targ) ** 2).mean().item(), 4))
+```
+
+Two different numbers, both plausible, no error raised anywhere.
+
+This is chapter 2's broadcasting trap and chapter 10's bug 3, and it is *by far*
+the most common silent failure in practice. The model trains. The loss decreases.
+It's optimising something that isn't your problem.
+
+**Print `.shape` on your predictions and your labels, once, before your first
+training run.** Every time. It costs a line.
+
+## 3. Look at the data going into the model
+
+Not the data in the CSV. The tensor at the moment it enters `forward`.
+
+```python run local title="check the batch, not the dataframe"
+batch = torch.randn(64, 4) * 50 + 200      # pretend: unstandardised features
+
+print(f"min {batch.min():8.2f}  max {batch.max():8.2f}  "
+      f"mean {batch.mean():7.2f}  std {batch.std():6.2f}")
+print("nan:", torch.isnan(batch).any().item(), " inf:", torch.isinf(batch).any().item())
+
+scaled = (batch - batch.mean(0)) / batch.std(0)
+print(f"\nafter standardising: mean {scaled.mean():.3f}  std {scaled.std():.3f}")
+print("inputs should be roughly mean 0, std 1 — chapter 5's ravine problem")
+```
+
+Things to check on the actual tensor:
+
+- **Range.** Roughly mean 0, std 1? If your inputs are in the hundreds, you have
+  chapter 5's ravine and no learning rate will suit every direction.
+- **NaN or inf.** One `nan` anywhere poisons every parameter on the next update
+  and never leaves.
+- **Labels in range.** `CrossEntropyLoss` with `num_classes=3` wants labels
+  0, 1, 2. A stray 3 throws; a stray −1 sometimes doesn't.
+- **Are they what you think?** Plot a few. For images, actually look at them — a
+  channel-order or normalisation mistake is instantly visible and otherwise
+  invisible.
+
+## 4. Watch the gradients
+
+```python run local title="gradient norms tell you where the problem is"
+torch.manual_seed(0)
+deep = nn.Sequential(*[layer for i in range(6)
+                       for layer in (nn.Linear(16, 16), nn.Sigmoid())])
+x = torch.randn(32, 16)
+loss = deep(x).pow(2).mean()
+loss.backward()
+
+print("gradient norm by layer (input side first):")
+for i, m in enumerate(deep):
+    if isinstance(m, nn.Linear):
+        print(f"  layer {i//2}: {m.weight.grad.norm().item():.3e}")
+print("\nsigmoid stack: the gradient shrinks toward the input. chapter 9's plot,")
+print("in a live model, in three lines.")
+```
+
+What the numbers mean:
+
+- **Zero everywhere** → nothing is connected. Back to test 0.
+- **Zero at the input end, fine at the output end** → vanishing gradients. Use
+  ReLU, add residual connections, add normalisation.
+- **Enormous, or `nan`** → exploding. Lower the learning rate, clip the gradient
+  norm, check for a `log(0)`.
+- **Fine, but the loss won't move** → the learning rate is too small, or you're at
+  a genuinely flat spot. Try 10× larger before anything more exotic.
+
+## 5. Compare against the dumbest possible model
+
+```python run local title="is it beating nothing?"
+y_true = torch.randint(0, 2, (1000,))
+majority = (y_true.float().mean() > 0.5).float()
+print(f"class balance          : {y_true.float().mean():.1%} positive")
+print(f"always-majority accuracy: {(y_true == majority.long()).float().mean():.1%}")
+print("\nany model that doesn't beat this has learned nothing, whatever its loss curve did")
+```
+
+Chapter 6's baseline, deployed as a debugging tool. It's astonishing how often a
+model that "trains fine" is sitting below the majority-class baseline, and the
+loss curve looks completely normal the whole time.
+
+## 6. Only now, the hyperparameters
+
+If everything above passes and it's still mediocre, *now* you're allowed to tune.
+In this order:
+
+**Learning rate**, and it isn't close. Try powers of ten. If you have the budget,
+use chapter 5's learning-rate finder. This is worth more than everything below it
+combined.
+
+**Capacity.** Underfitting (both train and validation poor) → bigger. Overfitting
+(big gap) → smaller, or more regularisation. Chapter 6's diagnostic tells you
+which.
+
+**Batch size**, mostly for speed. Remember doubling the batch lets you raise the
+learning rate by about $\sqrt{2}$.
+
+**Everything else** — optimiser choice, schedules, weight decay, dropout rate —
+matters much less than people spend time on it. AdamW at `1e-3` with cosine decay
+is a strong default and beating it is usually a small win.
+
+## The order matters, and here's why
+
+<Aside type="key">
+The checklist is ordered by **cost per bit of information**, not by how likely
+each cause is.
+
+Test 0 takes one minute and rules out an entire category of bug. A hyperparameter
+sweep takes hours and tells you very little if the plumbing is broken — you'll
+just find which broken configuration is least broken.
+
+The failure mode I'd most like you to avoid: spending a day tuning a model whose
+labels were misaligned. Everything you learn in that day is noise, and the
+experience is genuinely demoralising in a way that makes people conclude they're
+bad at this.
+
+They're not bad at this. They debugged in the wrong order.
+</Aside>
+
+## A checklist you can keep
+
+```python run local title="a reusable sanity harness"
+def sanity_check(model, batch_x, batch_y, loss_fn, n_classes=None):
+    """Run before every serious training run. Cheap, and catches most of it."""
+    issues = []
+
+    if torch.isnan(batch_x).any() or torch.isinf(batch_x).any():
+        issues.append("inputs contain nan or inf")
+    if abs(batch_x.mean().item()) > 3 or not (0.2 < batch_x.std().item() < 5):
+        issues.append(f"inputs poorly scaled (mean {batch_x.mean():.2f}, "
+                      f"std {batch_x.std():.2f})")
+
+    out = model(batch_x)
+    if out.shape[0] != batch_y.shape[0]:
+        issues.append(f"batch mismatch: output {tuple(out.shape)} vs "
+                      f"labels {tuple(batch_y.shape)}")
+    if n_classes and (batch_y.min() < 0 or batch_y.max() >= n_classes):
+        issues.append(f"labels out of range for {n_classes} classes")
+
+    loss = loss_fn(out, batch_y)
+    if n_classes:
+        expected = np.log(n_classes)
+        if not (0.5 * expected < loss.item() < 2 * expected):
+            issues.append(f"initial loss {loss.item():.3f}, expected ~{expected:.3f}")
+
+    loss.backward()
+    dead = [n for n, p in model.named_parameters()
+            if p.grad is None or p.grad.abs().max() == 0]
+    if dead:
+        issues.append(f"no gradient reaching: {dead[:3]}")
+
+    model.zero_grad()
+    return issues or ["all checks passed"]
+
+torch.manual_seed(0)
+m = nn.Sequential(nn.Linear(4, 16), nn.ReLU(), nn.Linear(16, 3))
+for line in sanity_check(m, torch.randn(64, 4), torch.randint(0, 3, (64,)),
+                         nn.CrossEntropyLoss(), n_classes=3):
+    print(" *", line)
+```
+
+Steal that. It's forty lines, it runs in a second, and it encodes tests 1 through
+4 as assertions instead of habits.
+
+The version of you at 11pm three weeks from now will not remember to check the
+initial loss by hand. That version will run this.

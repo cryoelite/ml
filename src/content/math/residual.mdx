@@ -1,0 +1,37 @@
+---
+title: 'Residual connection'
+summary: 'Add the input to the output. One plus sign, and networks went from 19 layers deep to 150.'
+formula: 'y = x + f(x) \qquad \frac{\partial y}{\partial x} = 1 + f''(x)'
+docs: 'https://arxiv.org/abs/1512.03385'
+docsLabel: 'He et al., 2015 ↗'
+prereqs: ['chain-rule', 'derivative']
+symbols:
+  - sym: 'x'
+    means: 'the input to the block — carried forward untouched'
+  - sym: 'f(x)'
+    means: 'whatever the block computes: attention, convolution, an MLP'
+  - sym: '1 + f''(x)'
+    means: 'the gradient, which now has a term that cannot shrink'
+---
+
+Look at the derivative, because it is the entire argument.
+
+Without the residual, the gradient through a block is $f'(x)$, and a deep network
+multiplies many of those together. If each is less than 1, the product vanishes;
+if greater, it explodes. That is why depth was so hard before 2015.
+
+With the residual, the gradient is $1 + f'(x)$. However small $f'$ becomes, the
+`1` is still there — so the gradient always has a clean route home, unmultiplied.
+
+That is the whole of it, and it is why ResNet could be 152 layers deep in 2015
+when the previous year's best was 19.
+
+There is a second, gentler reading. $y = x + f(x)$ means the block only has to
+learn the *change* — the residual — rather than the full transformation. A block
+that has nothing useful to add can learn $f \approx 0$ and pass the input through
+unharmed, which is a much easier thing to learn than the identity function.
+
+You have met the same idea elsewhere in a different costume: an
+[LSTM's cell state](/extras/before-transformers/) is a path along which
+information travels by addition rather than repeated multiplication. Same road,
+eighteen years apart.

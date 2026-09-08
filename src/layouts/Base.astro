@@ -2,6 +2,7 @@
 import "../styles/global.css";
 import "katex/dist/katex.min.css";
 import RuntimeWidget from "../components/RuntimeWidget.astro";
+import Doodle from "../components/Doodle.astro";
 
 interface Props {
   title: string;
@@ -10,7 +11,7 @@ interface Props {
 }
 const {
   title,
-  description = "A ground-up path into machine learning for people who already ship code.",
+  description = "A friendly, ground-up path into machine learning — sixteen chapters, all of them runnable.",
 } = Astro.props;
 const full = title === "Gradient" ? title : `${title} · Gradient`;
 ---
@@ -35,18 +36,35 @@ const full = title === "Gradient" ? title : `${title} · Gradient`;
   <body>
     <a class="skip-link" href="#main">Skip to content</a>
 
+    <!--
+      One filter, applied to every drawing on the site. The turbulence displaces
+      each path by a pixel or so, which is the whole trick: geometrically exact
+      shapes come out looking like somebody drew them, and they all look like
+      the *same* somebody.
+    -->
+    <svg class="svg-defs" aria-hidden="true" focusable="false">
+      <filter id="pencil" x="-8%" y="-8%" width="116%" height="116%"
+              filterUnits="objectBoundingBox">
+        <feTurbulence type="fractalNoise" baseFrequency="0.028" numOctaves="3"
+                      seed="7" result="noise" />
+        <feDisplacementMap in="SourceGraphic" in2="noise" scale="1.7"
+                           xChannelSelector="R" yChannelSelector="G" />
+      </filter>
+    </svg>
+
     <header class="masthead">
       <button class="nav-toggle" type="button" aria-expanded="false" aria-label="Toggle chapter list">
-        ☰ Chapters
+        ☰ <span>Chapters</span>
       </button>
       <a class="masthead__brand" href="/">
-        <span class="masthead__mark" aria-hidden="true"></span>
-        Gradient
+        <span class="masthead__mark"><Doodle name="pip" decorative /></span>
+        <span class="masthead__name">Gradient</span>
         <span class="masthead__tag">machine learning, from the ground up</span>
       </a>
       <span class="masthead__spacer"></span>
       <nav class="masthead__links" aria-label="Sections">
         <a href="/map/">Map</a>
+        <a href="/extras/">Extras</a>
         <a href="/appendix/python/">Python</a>
         <a href="/appendix/math/">Maths</a>
         <a href="/setup/">Setup</a>

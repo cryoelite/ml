@@ -1,0 +1,39 @@
+---
+/**
+ * A side quest: real content, deliberately off the two-week path.
+ *
+ * The rule this component enforces is the whole design of the site. The spine
+ * is a fortnight and it has to stay a fortnight, so anything that would make it
+ * longer goes in here instead — closed, labelled with how long it takes and why
+ * you might want it, and never required by anything downstream.
+ *
+ * That is a promise to the reader in both directions: skip every one of these
+ * and the path still works; open them and you are not being punished with
+ * filler.
+ */
+import Doodle from "./Doodle.astro";
+
+interface Props {
+  title: string;
+  /** Rough reading time, so the reader can decide before committing. */
+  time?: string;
+  /** One line: why a person would want this. Shown on the closed button. */
+  why?: string;
+  open?: boolean;
+}
+const { title, time, why, open = false } = Astro.props;
+---
+<details class="quest" open={open}>
+  <summary>
+    <span class="quest__icon"><Doodle name="seedling" decorative /></span>
+    <span class="quest__text">
+      <span class="quest__title">{title}</span>
+      {why && <span class="quest__why">{why}</span>}
+    </span>
+    <span class="quest__meta">
+      {time && <span class="quest__time">{time}</span>}
+      <span class="quest__chev" aria-hidden="true"></span>
+    </span>
+  </summary>
+  <div class="quest__body"><slot /></div>
+</details>

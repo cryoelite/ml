@@ -1,0 +1,26 @@
+---
+title: 'clip'
+lib: 'numpy'
+summary: 'Squash every value into a range. Mostly used to stop a logarithm meeting a zero.'
+signature: 'np.clip(a, low, high)'
+example: |-
+  p = np.array([0.0, 0.5, 1.0])
+  -np.log(np.clip(p, 1e-12, 1 - 1e-12))   # safe cross-entropy
+output: 'array([2.76310211e+01, 6.93147181e-01, 1.00000008e-12])'
+rust: '`x.clamp(low, high)`, applied elementwise.'
+docs: 'https://numpy.org/doc/stable/reference/generated/numpy.clip.html'
+docsLabel: 'numpy.clip ↗'
+---
+
+The one use you will reach for constantly: `log(0)` is `-inf`, and one `inf` in a
+loss becomes `nan` on the next update and never leaves. Clipping probabilities
+away from exactly 0 and exactly 1 makes cross-entropy safe for the price of an
+error around $10^{-12}$, which is nothing.
+
+It also appears as **gradient clipping** — bound the size of an update so one bad
+batch cannot blow up the weights — and as a way to bound an activation.
+
+If you find yourself clipping the *output* of a model to keep it sensible, that
+is worth a second thought. It is often a sign the model should have been
+predicting something else, like a log, that cannot go out of range in the first
+place.

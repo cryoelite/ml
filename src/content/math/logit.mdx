@@ -1,0 +1,36 @@
+---
+title: 'Logit'
+summary: 'The raw, unbounded score a model produces before any squashing. The thing your loss function wants, and not a probability.'
+formula: 'z = \log \frac{p}{1-p} \qquad p = \sigma(z)'
+docs: 'https://en.wikipedia.org/wiki/Logit'
+docsLabel: 'Wikipedia ↗'
+prereqs: ['sigmoid', 'softmax']
+symbols:
+  - sym: 'z'
+    means: 'the logit — any real number, from minus infinity to plus infinity'
+  - sym: 'p'
+    means: 'the corresponding probability, strictly between 0 and 1'
+  - sym: '\sigma'
+    means: 'the sigmoid, which is the inverse of the logit function'
+---
+
+The logit is the **log-odds**: the log of the ratio of "happens" to "doesn't". A
+logit of 0 means even odds; positive means more likely than not; large negative
+means very unlikely.
+
+It is the natural output space for a linear model, because it is unbounded — a
+weighted sum can produce any real number, and the logit scale accepts all of
+them. The [sigmoid](/appendix/math/#sigmoid) then maps it back to a probability.
+
+The practical rule that follows, and it is one you will use constantly:
+
+**Your model outputs logits. The loss function owns the squashing.**
+
+`nn.BCEWithLogitsLoss` and `nn.CrossEntropyLoss` apply the sigmoid or softmax
+internally, using a numerically stable formulation that never evaluates
+`exp(large)`. Apply the squashing yourself and then use `BCELoss` and you get the
+same answer on easy data and `nan` on hard data — the worst kind of bug, since it
+passes testing and fails in production.
+
+Convert to probabilities only at inference, when a human or a threshold actually
+needs one.

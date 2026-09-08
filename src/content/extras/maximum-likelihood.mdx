@@ -1,0 +1,369 @@
+---
+title: "Where every loss function comes from"
+blurb: "MSE and cross-entropy look like two unrelated formulas somebody chose. They're the same principle applied to two different assumptions — and once you see it, you can derive a loss for a problem nobody has written one for."
+order: 10
+minutes: 14
+kind: "theory"
+after: "04-your-first-model"
+covers: ["loss"]
+---
+
+In chapter 4 I showed you two loss functions and told you they both fall out of
+maximum likelihood. Then I moved on, because it was day four and there was a
+model to fit.
+
+This is the fold I skipped. It's worth twenty minutes because it turns "here are
+the losses people use" into "here is how you *derive* a loss," which is a genuinely
+different capability — and it's the fastest way to make sense of half the
+equations in any paper.
+
+## The principle
+
+Here it is, and it's one sentence:
+
+> **Choose the parameters that make the data you actually observed as probable as
+> possible.**
+
+That's maximum likelihood. It has an appealing common-sense quality: you saw what
+you saw, so prefer the explanation under which seeing it was least of a
+coincidence.
+
+Formally, if your model assigns probability $p_\theta(y \mid x)$ to outcome $y$
+given input $x$, then across a whole dataset:
+
+$$
+\mathcal{L}(\theta) = \prod_{i=1}^{n} p_\theta(y_i \mid x_i)
+$$
+
+and you want the $\theta$ that maximises it.
+
+## Two immediate problems, one fix
+
+That product is horrible to work with. Every factor is between 0 and 1, so the
+product shrinks geometrically — and a float64 gives up entirely below about
+$10^{-308}$.
+
+```python run title="why nobody optimises the product"
+import numpy as np
+
+for n in [500, 1_100]:
+    probs = np.full(n, 0.5)         # n coin-flip-ish predictions
+    print(f"{n:5,d} factors   product {np.prod(probs):.3e}   log-sum {np.log(probs).sum():9.1f}")
+
+print("\nAt 1,100 the product is exactly 0.0 — the likelihood is gone, and no")
+print("optimiser can recover a gradient from it. The log-sum is unbothered.")
+```
+
+The fix is to take the log. And it works because **log is monotonic** — it doesn't
+move the location of the maximum, only the value there. Whatever $\theta$
+maximises the product also maximises its log.
+
+$$
+\log \mathcal{L}(\theta) = \sum_{i=1}^{n} \log p_\theta(y_i \mid x_i)
+$$
+
+A sum instead of a product. No underflow. And then, because optimisers are
+conventionally written to go *downhill*, flip the sign:
+
+$$
+\text{minimise} \quad -\sum_{i=1}^{n} \log p_\theta(y_i \mid x_i)
+$$
+
+That expression has a name — the **negative log-likelihood** — and it is, quite
+literally, the loss function for everything that follows.
+
+<Aside type="key">
+This is why papers slide between "maximising the log-likelihood" and "minimising
+the loss" mid-sentence without explaining themselves.
+
+They're the same activity with a minus sign in front. Everyone in the room knows,
+so nobody says it, so it looks like a gap in your knowledge when it's a gap in
+the writing.
+</Aside>
+
+## Derivation 1: squared error
+
+Now let's actually turn the crank.
+
+**Assumption:** the target is the model's prediction plus Gaussian noise.
+
+$$
+y_i = f_\theta(x_i) + \varepsilon_i, \qquad \varepsilon_i \sim \mathcal{N}(0, \sigma^2)
+$$
+
+That's a claim about the world: your measurements are correct on average, and
+wrong by an amount that's symmetric, independent, and more often small than
+large. Reasonable for a lot of physical measurement. Not reasonable for
+everything — hold that thought.
+
+The Gaussian density gives:
+
+$$
+p(y_i \mid x_i) = \frac{1}{\sqrt{2\pi\sigma^2}} \exp\left(-\frac{(y_i - f_\theta(x_i))^2}{2\sigma^2}\right)
+$$
+
+Take the log, and the exponential politely vanishes:
+
+$$
+\log p(y_i \mid x_i) = -\frac{(y_i - f_\theta(x_i))^2}{2\sigma^2} - \tfrac{1}{2}\log(2\pi\sigma^2)
+$$
+
+Sum over the data, negate, and throw away everything that doesn't depend on
+$\theta$ — the second term is a constant, and constants don't move minima:
+
+$$
+-\log \mathcal{L}(\theta) \;\propto\; \sum_i \big(y_i - f_\theta(x_i)\big)^2
+$$
+
+**Squared error.** Not chosen. Derived.
+
+<Wonder title="And now the assumption is visible">
+Here's the payoff, and it's the reason this derivation is worth your time.
+
+You now know exactly what you're claiming every time you use MSE: **that your
+errors are Gaussian.**
+
+And Gaussian noise has thin tails. Under a Gaussian, an error ten standard
+deviations out is so wildly improbable that if you see one, the model concludes
+the parameters must be badly wrong and heaves itself in that direction.
+
+Which is *correct* if the data really is Gaussian. And catastrophic if you have
+outliers — a single mis-keyed value with an extra zero will drag your entire fit,
+because MSE genuinely believes such a value could not have been an accident.
+
+So "MSE is sensitive to outliers" stops being a rule you memorised and becomes an
+obvious consequence of a stated assumption. That's what these derivations buy
+you: not the formula, but the *fine print*.
+</Wonder>
+
+```python run title="watch the assumption break"
+rng = np.random.default_rng(0)
+x = np.linspace(0, 10, 40)
+y = 2.0 * x + 1.0 + rng.normal(0, 1.0, 40)
+y_bad = y.copy(); y_bad[20] += 60          # one mis-keyed value
+
+def fit_mse(x, y):
+    X = np.column_stack([np.ones(len(x)), x])
+    return np.linalg.solve(X.T @ X, X.T @ y)
+
+def fit_mae(x, y, steps=8000, lr=0.01):
+    """Minimise |error| instead — the Laplace assumption."""
+    w = np.zeros(2); X = np.column_stack([np.ones(len(x)), x])
+    for _ in range(steps):
+        w -= lr * (X.T @ np.sign(X @ w - y)) / len(y)
+    return w
+
+print("truth              slope 2.00  intercept 1.00")
+print(f"MSE, clean data    slope {fit_mse(x, y)[1]:.2f}  intercept {fit_mse(x, y)[0]:.2f}")
+print(f"MSE, one outlier   slope {fit_mse(x, y_bad)[1]:.2f}  intercept {fit_mse(x, y_bad)[0]:.2f}")
+print(f"MAE, one outlier   slope {fit_mae(x, y_bad)[1]:.2f}  intercept {fit_mae(x, y_bad)[0]:.2f}")
+```
+
+One bad row, and MSE's slope moves noticeably while MAE barely flinches.
+
+MAE is what you get if you run the same derivation with a **Laplace**
+distribution instead of a Gaussian — its density has $|y - \hat{y}|$ in the
+exponent rather than a square, so the log-likelihood gives you absolute error.
+
+Different assumption about the noise, different loss, different robustness. Same
+principle throughout.
+
+## Derivation 2: cross-entropy
+
+**Assumption:** the target is a coin flip, and the model predicts the bias of the
+coin.
+
+For a binary outcome with predicted probability $\hat{p}_i$:
+
+$$
+p(y_i \mid x_i) = \hat{p}_i^{\,y_i}(1 - \hat{p}_i)^{1 - y_i}
+$$
+
+That expression is a small trick worth appreciating. When $y_i = 1$ it evaluates
+to $\hat{p}_i$; when $y_i = 0$ it evaluates to $1 - \hat{p}_i$. One formula, no
+branching — the exponents act as a switch.
+
+Take the log:
+
+$$
+\log p(y_i \mid x_i) = y_i \log \hat{p}_i + (1 - y_i)\log(1 - \hat{p}_i)
+$$
+
+Sum and negate:
+
+$$
+-\log \mathcal{L}(\theta) = -\sum_i \Big[ y_i \log \hat{p}_i + (1-y_i)\log(1-\hat{p}_i) \Big]
+$$
+
+**Binary cross-entropy.** Character for character, the `bce` function from chapter
+4.
+
+```python run title="the two derivations, side by side"
+def nll_gaussian(y, mu, sigma=1.0):
+    return ((y - mu) ** 2 / (2 * sigma ** 2)).mean()
+
+def nll_bernoulli(y, p):
+    p = np.clip(p, 1e-12, 1 - 1e-12)
+    return -(y * np.log(p) + (1 - y) * np.log(1 - p)).mean()
+
+print("Gaussian assumption -> squared error")
+print("  ", round(nll_gaussian(np.array([1.0, 0.0]), np.array([0.9, 0.2])), 4))
+print("Bernoulli assumption -> cross-entropy")
+print("  ", round(nll_bernoulli(np.array([1.0, 0.0]), np.array([0.9, 0.2])), 4))
+print("\nsame recipe, different assumed noise model")
+```
+
+## The multi-class case, and where softmax comes from
+
+For $k$ classes, the natural assumption is a **categorical** distribution — one
+probability per class, summing to one.
+
+But your network outputs $k$ unconstrained real numbers. So you need a map from
+$\mathbb{R}^k$ to the probability simplex, and <M id="softmax">softmax</M> is it:
+
+$$
+\hat{p}_j = \frac{e^{z_j}}{\sum_{m} e^{z_m}}
+$$
+
+The exponential makes everything positive; the denominator makes it sum to one.
+
+And then the negative log-likelihood of the categorical distribution simplifies
+beautifully, because only the true class has $y_j = 1$:
+
+$$
+-\log \mathcal{L} = -\log \hat{p}_{\text{true class}} = -z_{\text{true}} + \log \sum_m e^{z_m}
+$$
+
+```python run title="cross-entropy is the negative log of one number"
+logits = np.array([2.0, 1.0, 0.1])
+true = 0
+
+probs = np.exp(logits - logits.max()); probs /= probs.sum()
+print("softmax probs   :", probs.round(4))
+print("loss (long way) :", round(-np.log(probs[true]), 4))
+print("loss (stable)   :", round(-logits[true] + logits.max()
+                                 + np.log(np.exp(logits - logits.max()).sum()), 4))
+print("\nonly the true class's probability appears. the rest matter only")
+print("through the denominator, which is what makes them compete.")
+```
+
+Note that second computation. That's the **log-sum-exp** trick — subtract the max
+before exponentiating, add it back outside the log. Mathematically identical,
+numerically survivable.
+
+It's exactly why `nn.CrossEntropyLoss` insists on taking logits rather than
+probabilities: it needs the raw numbers to do this safely, and if you softmax
+first you've already thrown away the ability.
+
+Chapter 10 told you that as a rule. Now you know it as a consequence.
+
+## Deriving a loss nobody handed you
+
+Here's the actual capability this unlocks. Suppose you're predicting **counts** —
+support tickets per day, defects per batch, arrivals per hour.
+
+MSE is a poor fit: counts can't be negative, their variance grows with their mean,
+and their distribution is skewed. Gaussian noise is simply the wrong claim.
+
+The right assumption is **Poisson**, with the model predicting the rate
+$\lambda$:
+
+$$
+p(y \mid \lambda) = \frac{\lambda^y e^{-\lambda}}{y!}
+$$
+
+Take the log, negate, drop the $\log y!$ term (it has no $\theta$ in it):
+
+$$
+\text{loss} = \lambda - y \log \lambda
+$$
+
+That's the Poisson loss, derived in two lines by somebody who knows the recipe.
+
+```python run title="Poisson loss, derived and used"
+rng = np.random.default_rng(1)
+x = rng.uniform(0, 4, 300)
+counts = rng.poisson(np.exp(0.4 + 0.5 * x))     # true log-rate is linear in x
+
+def fit_poisson(x, y, steps=3000, lr=0.05):
+    """Model log(rate) as linear. Loss = lambda - y*log(lambda)."""
+    w = np.zeros(2); X = np.column_stack([np.ones(len(x)), x])
+    for _ in range(steps):
+        lam = np.exp(X @ w)
+        w -= lr * (X.T @ (lam - y)) / len(y)     # gradient of the Poisson NLL
+    return w
+
+w = fit_poisson(x, counts)
+w_mse = np.linalg.solve(np.column_stack([np.ones(len(x)), x]).T @ np.column_stack([np.ones(len(x)), x]),
+                        np.column_stack([np.ones(len(x)), x]).T @ counts)
+print(f"truth:            log-rate = 0.40 + 0.50x")
+print(f"Poisson fit:      log-rate = {w[0]:.2f} + {w[1]:.2f}x")
+print(f"\nnaive MSE fit on raw counts: {w_mse[0]:.2f} + {w_mse[1]:.2f}x")
+print("(which models the count directly, and will happily predict negatives)")
+print("MSE prediction at x=0:", round(w_mse[0], 2),
+      " Poisson prediction at x=0:", round(np.exp(w[0]), 2))
+```
+
+Notice the gradient in that loop: `X.T @ (lam - y) / n`.
+
+Prediction minus target. **Again.** The same expression you derived for linear
+regression in chapter 5 and for logistic regression ten minutes later.
+
+<Wonder title="Why that keeps happening">
+This isn't a coincidence, and it's rather beautiful.
+
+Gaussian, Bernoulli, Poisson, and a handful of others all belong to a family
+called the **exponential family**. For any member of it, paired with its natural
+link function, the gradient of the negative log-likelihood comes out as exactly:
+
+$$
+X^\top(\hat{y} - y)
+$$
+
+Every time. Prediction minus target, projected back through the inputs.
+
+That's why the code in chapters 4, 5 and this page keeps looking the same. It's
+not that I reused a template — it's that a single theorem covers all of them, and
+you've now met it three times empirically before meeting it once formally.
+
+This family is called **generalised linear models**, it was worked out in 1972 by
+Nelder and Wedderburn, and it quietly underpins an enormous amount of applied
+statistics. Logistic regression, Poisson regression, linear regression and
+several others are one model with a swappable assumption.
+
+There's something I find genuinely satisfying about that. Three losses that look
+unrelated, three gradients that turn out identical, one principle underneath. The
+tidiness was there the whole time; we just met the special cases first.
+</Wonder>
+
+## What to take away
+
+**The recipe, in four steps:**
+
+1. Ask what distribution your target plausibly follows.
+2. Write down its probability for one observation.
+3. Take the log, sum over data, negate.
+4. Drop anything without $\theta$ in it.
+
+**The practical version:**
+
+<div class="table-scroll">
+
+| Your target is | Assume | You get |
+|---|---|---|
+| a real number, symmetric noise | Gaussian | squared error |
+| a real number, outliers present | Laplace | absolute error |
+| yes/no | Bernoulli | binary cross-entropy |
+| one of k classes | Categorical | cross-entropy |
+| a count | Poisson | $\lambda - y\log\lambda$ |
+| a positive skewed quantity | Gamma / log-normal | often: MSE on $\log y$ |
+| a duration, possibly censored | Exponential / Weibull | survival losses |
+
+</div>
+
+And the meta-point, which matters more than the table: **the loss encodes an
+assumption about your data, whether or not you chose it deliberately.**
+
+Reaching for MSE by default is a decision. It's usually a fine one. But it's a
+decision, and now you can make it on purpose — or make a different one, and derive
+what follows.

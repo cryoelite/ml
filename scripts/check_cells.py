@@ -46,6 +46,12 @@ if not os.environ.get("SSL_CERT_FILE"):
 
 ROOT = Path(__file__).resolve().parent.parent
 CHAPTERS = ROOT / "src" / "content" / "chapters"
+EXTRAS = ROOT / "src" / "content" / "extras"
+
+# Both collections hold runnable prose, and both have to keep working. Extras are
+# checked with the same namespace-per-file rule as chapters, since a reader
+# opening one runs it top to bottom in exactly the same way.
+SOURCES = [CHAPTERS, EXTRAS]
 
 # ```python run [flags]\n ... \n```
 FENCE = re.compile(
@@ -141,12 +147,15 @@ def run_chapter(path: Path, deep: bool) -> tuple[int, int, int]:
 def main() -> int:
     ap = argparse.ArgumentParser()
     ap.add_argument("--deep", action="store_true", help="also run cells that need PyTorch")
-    ap.add_argument("--only", default="", help="substring filter on the chapter filename")
+    ap.add_argument("--only", default="", help="substring filter on the filename")
     args = ap.parse_args()
 
-    paths = sorted(p for p in CHAPTERS.glob("*.mdx") if args.only in p.name)
+    paths = []
+    for base in SOURCES:
+        if base.is_dir():
+            paths += sorted(p for p in base.glob("*.mdx") if args.only in p.name)
     if not paths:
-        print("no chapters matched")
+        print("nothing matched")
         return 1
 
     totals = [0, 0, 0]

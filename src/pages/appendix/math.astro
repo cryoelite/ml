@@ -3,6 +3,7 @@ import { getCollection, render } from "astro:content";
 import Doc from "../../layouts/Doc.astro";
 import katex from "katex";
 import { inlineCode } from "../../lib/inline";
+import Doodle from "../../components/Doodle.astro";
 
 const entries = (await getCollection("math")).sort((a, b) =>
   a.data.title.localeCompare(b.data.title),
@@ -19,13 +20,28 @@ const tex = (src: string, display = false) =>
   current="appendix-math"
   description="Every formula the tutorial uses, with its symbols named and its derivation available but never required."
 >
-  <h1>The maths, derived</h1>
-  <p class="lede">
-    Not a maths course. Every formula the chapters lean on, with each symbol
-    named — because the thing that actually stops people reading papers is not
-    the difficulty of the maths, it is that nobody says out loud what
-    <span set:html={tex("\\theta")} /> or <span set:html={tex("\\nabla")} /> is
-    supposed to be.
+  <div class="opener">
+    <div>
+      <h1>The maths, derived</h1>
+      <p class="lede">
+        Not a maths course. Every formula the chapters lean on, with every symbol
+        named out loud.
+      </p>
+    </div>
+    <div class="opener__art"><Doodle name="pipThink" /></div>
+  </div>
+
+  <p>
+    That last part is the whole point of this page. The thing that actually stops
+    people reading papers is rarely the difficulty of the mathematics — it&rsquo;s
+    that nobody ever says what <span set:html={tex("\\theta")} /> or
+    <span set:html={tex("\\nabla")} /> is <em>supposed to be</em>, and everyone
+    is too polite to ask on page three.
+  </p>
+
+  <p>
+    So every entry here names its symbols. No formula appears without a
+    translation, and the derivations are available and never required.
   </p>
 
   <div class="filterbar">

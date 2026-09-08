@@ -1,6 +1,6 @@
 ---
 title: "The model zoo (and why it isn't all neural networks)"
-blurb: "Trees, forests, boosting and nearest neighbours — what each one assumes, and the uncomfortable fact that on tabular data they still win."
+blurb: "Trees, forests, boosting and nearest neighbours — what each one quietly assumes, and the uncomfortable fact that on tabular data they still win."
 order: 7
 day: 7
 part: foundations
@@ -9,12 +9,18 @@ introduces: ["family", "trees", "cart", "rf", "gbm", "knn", "svm", "bayes"]
 ---
 
 You now have the machinery: a model, a loss, an optimiser, and a validation set
-that does not lie. Today, the second axis of
-[the map](/map/) — what shape the learned function can take.
+that doesn't lie to you. Today we do the second axis of [the map](/map/) — what
+*shape* the learned function is allowed to take.
 
-The uncomfortable headline first, because it will save you months: **on ordinary
-tabular data, gradient-boosted trees usually beat neural networks.** Not
-sometimes. Usually. If your data is a spreadsheet, start there.
+Let me give you the uncomfortable headline first, because it can genuinely save
+you months:
+
+**On ordinary tabular data, gradient-boosted trees usually beat neural
+networks.**
+
+Not sometimes. Usually. If your data is a spreadsheet, start there. We'll spend
+the middle of this chapter on exactly why, because the reasons are concrete and
+knowing them will make you better at choosing.
 
 ## Everything shares one interface
 
@@ -28,9 +34,9 @@ X_tr, X_va, y_tr, y_va = train_test_split(X, y, test_size=0.3, random_state=0, s
 print(X_tr.shape, y_tr.shape)
 ```
 
-<Py id="fit-predict">`fit` and `predict`</Py> — that is the entire scikit-learn
-API, and it is why comparing five model families is a for-loop rather than a
-project.
+<Py id="fit-predict">`fit` and `predict`</Py>. That's the entire scikit-learn
+API — and it's why comparing five completely different model families is a
+for-loop rather than a project.
 
 ```python run title="five families, one loop"
 from sklearn.linear_model import LogisticRegression
@@ -54,7 +60,7 @@ for name, m in models.items():
     print(f"{name:22s} train {m.score(X_tr, y_tr):.3f}   valid {m.score(X_va, y_va):.3f}")
 ```
 
-Now the useful part — not the numbers, but the *shapes of the decisions*.
+Now — the numbers are the boring part. Here's the interesting part.
 
 ```python run title="what each family can express"
 import matplotlib.pyplot as plt
@@ -72,28 +78,45 @@ for ax, (name, m) in zip(axes.flat, fitted.items()):
 plt.tight_layout()
 ```
 
-Stare at that grid for a minute — it is the most informative picture in this
-chapter.
+Please stare at that grid for a minute. It's the most informative picture in the
+chapter, and possibly in the week.
 
-Logistic regression can only draw a **straight line**, so it fails on two
-interleaved crescents no matter how long you train it. The decision tree draws
-**axis-aligned rectangles**, which is why its boundary is a staircase. The
-forest averages many staircases and gets something smoother. The SVM with an RBF
-kernel draws a **smooth curve**. k-NN draws a boundary that follows the data
-itself, wobbles and all.
+You're looking at six different *ways of carving up space*, and each one is
+telling you something about what that model can and cannot think.
+
+**Logistic regression** can only draw a straight line. So it fails on two
+interleaved crescents, and it will keep failing no matter how long you train it
+or how much data you give it. It isn't undertrained. It's incapable.
+
+**The decision tree** draws axis-aligned rectangles — which is why its boundary
+is a staircase. It can only ever say "is this feature above or below a number?",
+so diagonal boundaries have to be approximated in steps.
+
+**The forest** averages many staircases and gets something noticeably smoother.
+
+**The SVM with an RBF kernel** draws a smooth curve, because that's what its
+maths produces.
+
+**k-NN** draws a boundary that follows the data itself, wobbles and all — because
+it *is* the data.
 
 <Aside type="key">
-Each family has an **inductive bias** — the shape of function it prefers before
-seeing any data. Choosing a model family is choosing an assumption about the
-world. When the assumption fits, you need very little data; when it does not, no
-amount of data rescues you.
+Each family has an **inductive bias**: the shape of function it prefers before it
+has seen a single data point.
+
+So choosing a model family is choosing an assumption about the world. And that
+matters enormously, because when the assumption fits you need very little data —
+and when it doesn't, no amount of data will rescue you. Logistic regression will
+never learn a crescent, not with a billion examples.
 </Aside>
 
 ## Decision trees
 
-A tree is nested `if` statements, chosen greedily. At each node it asks: over
-every feature and every threshold, which single split most reduces the impurity
-of the two resulting groups?
+A tree is nested `if` statements, chosen greedily. At each node it asks a single
+question: across every feature and every possible threshold, which one split most
+reduces the impurity of the two groups it creates?
+
+Then it does that again on each half. That's the whole algorithm.
 
 ```python run title="a tree you can read"
 from sklearn.tree import export_text
@@ -101,25 +124,35 @@ t = DecisionTreeClassifier(max_depth=2, random_state=0).fit(X_tr, y_tr)
 print(export_text(t, feature_names=["x0", "x1"]))
 ```
 
-That is the whole model — printed, auditable, explainable to a regulator. No
-other family gives you that for free.
+That's the *entire model*. Printed. Readable. Auditable. Explainable to a
+regulator, a colleague, or your future self at 2am.
+
+No other family on this page gives you that for free, and it's worth more than
+people give it credit for.
 
 <Aside type="rust">
-A fitted tree really is
-`enum Node { Leaf(Class), Split { feature: usize, thresh: f64, lt: Box<Node>, ge: Box<Node> } }`,
-and inference is the obvious recursive match. Training is the interesting part: a
-greedy search over `(feature, threshold)` pairs, scoring each by how much it
-purifies the children.
+A fitted tree really is:
 
-It is greedy and therefore not optimal — a split that looks poor now might enable
-two excellent splits below it, and the tree will never find out. Finding the
-optimal tree is NP-hard, which is why nobody does.
+`enum Node { Leaf(Class), Split { feature: usize, thresh: f64, lt: Box<Node>, ge: Box<Node> } }`
+
+and inference is exactly the recursive match you'd write without thinking.
+
+Training is the interesting half: a greedy search over `(feature, threshold)`
+pairs, scoring each by how much it purifies the children.
+
+And note *greedy* — therefore not optimal. A split that looks mediocre right now
+might have enabled two brilliant splits below it, and the tree will never find
+out, because it already committed. Finding the genuinely optimal tree is NP-hard,
+which is why nobody does it and everybody uses the greedy version quite happily.
 </Aside>
 
-Trees are scale-invariant (splitting on `sqm > 80` does not care what the units
-are), handle mixed types naturally, and are unbothered by monotonic
-transformations. They are also **catastrophically prone to overfitting**: an
-unconstrained tree will grow until every leaf holds one training row.
+Trees have some lovely practical properties. They're scale-invariant — splitting
+on `sqm > 80` doesn't care whether you measured in square metres or square feet.
+They handle mixed types naturally. They're unbothered by monotonic
+transformations, so taking a log of a feature changes nothing.
+
+They are also **catastrophically prone to overfitting**. An unconstrained tree
+will happily grow until every leaf contains exactly one training row.
 
 ```python run title="depth is the whole hyperparameter"
 for d in [1, 2, 3, 5, 10, None]:
@@ -128,23 +161,30 @@ for d in [1, 2, 3, 5, 10, None]:
           f"   leaves {m.get_n_leaves():4d}")
 ```
 
-Perfect training accuracy, mediocre validation accuracy: the memorisation from
-[yesterday](/learn/06-generalisation/), in its purest form.
+Perfect training accuracy, mediocre validation accuracy, hundreds of leaves.
+That's yesterday's [memorisation](/learn/06-generalisation/) in its purest form —
+and this time you can count it, one leaf per memorised row.
 
 ## Ensembles: the two ways to combine trees
 
-If one tree overfits, the fix is not a better tree — it is many trees, combined.
-There are exactly two strategies, and they are opposites.
+So if one tree overfits, what do you do?
 
-**Bagging (random forest): average many independent overfitters.** Train each
-tree on a bootstrap sample of the rows and let each split consider only a random
-subset of features. Every tree overfits differently, and averaging cancels the
-individual mistakes while keeping what they agree on.
+The answer isn't a better tree. It's *many* trees, combined. And there are
+exactly two strategies for combining them, which are — rather satisfyingly —
+opposites of each other.
 
-**Boosting: build a sequence, each fixing the last one's mistakes.** Fit a small
-tree. Look at what it got wrong. Fit the next tree to *those residuals*. Repeat
-several hundred times, adding each new tree's contribution scaled by a small
-learning rate.
+**Bagging (random forest): average many independent overfitters.**
+
+Train each tree on a bootstrap sample of the rows, and let each split consider
+only a random subset of the features. Every tree overfits, but every tree
+overfits *differently*. Averaging cancels the individual mistakes and keeps only
+what they agree on.
+
+**Boosting: build a sequence, each one fixing the last one's mistakes.**
+
+Fit a small tree. Look at what it got wrong. Fit the next tree specifically to
+*those residuals*. Repeat a few hundred times, adding each new tree's
+contribution scaled down by a small learning rate.
 
 ```python run title="bagging versus boosting"
 for n in [1, 5, 25, 200]:
@@ -153,56 +193,76 @@ for n in [1, 5, 25, 200]:
     print(f"{n:3d} trees   forest {rf.score(X_va, y_va):.3f}    boosting {gb.score(X_va, y_va):.3f}")
 ```
 
-The difference in character matters. A forest cannot really overfit by adding
-trees — more trees just means a better average, so `n_estimators` is a
-compute budget rather than a hyperparameter. Boosting *can* overfit by adding
-trees, because each one is deliberately chasing the remaining error, including
-the error that is noise. Boosting needs early stopping; forests do not.
+The difference in *character* is the thing to keep, and it has a practical
+consequence you'll use constantly:
+
+A forest can't really overfit by adding trees. More trees just means a better
+average of the same thing — so `n_estimators` is a compute budget, not a
+hyperparameter. Set it as high as you can afford and stop thinking about it.
+
+Boosting **can** overfit by adding trees, because each new tree is deliberately
+chasing the remaining error — and some of the remaining error is noise. So
+boosting needs early stopping and forests don't.
 
 <Aside type="nice">
 XGBoost, LightGBM and CatBoost are all gradient boosting with different
-engineering: better handling of missing values, categorical features, and
-histogram-based splitting for speed. scikit-learn's
-`HistGradientBoostingClassifier` is a LightGBM-style implementation in the
-standard library and is genuinely competitive, which is why it is used here.
+engineering underneath: better handling of missing values, native categorical
+features, histogram-based splitting for speed.
+
+scikit-learn's `HistGradientBoostingClassifier` is a LightGBM-style
+implementation sitting in the standard library, and it's genuinely competitive —
+which is why this chapter uses it rather than making you install anything.
 
 Between roughly 2015 and 2020, gradient-boosted trees won the overwhelming
-majority of Kaggle competitions on tabular data. They still do.
+majority of Kaggle competitions on tabular data. They still do. There is a whole
+generation of very good data scientists whose main tool is a tree.
 </Aside>
 
 ## Why trees still beat neural networks on tables
 
-This surprises people who have absorbed the "deep learning solved everything"
-story, and the reasons are concrete.
+This genuinely surprises people who've absorbed the "deep learning solved
+everything" story. The reasons are concrete, and I think they're worth
+understanding rather than memorising.
 
-**Tabular features have no geometry.** A convolutional network assumes nearby
-pixels are related; a transformer assumes nearby tokens are related. In a
-spreadsheet, column 3 and column 4 have no relationship whatsoever — the ordering
-is an accident of whoever wrote the CSV. Neural networks have no structural prior
-to exploit, so they are starting from further back.
+**Tabular features have no geometry.**
+
+A convolutional network assumes nearby pixels are related — and they are. A
+transformer assumes nearby tokens are related — and they are. But in a
+spreadsheet, column 3 and column 4 have no relationship whatsoever. The ordering
+is an accident of whoever wrote the CSV.
+
+So the neural network has no structural prior to exploit. It starts from further
+back and has to learn from scratch what a tree gets for free.
 
 **Trees handle irregularity natively.** Skewed distributions, outliers, missing
-values, mixed scales, and features that matter only above a threshold — a tree
-splits and moves on. A neural network needs all of that normalised away by hand.
+values, wildly different scales, features that only matter above a threshold — a
+tree just splits and moves on. A neural network needs all of that normalised away
+by hand, first, by you.
 
 **The target is often genuinely piecewise-constant.** "Approve the loan if income
-> X and history > Y" is a step function. Trees are step functions. Neural
-networks approximate steps with smooth activations and use capacity doing it.
+> X and credit history > Y" is a step function. Trees *are* step functions.
+Neural networks have to approximate a step using smooth activations, and they
+spend capacity doing it.
 
-**You usually have thousands of rows, not millions.** Deep learning's advantage
-appears at scale that tabular datasets rarely reach.
+**You usually have thousands of rows, not millions.** Deep learning's real
+advantage shows up at a scale that most tabular datasets simply never reach.
 
 <Aside type="key">
-The practical rule: **if your data is a table, start with gradient boosting.** If
-your data is pixels, audio, text, or graph structure, start with a neural
-network. That single sentence would improve a large number of production
-projects.
+The practical rule, and it's short:
+
+**If your data is a table, start with gradient boosting. If your data is pixels,
+audio, text, or graph structure, start with a neural network.**
+
+That one sentence would meaningfully improve a large number of production
+machine learning projects currently underway.
 </Aside>
 
 ## k-nearest neighbours
 
-No training at all: remember the data, and to predict, find the k most similar
-stored examples and take a vote.
+Here's a model with no training step at all. It remembers the data. To predict,
+it finds the k most similar stored examples and takes a vote.
+
+That's it. There is no fitting. `fit()` is essentially a variable assignment.
 
 ```python run title="k controls the smoothing"
 for k in [1, 5, 25, 100]:
@@ -210,21 +270,34 @@ for k in [1, 5, 25, 100]:
     print(f"k={k:3d}   train {m.score(X_tr, y_tr):.3f}   valid {m.score(X_va, y_va):.3f}")
 ```
 
-`k=1` has perfect training accuracy by definition — every point's nearest
-neighbour is itself. As `k` grows the boundary smooths, and eventually
-oversmooths into the majority class.
+`k=1` has perfect training accuracy *by definition* — every point's nearest
+neighbour is itself, so it always votes correctly for its own label. That's a
+nice little illustration of why training accuracy can be completely
+uninformative.
 
-Three things make it worth knowing despite its simplicity. It requires
-<M id="norm">a distance</M>, so features must be on comparable scales or the
-largest-magnitude one dominates. It degrades badly in high dimensions, where
-everything is roughly equidistant from everything else. And it is the conceptual
-basis of **vector search** — every embedding-based retrieval system, including
-the retrieval half of RAG, is k-NN with a learned distance and a clever index.
+As `k` grows the boundary smooths out, and eventually oversmooths into "always
+predict the majority."
+
+Three things make k-NN worth knowing despite its simplicity.
+
+It requires <M id="norm">a distance</M>, so features have to be on comparable
+scales — otherwise whichever column happens to have the largest numbers
+completely dominates the geometry.
+
+It degrades badly in high dimensions, where a strange thing happens: everything
+becomes roughly equidistant from everything else, and "nearest" stops meaning
+much.
+
+And — this is the reason it earns its place here — it's the conceptual basis of
+**vector search**. Every embedding-based retrieval system you've heard of,
+including the retrieval half of RAG, is k-NN with a learned distance and a clever
+index. You'll build the learned-distance half in chapter 12.
 
 ## Support vector machines, briefly
 
-Find the boundary with the widest margin between classes, and — the clever part —
-compute distances in a high-dimensional space you never actually construct.
+Find the boundary with the widest margin between the classes — and then, the
+clever part, compute distances in a high-dimensional space you never actually
+construct.
 
 ```python run title="the kernel is the assumption"
 for kern in ["linear", "poly", "rbf"]:
@@ -232,24 +305,44 @@ for kern in ["linear", "poly", "rbf"]:
     print(f"{kern:7s} kernel   valid {m.score(X_va, y_va):.3f}")
 ```
 
-<Reveal title="The kernel trick, in one paragraph" kind="math">
+<Wonder title="The kernel trick">
+This is one of the genuinely beautiful ideas in machine learning, and it takes
+one paragraph.
 
-Many algorithms only ever touch the data through
-<M id="dot-product">dot products</M> $x_i \cdot x_j$. If you wanted to work in a
-richer feature space $\phi(x)$, you would need $\phi(x_i) \cdot \phi(x_j)$ — and
-for well-chosen $\phi$ there is a function $K$ that computes that dot product
-*directly from $x_i$ and $x_j$*, without ever forming $\phi(x)$.
+Notice that many algorithms only ever touch the data through
+<M id="dot-product">dot products</M> — $x_i \cdot x_j$ and nothing else. They
+never need the individual coordinates.
 
-The RBF kernel $K(x_i, x_j) = \exp(-\gamma\|x_i - x_j\|^2)$ corresponds to a
-$\phi$ with infinitely many dimensions. You get an infinite-dimensional feature
-space for the price of one exponential.
+Now suppose you wanted to work in some much richer feature space $\phi(x)$ —
+maybe with all the squares and cross-terms, maybe with a thousand dimensions.
+You'd need $\phi(x_i) \cdot \phi(x_j)$.
 
-This was the dominant idea in machine learning from roughly 1995 to 2012, and it
-is genuinely elegant. It lost because it scales badly — the kernel matrix is
-$n \times n$, so a million examples means a $10^{12}$-entry matrix — and because
-deep learning turned out to *learn* the useful feature map rather than requiring
-you to choose it.
-</Reveal>
+Here's the trick: for well-chosen $\phi$, there's a function $K$ that computes
+that dot product **directly from $x_i$ and $x_j$**, without ever building
+$\phi(x)$ at all.
+
+And now the part that made me sit up when I first met it. The RBF kernel
+
+$$K(x_i, x_j) = \exp(-\gamma\|x_i - x_j\|^2)$$
+
+corresponds to a $\phi$ with **infinitely many dimensions**.
+
+You get an infinite-dimensional feature space for the price of one exponential.
+You never build it, you never store it, you never touch a single one of its
+coordinates — and yet you get to work in it.
+
+This was the dominant idea in machine learning from roughly 1995 to 2012, and I
+think it deserves a moment of appreciation even though it lost.
+
+Why it lost is instructive, mind you. The kernel matrix is $n \times n$, so a
+million examples means a matrix with $10^{12}$ entries — it simply doesn't scale.
+And deep learning turned out to *learn* a useful feature map from the data
+instead of requiring a human to choose one cleverly in advance.
+
+An infinitely-clever fixed answer lost to a finitely-clever learned one. That
+happens a lot in this field, and it's worth remembering when you're tempted to be
+clever.
+</Wonder>
 
 ## Which to reach for
 
@@ -259,13 +352,37 @@ you to choose it.
 |---|---|---|
 | Tabular, any size | gradient boosting | Best accuracy per hour of your time, by a distance |
 | Tabular, must be explainable | a shallow tree, or logistic regression | You can print the whole model |
-| A strong, honest baseline | logistic / linear regression | Two lines, and everything else must beat it |
-| Images, audio, video | pretrained neural network | Structure in the input to exploit |
+| A strong, honest baseline | logistic / linear regression | Two lines, and everything else has to beat it |
+| Images, audio, video | pretrained neural network | There's structure in the input to exploit |
 | Text | pretrained transformer | Same |
-| Very few rows (< 500) | linear model, or k-NN | Anything flexible will memorise |
-| Similarity / retrieval | embeddings + k-NN | This is what vector databases are |
+| Very few rows (< 500) | linear model, or k-NN | Anything flexible will just memorise |
+| Similarity / retrieval | embeddings + k-NN | This is what a vector database is |
 
 </div>
+
+<Stuck>
+**"Why does the random forest score differently every time I add trees?"** It
+shouldn't, if `random_state` is set — that fixes the bootstrap samples and the
+feature subsets. If you're seeing wobble, check you passed it.
+
+**"What's the difference between `n_estimators` and `max_iter`?"** Same idea,
+different libraries' names. Forests count trees with `n_estimators`; the boosting
+implementation counts boosting rounds with `max_iter`. Both mean "how many trees."
+
+**"`stratify=y` — what does that do?"** It makes the split preserve the class
+proportions. Without it, a random split of an imbalanced dataset can hand you a
+validation set with almost none of the minority class, and your metric becomes
+noise.
+
+**"The SVM took ages on my dataset."** That's the $n \times n$ kernel matrix from
+the fold above. SVMs are excellent up to a few tens of thousands of rows and
+painful beyond. It's not you.
+
+**"I don't understand what 'impurity' means."** It's a measure of how mixed a
+group's labels are. A group that's all one class has zero impurity; a 50/50 group
+has maximum impurity. The tree picks the split that most reduces it, which is
+just a formal way of saying "the question that best separates the classes."
+</Stuck>
 
 ## Feature importance, and its limits
 
@@ -278,27 +395,36 @@ for i in order:
     print(f"{d.feature_names[i]:26s} {rf.feature_importances_[i]:.3f}")
 ```
 
-Genuinely useful — it tells you what to collect more of, and what to drop. But
-treat it with suspicion.
+Genuinely useful. It tells you what to go and collect more of, and what you can
+stop collecting entirely.
 
-Built-in importance is biased toward high-cardinality features, because a
-continuous feature offers more possible split points than a binary one. And it
-splits credit arbitrarily between correlated features: if two columns say almost
-the same thing, the forest uses each about half the time and both look
-half-important, which can read as "neither matters".
+But treat it with a healthy suspicion, for two reasons.
+
+Built-in importance is **biased toward high-cardinality features**, because a
+continuous feature offers far more possible split points than a binary one, and
+more chances to look good.
+
+And it **splits credit arbitrarily between correlated features**. If two columns
+say almost the same thing, the forest uses each about half the time — so both
+look half as important as they are, which can easily read as "neither of these
+matters." Drop them both and watch your model collapse.
 
 <Aside type="warn">
-Feature importance is **not** causation and not far off being a trap. "Number of
-support tickets" being the top predictor of churn does not mean tickets cause
-churn — it means unhappy people file tickets *and* leave. Removing the ticket
-system will not help.
+Feature importance is **not causation**, and it's not far off being a trap.
 
-For anything more careful, look at permutation importance (shuffle one column,
-see how much the score drops) or SHAP values. Both are more honest, and both are
-still correlational.
+"Number of support tickets" being your top predictor of churn does not mean
+tickets cause churn. It means unhappy people file tickets *and* leave. Removing
+the ticket system will not retain a single customer — though it will destroy your
+model, and possibly your ability to notice the problem at all.
+
+For something more careful, look at permutation importance (shuffle one column,
+see how much the score drops) or SHAP values. Both are considerably more honest.
+
+Both are also still correlational. Causation needs a different toolkit and often
+an actual experiment.
 </Aside>
 
-## Exercise
+<TryThis title="Does the fanciest model win?" reveal="Show solutions, and the point of question 4">
 
 ```python run title="your turn"
 # A small, real, bundled regression dataset — no download required.
@@ -322,7 +448,13 @@ Xd_tr, Xd_va, yd_tr, yd_va = train_test_split(d.data, d.target, test_size=0.3, r
 print("replace me")
 ```
 
-<Reveal title="Solutions, and the point of question 4" kind="deep">
+<Fragment slot="hint">
+Question 4 is the real one. Before you run it, predict which model you think will
+suffer most — and *why*. Think about what a tree has to do at every single split
+when you hand it twenty useless columns.
+</Fragment>
+
+<Fragment slot="answer">
 
 ```python run
 rng = np.random.default_rng(0)
@@ -347,22 +479,31 @@ for name, m in models.items():
     print(f"  {name:9s} R^2 {m.score(Xn_va, yd_va):.3f}")
 ```
 
-Two lessons.
+Two lessons, and I like both of them.
 
 **The fancy model does not always win.** On 353 training rows with 10 features,
-plain linear regression is competitive with and often beats both ensembles. Small
-data favours strong assumptions. Reaching for boosting reflexively is as much a
-mistake as reaching for a neural network reflexively.
+plain linear regression is competitive with — and often beats — both ensembles.
+
+Small data favours strong assumptions. That's the whole story. Reaching
+reflexively for boosting is exactly as much a mistake as reaching reflexively for
+a neural network; it's just a more fashionable mistake.
 
 **Noise columns hurt, and they hurt unevenly.** Trees have to consider every
-column at every split, so useless features actively dilute the search — some
-splits get spent on noise that happened to look informative in this sample.
-Regularised linear models handle it better because the penalty pushes useless
-coefficients toward zero.
+column at every split, so useless features actively *dilute the search* — some
+splits get spent on noise that happened to look informative in this particular
+sample. The tree can't know it was fooled.
 
-This is why feature selection is still a real activity in 2026 and did not go
-away with deep learning. It just moved to a different part of the stack.
-</Reveal>
+Regularised linear models cope better, because the penalty pushes useless
+coefficients toward zero and they stop mattering.
 
-That is the classical toolkit. Tomorrow the other branch: what happens when you
-stop choosing features and let the model learn them.
+Which is why feature selection is still a real activity in 2026, and did not
+quietly go away with deep learning. It just moved to a different part of the
+stack.
+</Fragment>
+</TryThis>
+
+That's the classical toolkit — and it's a genuinely good one that will solve a
+great many real problems.
+
+Tomorrow we take the other branch: what happens when you stop choosing features
+by hand, and let the model learn them for you.

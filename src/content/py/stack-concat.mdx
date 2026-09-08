@@ -1,0 +1,29 @@
+---
+title: 'stacking and concatenating'
+lib: 'numpy'
+summary: 'Join arrays along an existing axis (concatenate) or along a brand new one (stack). Confusing them is a shape bug.'
+signature: 'np.concatenate([a, b], axis=0)   |   np.stack([a, b], axis=0)'
+example: |-
+  a, b = np.ones((2, 3)), np.zeros((2, 3))
+  np.concatenate([a, b], axis=0).shape, np.stack([a, b]).shape
+output: '((4, 3), (2, 2, 3))'
+rust: '`concat` is `a.extend(b)` on the outer dimension. `stack` is collecting into a `Vec<[[f64; 3]; 2]>` — one more level of nesting than you started with.'
+docs: 'https://numpy.org/doc/stable/reference/generated/numpy.stack.html'
+docsLabel: 'numpy.stack ↗'
+---
+
+The distinction, once:
+
+- **`concatenate`** joins along an axis that already exists. Two `(2, 3)` arrays
+  become one `(4, 3)`. The number of dimensions does not change.
+- **`stack`** creates a new axis. Two `(2, 3)` arrays become `(2, 2, 3)`. The
+  number of dimensions goes up by one.
+
+`np.column_stack` is the convenience you want when building a design matrix — it
+takes a list of 1-D columns and gives you `(n, k)`, which is what
+[chapter 4's bias trick](/learn/04-your-first-model/) uses. `np.hstack` and
+`np.vstack` are older spellings that guess the axis for you, and the guessing is
+why people prefer the explicit versions.
+
+PyTorch calls them `torch.cat` and `torch.stack`, with identical semantics and a
+shorter name for the one you use more.

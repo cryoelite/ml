@@ -1,0 +1,267 @@
+---
+title: "Making it fast enough to ship"
+blurb: "Quantisation, distillation, batching and caching. A trained model is rarely a deployable one, and the gap is bridged with a handful of techniques that trade accuracy you don't need for latency you do."
+order: 32
+minutes: 13
+kind: "craft"
+after: "16-shipping-and-reading-papers"
+covers: ["deploy"]
+---
+
+Chapter 16 said a model is a function and you know how to ship functions. True —
+and it skipped the part where the function is 400 MB, takes 800 ms per call, and
+your budget is 50 ms.
+
+This is that gap. The good news is that the techniques are few, they compose, and
+the first two are nearly free.
+
+## First: measure the right thing
+
+```python run setup title="latency is a distribution, not a number"
+import numpy as np
+rng = np.random.default_rng(0)
+
+# A realistic latency profile: mostly fast, with a tail.
+latencies = np.concatenate([
+    rng.gamma(4, 6, 9500),          # the common case
+    rng.gamma(4, 40, 500),          # cache misses, GC pauses, cold starts
+])
+
+print(f"mean    {latencies.mean():7.1f} ms")
+for q in [50, 90, 95, 99, 99.9]:
+    print(f"p{q:<5}  {np.percentile(latencies, q):7.1f} ms")
+print(f"max     {latencies.max():7.1f} ms")
+```
+
+Look at the gap between the mean and p99. The mean says 31 ms and everything is
+fine. But one request in a hundred takes over 200 ms — roughly **seven times the
+mean, and nine times the median**.
+
+**Quote p95 and p99, never the mean.** If a page makes ten model calls, its
+slowest call dominates — and with ten calls, hitting the p99 at least once is
+close to a coin flip.
+
+And measure the whole path. Tokenisation, feature lookup, network hops and
+deserialisation are frequently larger than the model's forward pass, and no
+amount of model optimisation touches them.
+
+<Aside type="key">
+Before optimising anything, find out where the time goes. The usual outcome
+surprises people:
+
+- Feature fetching from a database: often the largest single item
+- Preprocessing (tokenising, resizing, normalising): usually underestimated
+- The actual forward pass: frequently a minority of total latency
+- Postprocessing and serialisation: small but not zero
+
+Optimising a forward pass that's 20% of your latency caps your improvement at
+20%. Profile first. This is ordinary engineering discipline and it applies here
+unchanged.
+</Aside>
+
+## Batching: the biggest free win
+
+A GPU processing one input at a time is almost entirely idle. It's built for
+parallel arithmetic and you're giving it one thing to do.
+
+```python run title="throughput against batch size"
+# Cost model: a fixed per-call overhead plus work proportional to the batch.
+OVERHEAD_MS, PER_ITEM_MS = 8.0, 0.35
+
+print(f"{'batch':>6s} {'latency':>10s} {'throughput':>14s} {'per item':>11s}")
+for b in [1, 4, 16, 64, 256]:
+    latency = OVERHEAD_MS + PER_ITEM_MS * b
+    print(f"{b:6d} {latency:8.1f} ms {b / latency * 1000:11.0f}/s "
+          f"{latency / b:9.2f} ms")
+```
+
+Batch 1 gives you about 120 requests per second. Batch 64 gives you about 2,100 —
+seventeen times the throughput on identical hardware.
+
+The trade is **latency for throughput**: batch 64 takes 30 ms rather than 8, so
+each individual request waits longer while the system serves far more of them.
+
+Production servers do **dynamic batching**: collect requests for a few
+milliseconds, run them together. That window is a tuning knob that directly sets
+your latency/throughput trade-off, and it is usually the single highest-leverage
+setting in a serving stack.
+
+## Quantisation: fewer bits per weight
+
+Models train in `float32`. They almost never need it at inference.
+
+```python run title="what precision actually costs"
+n_params = 7_000_000_000
+print(f"{'precision':>12s} {'bits':>6s} {'7B model':>12s} {'fits on':>28s}")
+for name, bits, note in [
+    ("float32", 32, "an 80 GB A100, barely"),
+    ("float16",  16, "a 40 GB card"),
+    ("int8",      8, "a 16 GB card"),
+    ("int4",      4, "a 12 GB consumer GPU"),
+]:
+    gb = n_params * bits / 8 / 1e9
+    print(f"{name:>12s} {bits:6d} {gb:10.1f} GB {note:>28s}")
+```
+
+That table is why quantisation matters more than any other technique here. It's
+the difference between a model needing a data centre and running on a laptop.
+
+```python run title="what you lose, measured"
+rng = np.random.default_rng(1)
+w = rng.normal(0, 0.4, 100_000).astype(np.float32)
+
+def quantise(x, bits):
+    """Symmetric linear quantisation: scale to the integer range, round, scale back."""
+    qmax = 2 ** (bits - 1) - 1
+    scale = np.abs(x).max() / qmax
+    return np.round(x / scale).clip(-qmax - 1, qmax) * scale
+
+print(f"{'bits':>5s} {'mean abs error':>16s} {'relative':>10s} {'correlation':>13s}")
+for bits in [16, 8, 4, 2]:
+    q = quantise(w, bits)
+    err = np.abs(q - w).mean()
+    print(f"{bits:5d} {err:16.6f} {err / np.abs(w).mean():9.2%} "
+          f"{np.corrcoef(w, q)[0, 1]:13.6f}")
+```
+
+At 8 bits the error is a fraction of a percent and the correlation with the
+original is essentially 1. At 4 bits it's noticeable but the structure survives.
+At 2 bits you've broken it.
+
+Which matches practice: **int8 is usually free, int4 costs a little, below that
+needs real care.**
+
+<Aside type="nice">
+Two refinements worth knowing by name, because they're what makes 4-bit work.
+
+**Per-channel scaling.** One scale factor for the whole tensor is wasteful when
+different channels have very different ranges — one large outlier forces a coarse
+scale on everything. Per-channel (or per-group) scales fix that and cost almost
+nothing.
+
+**Quantisation-aware training.** Simulate the rounding during training so the
+model *learns* weights that survive it. More work than quantising afterwards, and
+noticeably better at low bit widths.
+
+There's also a genuinely surprising empirical finding: a **larger model quantised
+to 4 bits usually beats a smaller model at 16 bits**, at equal memory. Parameters
+matter more than precision. That result reshaped how people ship models.
+</Aside>
+
+## Distillation: a small model taught by a big one
+
+Train a small "student" to reproduce a large "teacher's" outputs — not the hard
+labels, the **full probability distribution**.
+
+```python run title="why soft targets teach more than hard ones"
+teacher_logits = np.array([4.0, 2.5, 2.2, -1.0, -3.0])
+classes = ["cat", "lynx", "tiger", "car", "spanner"]
+
+def softmax(z, T=1.0):
+    z = np.asarray(z) / T; z = z - z.max(); e = np.exp(z); return e / e.sum()
+
+print(f"{'class':>9s} {'hard label':>11s} {'T=1':>8s} {'T=3':>8s}")
+for i, c in enumerate(classes):
+    print(f"{c:>9s} {1.0 if i == 0 else 0.0:11.1f} "
+          f"{softmax(teacher_logits)[i]:8.3f} {softmax(teacher_logits, 3)[i]:8.3f}")
+```
+
+Look at the difference between the columns.
+
+The hard label says "cat", and nothing else. The teacher's distribution says
+"cat, and it's *quite* like a lynx and a tiger, and nothing like a spanner."
+
+That extra structure — sometimes called **dark knowledge** — is information about
+the similarity of classes that the one-hot label simply doesn't contain. A student
+learning from it converges faster and generalises better than one learning from
+labels alone.
+
+Raising the temperature spreads the distribution and exposes more of that
+structure, which is why distillation uses `T > 1` for the teacher.
+
+And from the information-theory extra: the student is minimising **KL divergence**
+against the teacher's distribution, rather than cross-entropy against a one-hot.
+Strictly more information in the target.
+
+## Caching, and the one specific to language models
+
+```python run title="a KV cache changes the complexity class"
+def cost_without_cache(n):
+    """Regenerating all attention every step: sum of k^2 for k = 1..n."""
+    return sum(k ** 2 for k in range(1, n + 1))
+
+def cost_with_cache(n):
+    """Keys and values for past tokens are reused: sum of k."""
+    return sum(range(1, n + 1))
+
+print(f"{'tokens':>8s} {'no cache':>14s} {'with cache':>13s} {'speedup':>9s}")
+for n in [10, 100, 500, 2000]:
+    a, b = cost_without_cache(n), cost_with_cache(n)
+    print(f"{n:8d} {a:14,d} {b:13,d} {a / b:8.0f}x")
+```
+
+Generating token 500 requires attending over the previous 499. Without a cache
+you'd recompute every key and value from scratch each step — $O(n^3)$ over a whole
+sequence.
+
+The **KV cache** stores past keys and values and reuses them, making generation
+$O(n^2)$ overall. It's not an optimisation you can skip; it's the difference
+between usable and not.
+
+The cost is memory, and it's substantial: the cache grows linearly with sequence
+length *and* batch size, and for long contexts it can exceed the model weights.
+**Multi-query** and **grouped-query attention** exist specifically to shrink it by
+sharing keys and values across heads.
+
+More ordinary caching applies too, and gets skipped: cache embeddings for repeated
+inputs, cache features that change slowly, and dedupe identical requests. An
+exact-match cache in front of a model is unglamorous and often the largest single
+win available.
+
+## Everything else
+
+**Pruning.** Remove weights that contribute little. Unstructured pruning gets high
+sparsity but needs hardware support to actually speed anything up; structured
+pruning (remove whole channels or heads) is slower to reach the same sparsity and
+gives you a real speedup on ordinary hardware.
+
+**Compilation.** `torch.compile`, ONNX Runtime, TensorRT. Fuse operations, avoid
+round-trips to memory, specialise for your shapes. Often 2–4× for a one-line
+change, which makes it the first thing to try.
+
+**Early exit.** Easy inputs don't need the whole network. A cascade — cheap model
+first, escalate only when unconfident — can cut average cost dramatically when
+most inputs are easy, which they usually are.
+
+**Speculative decoding.** A small model drafts several tokens; the large model
+verifies them all in one pass. When the draft is right (often), you got several
+tokens for one large-model call. Same output distribution, meaningfully faster.
+
+## The order to do things in
+
+<div class="table-scroll">
+
+| Step | Typical gain | Effort | Accuracy cost |
+|---|---|---|---|
+| 1. Profile the whole path | — | an hour | none |
+| 2. Cache exact repeats | varies, sometimes huge | low | none |
+| 3. Batch requests | 5–20× throughput | low | none |
+| 4. `torch.compile` / ONNX | 2–4× | low | none |
+| 5. float16 / bfloat16 | ~2× memory, often faster | low | negligible |
+| 6. int8 quantisation | ~2× memory again | medium | small |
+| 7. Distil to a smaller model | 5–20× | high | moderate |
+| 8. int4 + pruning | more | high | real |
+
+</div>
+
+<Aside type="key">
+Work down that table and stop when you're fast enough.
+
+Steps 1–5 are essentially free and frequently sufficient. Steps 7 and 8 are real
+projects with real accuracy costs, and people reach for them far too early —
+usually because they're more interesting than profiling.
+
+The most common mistake in this whole area is distilling a model to hit a latency
+budget that a cache and a batch size would have met. Interesting work is not the
+same as necessary work.
+</Aside>

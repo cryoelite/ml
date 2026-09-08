@@ -1,0 +1,32 @@
+---
+title: 'Entropy'
+summary: 'Average surprise. Also, exactly, the minimum number of bits needed to encode outcomes from a distribution.'
+formula: 'H(p) = -\sum_i p_i \log_2 p_i'
+docs: 'https://en.wikipedia.org/wiki/Entropy_(information_theory)'
+docsLabel: 'Wikipedia ↗'
+prereqs: ['expectation']
+symbols:
+  - sym: 'H'
+    means: 'entropy, measured in bits when the log is base 2'
+  - sym: 'p_i'
+    means: 'the probability of outcome i'
+  - sym: '\log_2'
+    means: 'base-2 log, which is what makes the answer come out in bits'
+---
+
+The information in a single event of probability $p$ is $-\log_2 p$ bits: a
+certain event tells you nothing, a one-in-a-thousand event tells you about ten
+bits' worth. Entropy is the average of that over a whole distribution.
+
+A fair coin has entropy exactly 1 bit — that is the definition of a bit. A coin
+that lands heads 90% of the time has 0.47 bits, because you can usually guess.
+A certain outcome has zero.
+
+The reason it matters beyond aesthetics is Shannon's source coding theorem:
+**entropy is the floor on average compressed size.** No encoding can do better,
+and good ones approach it.
+
+You have already used this without the name. A decision tree's "impurity" is
+entropy, and information gain is how much a split reduces it. And the
+[irreducible error](/extras/bias-variance/) that no model can remove is the same
+idea for a continuous target.

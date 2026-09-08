@@ -1,0 +1,38 @@
+---
+title: 'Eigenvalues and eigenvectors'
+summary: 'Directions a matrix only stretches, and the factor by which it stretches them. What decides whether a repeated process explodes or dies.'
+formula: 'A v = \lambda v'
+docs: 'https://en.wikipedia.org/wiki/Eigenvalues_and_eigenvectors'
+docsLabel: 'Wikipedia ↗'
+prereqs: ['matrix-multiplication']
+symbols:
+  - sym: 'v'
+    means: 'an eigenvector — a direction the matrix does not rotate'
+  - sym: '\lambda'
+    means: '"lambda", the eigenvalue — the factor that direction is scaled by'
+  - sym: 'A'
+    means: 'a square matrix'
+---
+
+Most vectors get rotated when you multiply them by a matrix. Eigenvectors do not
+— they come out pointing the same way, only longer or shorter, and the eigenvalue
+is by how much.
+
+The reason this matters here is what happens when you apply the same matrix
+repeatedly. After $n$ steps, components along an eigenvector have been multiplied
+by $\lambda^n$. So:
+
+- $|\lambda| < 1$ → that component **decays geometrically** toward nothing
+- $|\lambda| > 1$ → it **explodes geometrically**
+- $|\lambda| = 1$ → it survives
+
+The largest $|\lambda|$ is called the **spectral radius**, and it decides the
+whole system's fate. That is precisely why an RNN's gradient
+[vanishes or explodes](/extras/before-transformers/) depending on the recurrent
+matrix's spectral radius, and why careful weight initialisation aims to keep the
+relevant scale near 1.
+
+They also underlie PCA (the principal components are eigenvectors of the
+covariance matrix), and the curvature of a loss surface — the Hessian's
+eigenvalues tell you which directions are steep and which are flat, which is the
+`w`-fast, `b`-slow problem from chapter 5 stated precisely.

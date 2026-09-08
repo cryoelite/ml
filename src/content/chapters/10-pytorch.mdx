@@ -9,7 +9,7 @@ minutes: 100
 
 <Aside type="warn">
 **This chapter needs a local kernel.** PyTorch has no WebAssembly build, so the
-browser runtime cannot run it. Start one in a second terminal:
+browser runtime can't run it. Start one in a second terminal:
 
 ```bash
 bun run kernel
@@ -17,13 +17,16 @@ bun run kernel
 
 then click the runtime pill in the header and choose **On this machine**. Cells
 below are labelled `needs local kernel` so you always know which is which. Full
-instructions are on the [Setup](/setup/) page.
+instructions live on the [Setup](/setup/) page.
 </Aside>
 
-You have now written a forward pass, a backward pass and a training loop with
-nothing but NumPy. This chapter throws almost all of it away — and the point is
-to know exactly what you are throwing away, because that is what you will be
-debugging for the rest of your career.
+You've now written a forward pass, a backward pass and a training loop with
+nothing but NumPy. Today we throw almost all of it away.
+
+And I want to be clear about why that was still worth doing. The point of the
+last two days wasn't to build a library — it was so that you know *exactly what
+you're throwing away*. Because that is precisely what you'll be debugging for the
+rest of your career, and it will be invisible.
 
 ## Tensors are arrays with two extra fields
 
@@ -36,10 +39,13 @@ print(t)
 print(f"shape {tuple(t.shape)}  dtype {t.dtype}  device {t.device}  grad {t.requires_grad}")
 ```
 
-<Py id="torch-tensor">A tensor</Py> is a NumPy array plus **a device** (where the
-memory lives) and **a place on the autograd tape** (how this value was computed).
-Everything else you already know: <Py id="broadcasting">broadcasting</Py>,
-<Py id="axis">axes</Py>, <Py id="matmul">`@`</Py>, <Py id="reshape">reshape</Py>.
+<Py id="torch-tensor">A tensor</Py> is a NumPy array plus two things: **a device**
+(where the memory lives) and **a place on the autograd tape** (how this value was
+computed).
+
+That's the entire conceptual addition. Everything else you already know:
+<Py id="broadcasting">broadcasting</Py>, <Py id="axis">axes</Py>,
+<Py id="matmul">`@`</Py>, <Py id="reshape">reshape</Py>. Chapter 2 was not wasted.
 
 ```python run local title="the vocabulary differs slightly"
 a = torch.randn(4, 5)
@@ -49,16 +55,21 @@ print("numpy  np.concatenate  ->  torch  torch.cat    ", tuple(torch.cat([a, a])
 print("shares memory with numpy:", np.shares_memory(a.numpy(), a.numpy()))
 ```
 
-`axis` becomes `dim`, `reshape` also exists as `view` (which requires contiguous
-memory and is free), and the default float type is **`float32`, not `float64`**.
-That last one catches everybody: `torch.tensor([1, 2, 3])` gives you an *integer*
-tensor, which then fails somewhere unhelpful.
+`axis` becomes `dim`. `reshape` also exists as `view` (which needs contiguous
+memory and is free). And the default float type is **`float32`, not `float64`**.
+
+That last one catches absolutely everybody. `torch.tensor([1, 2, 3])` gives you
+an *integer* tensor, which then explodes somewhere completely unhelpful three
+function calls later.
 
 <Aside type="rust">
-`.numpy()` and `torch.from_numpy()` share the buffer rather than copying — the
+`.numpy()` and `torch.from_numpy()` **share the buffer** rather than copying. The
 two objects are different views of the same allocation, and mutating one mutates
-the other. It is the same aliasing hazard as a NumPy slice, and the same absence
-of a compiler to warn you about it.
+the other.
+
+It's the same aliasing hazard as a NumPy slice, and the same total absence of a
+compiler to warn you about it. You know the shape of this bug already; now you
+know it lives here too.
 </Aside>
 
 ## Autograd replaces your backward pass
@@ -70,10 +81,13 @@ y.backward()
 print(f"y = x^2 + 5x  at x=3  ->  dy/dx = {x.grad.item()}   (analytically 2*3 + 5 = 11)")
 ```
 
-Nothing did algebra. PyTorch recorded that a squaring and a multiplication
-happened, and <Py id="autograd">`.backward()`</Py> walked that record in reverse
-applying the local derivatives — exactly the procedure you implemented by hand
-yesterday, generated automatically.
+Notice what did *not* happen there: nothing did algebra.
+
+PyTorch didn't differentiate $x^2 + 5x$ symbolically. It recorded that a squaring
+and a multiplication happened, and then <Py id="autograd">`.backward()`</Py>
+walked that record in reverse, applying local derivatives one at a time.
+
+That's your bucket brigade from yesterday, generated automatically.
 
 ```python run local title="your network's gradients, checked against yesterday's"
 torch.manual_seed(0)
@@ -96,15 +110,21 @@ print("autograd matches the hand derivation:",
       torch.allclose(W2.grad, manual_gW2, atol=1e-6))
 ```
 
-That is the whole of chapter 9, verified. `a1.T @ (prediction - target) / n` is
-what the library computes too — it just does it for arbitrary graphs, without you
-writing it down.
+`True`.
+
+That's the whole of chapter 9, verified against the library. The expression you
+derived on paper — `a1.T @ (prediction - target) / n` — is exactly what PyTorch
+computes. It just does it for arbitrary graphs, without anybody writing it down.
 
 <Aside type="key">
-The real gift is not brevity. It is that autograd is correct for *any* graph you
-build, including one you invent this afternoon. Your hand-written backward pass
-is correct for exactly the architecture you derived it for, and has to be
-rederived and re-gradient-checked every time you change a layer.
+The real gift here is *not brevity*.
+
+It's that autograd is correct for **any** graph you build — including one you
+invent this afternoon that nobody has ever written down.
+
+Your hand-written backward pass is correct for exactly the architecture you
+derived it for. Change a layer and you rederive it, and re-gradient-check it, and
+find the transpose you got wrong. Autograd just... keeps being right.
 </Aside>
 
 ## `nn.Module`
@@ -129,25 +149,30 @@ print("parameters:", sum(p.numel() for p in model.parameters()))
 ```
 
 <Py id="nn-module">`nn.Module`</Py> discovers its parameters by walking the
-attributes you assign to `self`. That is how `model.parameters()` enumerates
-every weight in a network of arbitrary depth without you keeping a list, and how
-`model.to(device)` moves all of them at once.
+attributes you assign to `self`. A bit of Python magic, and a genuinely good idea:
+it's how `model.parameters()` enumerates every weight in a network of arbitrary
+depth without you maintaining a list, and how `model.to(device)` moves all of
+them at once.
 
 `nn.Linear(a, b)` holds a weight of shape `(b, a)` and a bias of shape `(b,)`,
-and computes `x @ W.T + b`. Same arithmetic as yesterday, transposed by
-convention.
+and computes `x @ W.T + b`. Same arithmetic as chapter 8, transposed by
+convention. (Yes, that convention will trip you up once. Everyone.)
 
 <Aside type="warn">
-Notice `forward` returns **logits** — raw scores — not probabilities. That is not
-sloppiness, it is required.
+Notice `forward` returns **logits** — raw scores — not probabilities. That's not
+sloppiness on my part. It's required.
 
 `nn.BCEWithLogitsLoss` and `nn.CrossEntropyLoss` apply the sigmoid or softmax
 *internally*, using a numerically stable formulation that never computes
-`exp(large)`. If you apply the sigmoid yourself and then use `BCELoss`, you get
-the same answer on easy data and `nan` on hard data.
+`exp(something large)`.
+
+If you apply the sigmoid yourself and then use `BCELoss`, you get the same answer
+on easy data — and `nan` on hard data. Which is the worst possible failure mode:
+it works in testing and breaks in production.
 
 The rule: **your model outputs logits; the loss function owns the squashing.**
-Apply sigmoid or softmax only at inference, when you actually want a probability.
+Apply sigmoid or softmax only at inference, when you genuinely want a probability
+to show somebody.
 </Aside>
 
 ## The training loop
@@ -183,26 +208,37 @@ for epoch in range(300):
         print(f"epoch {epoch+1:3d}   loss {loss.item():.4f}   valid acc {acc:.3f}")
 ```
 
+Look at the five numbered lines.
+
 **Those five lines are the whole of deep learning.** Every training script you
-will ever read — a two-layer toy, a vision model, a language model — is this
-sequence, plus logging, plus a data loader.
+will ever read — a two-layer toy, a vision model, somebody's frontier language
+model — is that sequence, plus logging, plus a data loader.
+
+Zero, forward, score, backward, step. When you open an unfamiliar repository,
+find those five lines first. Everything else is scaffolding around them.
 
 <Aside type="warn">
 `opt.zero_grad()` is not optional, and forgetting it does not error.
 
-PyTorch *accumulates* into `.grad` rather than overwriting, because that lets you
-split one large batch across several backward passes. The consequence is that
-without `zero_grad()`, step 50 uses the sum of the first fifty gradients, the
-effective learning rate grows without bound, and training diverges with no
-message. It is the most common PyTorch bug in existence.
+PyTorch **accumulates** into `.grad` rather than overwriting, because that lets
+you split one large batch across several backward passes — a genuinely useful
+feature that costs you this footgun.
+
+Without `zero_grad()`, step 50 uses the sum of the first fifty gradients. The
+effective learning rate grows without bound. Training diverges. No message, no
+warning, no clue.
+
+It is the most common PyTorch bug in existence, and you'll produce it deliberately
+in the exercises so you recognise the shape of it forever.
 </Aside>
 
 `model.train()` and `model.eval()` toggle a flag that changes the behaviour of
 dropout and batch normalisation — dropout is off at evaluation, and batch norm
-uses running statistics instead of batch statistics. On this network they do
-nothing, and getting into the habit costs you nothing.
+uses running statistics instead of batch statistics. On *this* network they do
+absolutely nothing, and building the habit now costs you nothing either.
+
 <Py id="with-statement">`with torch.no_grad()`</Py> stops building the tape,
-which saves memory and time when you are not going to call `.backward()`.
+saving memory and time when you're not going to call `.backward()`.
 
 ## Data loading
 
@@ -228,11 +264,16 @@ with torch.no_grad():
 print(f"mini-batch training, valid acc {acc:.3f}")
 ```
 
-<Py id="dataloader">`Dataset`</Py> answers "how many, and give me item *i*".
-`DataLoader` turns that into shuffled, batched, optionally parallel-prefetched
-tensors. The separation is the good idea: `Dataset` knows your file format and
-nothing about batching; `DataLoader` knows about batching and nothing about your
-files.
+One extra `for` line, and you have the mini-batching you hand-rolled in chapter 5.
+
+<Py id="dataloader">`Dataset`</Py> answers exactly two questions: "how many?" and
+"give me item *i*". `DataLoader` turns that into shuffled, batched, optionally
+parallel-prefetched tensors.
+
+The separation is the good idea, and it's worth admiring for a second: `Dataset`
+knows your file format and nothing whatsoever about batching. `DataLoader` knows
+about batching and nothing whatsoever about your files. Two small interfaces that
+compose, instead of one big one that does everything.
 
 ## Devices, and Apple Silicon
 
@@ -252,21 +293,24 @@ x = torch.randn(256, 2, device=dev)
 print("forward on device:", tuple(m(x).shape), m(x).device)
 ```
 
-Two tensors on different devices cannot be combined, and the error says so
-plainly. The idiom is to choose the device once at the top and route everything
-through it.
+Two tensors on different devices cannot be combined, and mercifully the error
+says so in plain English. The idiom is to choose the device once at the top of
+your script and route everything through that one variable.
 
 <Aside type="nice">
-**MPS** is Apple's Metal backend, and on an Apple Silicon Mac it is a real
-speedup over CPU for anything convolutional. Two caveats worth knowing. Some
-operations are still unimplemented and fall back to CPU — set
-`PYTORCH_ENABLE_MPS_FALLBACK=1` so that happens silently rather than raising. And
-`float64` is not supported at all on MPS, which is one more reason everything in
-this world is `float32`.
+**MPS** is Apple's Metal backend, and on an Apple Silicon Mac it's a real speedup
+over CPU for anything convolutional.
 
-For a network this small, MPS is *slower* than CPU: kernel-launch overhead
-dominates when there is barely any arithmetic to do. Device choice is worth
-measuring, not assuming.
+Two caveats worth knowing. Some operations are still unimplemented and fall back
+to CPU — set `PYTORCH_ENABLE_MPS_FALLBACK=1` so that happens silently instead of
+raising. And `float64` isn't supported on MPS at all, which is one more reason
+everything in this world is `float32`.
+
+Here's the fun part, though: for a network this small, **MPS is slower than
+CPU**. Kernel-launch overhead dominates when there's barely any arithmetic to do,
+and you spend more time talking to the GPU than the GPU spends working.
+
+Device choice is worth measuring, not assuming. "Use the GPU" is not a law.
 </Aside>
 
 ## What the library actually gave you
@@ -286,16 +330,25 @@ for item in [
     print(" *", item)
 ```
 
-The line count is the least of it. The first item is the one that matters: the
-moment you want a residual connection, a custom loss, or an architecture you read
-about this morning, the hand-written version needs a fresh derivation and a fresh
-gradient check. Autograd does not.
+The line count is the least interesting item on that list.
+
+The first one is what matters. The moment you want a residual connection, or a
+custom loss, or an architecture you read about this morning on arXiv, the
+hand-written version needs a fresh derivation and a fresh gradient check and an
+afternoon.
+
+Autograd needs nothing. You just write the forward pass and the gradients come
+for free, correct, first time.
 
 <Aside type="key">
-Which is exactly why the two days deriving it by hand were worth spending. When
-your loss goes to `nan`, when a gradient is silently zero, when a layer does not
-learn — you now know what is happening underneath, and that is the difference
-between debugging and guessing.
+Which is exactly why the two days deriving it by hand were worth spending.
+
+When your loss goes to `nan`. When a gradient is silently zero. When a layer
+stubbornly refuses to learn. You now know what's happening underneath — and that
+is the entire difference between debugging and guessing.
+
+People who skip chapters 8 and 9 don't write worse code. They write the same
+code, and then they can't fix it.
 </Aside>
 
 ## The bugs you will hit
@@ -322,20 +375,47 @@ print("3. (pred - targ).shape =", tuple((pred - targ).shape), "  <- should be (8
 ```
 
 1. **dtype.** `torch.tensor([1, 2, 3])` is `int64`. Write `1.` or pass `dtype=`.
-2. **Freed graph.** The tape is discarded after `backward()`. Wanting
-   `retain_graph=True` usually means you meant to accumulate the loss and call
-   backward once.
-3. **Shape.** This is the dangerous one, because it does not raise. `model(x)`
-   gives `(n, 1)` and your labels are `(n,)`, so subtraction
-   <Py id="broadcasting">broadcasts</Py> into `(n, n)` and your loss is the mean
-   of 64 meaningless numbers. `.squeeze()` the output or `.unsqueeze(1)` the
-   labels, and print both shapes whenever a loss looks wrong.
+2. **Freed graph.** The tape is discarded after `backward()`. If you find yourself
+   wanting `retain_graph=True`, you almost always meant to accumulate the loss and
+   call backward once.
+3. **Shape.** This is the dangerous one, because it *does not raise*. `model(x)`
+   gives `(n, 1)`, your labels are `(n,)`, so the subtraction
+   <Py id="broadcasting">broadcasts</Py> into `(n, n)` — and your loss is now the
+   mean of 64 completely meaningless numbers, which trains to something, slowly,
+   wrongly.
 
-Two more with no error message at all: **forgetting `zero_grad()`** (divergence
-with no signal) and **forgetting `model.eval()`** (validation scores mysteriously
+   `.squeeze()` the output or `.unsqueeze(1)` the labels. And print both shapes
+   the instant a loss looks strange.
+
+Two more with no error message at all: **forgetting `zero_grad()`** (divergence,
+no signal) and **forgetting `model.eval()`** (validation scores mysteriously
 worse than training, because dropout is still on).
 
-## Exercise
+<Stuck>
+**"The runtime pill still says Browser and my cells won't run."** The kernel needs
+to be running first — `bun run kernel` in a second terminal — and then you pick
+"On this machine" in the pill. If it still won't connect, the [Setup](/setup/)
+page has the two macOS gotchas.
+
+**"`RuntimeError: expected scalar type Long but found Float`"** — that's bug 1.
+Somewhere you built a tensor from Python ints. Add a decimal point.
+
+**"My loss is a tensor, not a number."** It is! `loss.item()` pulls the Python
+float out. Printing the tensor directly also shows `grad_fn=<...>`, which is the
+autograd tape telling you how it was computed — occasionally useful, usually
+noise.
+
+**"Why `.squeeze()` everywhere?"** Because `nn.Linear(h, 1)` outputs `(n, 1)` and
+almost every loss function wants `(n,)`. It's a genuine wart. Squeeze early,
+squeeze consistently.
+
+**"How do I know if it's actually using the GPU?"** `next(model.parameters()).device`
+tells you where the model is. If it says `cpu` after you called `.to(dev)`, you
+forgot to reassign — `model.to(dev)` returns the model for modules, but tensors
+need `x = x.to(dev)`.
+</Stuck>
+
+<TryThis title="Four things to try on the loop" reveal="Show solutions">
 
 ```python run local title="your turn"
 # 1. Rewrite Net without nn.Sequential — plain self.fc1 / self.fc2 attributes
@@ -353,7 +433,15 @@ worse than training, because dropout is still on).
 print("replace me")
 ```
 
-<Reveal title="Solutions" kind="deep">
+<Fragment slot="hint">
+Number 2 should feel familiar — you built momentum by hand in chapter 5, and the
+shape of the three curves should match what you saw then.
+
+Number 3 is the famous bug. Predict what the gradient norm does before you run
+it.
+</Fragment>
+
+<Fragment slot="answer">
 
 ```python run local
 # 3. Life without zero_grad
@@ -368,10 +456,15 @@ for epoch in range(6):
     print(f"epoch {epoch}  loss {loss.item():.4f}  grad norm {norm:8.3f}")
 ```
 
-The gradient norm climbs every epoch because each `backward()` adds to what was
-already there. By epoch 6 the effective learning rate is several times what you
-asked for, and it keeps growing. On a real run this reaches `inf` and then `nan`,
-with no error and no clue.
+The gradient norm climbs every single epoch, because each `backward()` *adds* to
+what was already sitting there.
+
+By epoch 6 the effective learning rate is several times what you asked for, and
+it keeps growing. On a real run this reaches `inf`, then `nan` — with no error, no
+warning, and no clue as to why.
+
+Now you've seen the shape of it: **loss diverging and gradient norm climbing
+monotonically**. That pattern means `zero_grad()`, essentially always.
 
 ```python run local
 # 4. Dropout behaves differently in train() and eval()
@@ -398,16 +491,26 @@ print("train() mode, three runs:", a, " <- different each time")
 print("eval()  mode:            ", b, " <- deterministic")
 ```
 
-In `train()` mode dropout randomly zeroes 30% of the hidden units on every
-forward pass, so the same input gives a different answer each time. In `eval()`
-mode dropout is a no-op and all units contribute.
+Three runs, three different answers — from the *same model* on the *same data*.
 
-That is the point of dropout: it forces the network not to depend on any single
-unit, because that unit might be missing. It is
-[regularisation](/learn/06-generalisation/) by deliberate sabotage, and it is
-also why forgetting `model.eval()` produces validation numbers that are
-inexplicably worse than they should be.
-</Reveal>
+In `train()` mode, dropout randomly zeroes 30% of the hidden units on every
+forward pass, so the same input genuinely gives a different answer each time. In
+`eval()` mode dropout becomes a no-op and every unit contributes.
 
-That is the last chapter where you build things from nothing. From here the
-subject is architecture: what structure to impose on the stack, and why.
+And that randomness is the entire point of dropout. It forces the network not to
+depend on any single unit, because that unit might not be there. It's
+[regularisation](/learn/06-generalisation/) by deliberate sabotage — you damage
+the model during training so it learns to be robust, and then you stop damaging
+it.
+
+Which is also, incidentally, why forgetting `model.eval()` produces validation
+numbers that are inexplicably worse than they should be. You left the sabotage
+running.
+</Fragment>
+</TryThis>
+
+That's the last chapter where you build things from nothing.
+
+From here the subject changes character: it becomes **architecture** — what
+structure to impose on the stack, and why that structure is the right one for
+that kind of data. The five lines stay the same throughout.

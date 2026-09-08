@@ -1,0 +1,49 @@
+---
+import { getCollection, render } from "astro:content";
+import Doc from "../../layouts/Doc.astro";
+import Cell from "../../components/Cell.astro";
+import Py from "../../components/Py.astro";
+import M from "../../components/M.astro";
+import Aside from "../../components/Aside.astro";
+import Reveal from "../../components/Reveal.astro";
+import SideQuest from "../../components/SideQuest.astro";
+import Stuck from "../../components/Stuck.astro";
+import TryThis from "../../components/TryThis.astro";
+import Wonder from "../../components/Wonder.astro";
+import Doodle from "../../components/Doodle.astro";
+
+export async function getStaticPaths() {
+  const extras = (await getCollection("extras", ({ data }) => !data.draft)).sort(
+    (a, b) => a.data.order - b.data.order,
+  );
+  return extras.map((entry) => ({ params: { id: entry.id }, props: { entry } }));
+}
+
+const { entry } = Astro.props;
+const { Content, headings } = await render(entry);
+const d = entry.data;
+const components = { Cell, Py, M, Aside, Reveal, SideQuest, Stuck, TryThis, Wonder, Doodle };
+
+const KIND_LABEL: Record<string, string> = {
+  history: "how we got here",
+  theory: "the deeper why",
+  craft: "learned by shipping",
+  sibling: "a road not taken",
+  culture: "the human side",
+};
+---
+
+<Doc title={d.title} description={d.blurb} headings={headings}>
+  <p class="extra-crumb"><a href="/extras/">← Extras</a></p>
+  <h1>{d.title}</h1>
+  <p class="lede">{d.blurb}</p>
+  <p class="chapter-meta">
+    <span class="pill pill--extra">{KIND_LABEL[d.kind]}</span>
+    <span>{d.minutes} min</span>
+    {d.after && <span>pairs with chapter {d.after.slice(0, 2)}</span>}
+  </p>
+
+  <Content components={components} />
+
+  <p class="extra-back"><a href="/extras/">← All extras</a></p>
+</Doc>

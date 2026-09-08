@@ -8,15 +8,17 @@ minutes: 110
 introduces: ["backprop"]
 ---
 
-Yesterday's numerical gradient cost two forward passes *per parameter*.
-Backpropagation costs about one forward pass *in total*, for every parameter at
-once. This chapter is where that comes from.
+Yesterday's numerical gradient cost two forward passes **per parameter**.
 
-It is the most important algorithm in the field and it is genuinely not
-difficult. It is <M id="chain-rule">the chain rule</M>, applied to a graph, in
-reverse.
+Backpropagation costs about one forward pass **in total** — for every parameter
+at once. Today is where that comes from.
 
-## The idea, on a scalar
+It's the most important algorithm in the field, and I want to say plainly up
+front: it is not difficult. It's <M id="chain-rule">the chain rule</M>, applied
+to a graph, in reverse. If you can do the chain rule, you can do this. The
+difficulty is entirely in the reputation.
+
+## The idea, on something tiny
 
 ```python run setup title="a tiny composed function"
 import numpy as np, matplotlib.pyplot as plt
@@ -32,8 +34,8 @@ a, b, c = forward_verbose(2.0)
 print(f"x=2  ->  a={a}  b={b}  c={c}")
 ```
 
-We want $dc/dx$. Work backwards, asking at each step: *how much does my output
-change when my input changes?*
+We want $dc/dx$. So let's work *backwards*, asking the same small question at
+every step: **how much does my output change when my input changes?**
 
 ```python run title="the backward pass"
 x = 2.0
@@ -49,34 +51,47 @@ print(f"analytic : dc/dx = {2 * (3 * x + 1) * 3}")
 print(f"numeric  : dc/dx = {(forward_verbose(x + 1e-6)[2] - forward_verbose(x - 1e-6)[2]) / 2e-6:.6f}")
 ```
 
-Three ways, same answer. Look at the structure of the backward pass: **each line
-is the previous line times one local derivative.** Nobody had to know the formula
-for the whole composition. Each step only knew its own derivative and the number
-handed to it from the right.
+Three completely different methods, one answer. Good.
+
+But now look at the *structure* of that backward pass, because the structure is
+the whole point:
+
+**Each line is the previous line, times one local derivative.**
+
+Nobody had to know the formula for the whole composition. Nobody expanded
+$(3x+1)^2$. Each step knew only its own derivative and the number handed to it
+from the right, multiplied the two, and passed the result further back.
+
+That's a bucket brigade. Each operation only has to know its own tiny job.
 
 <Aside type="key">
-That is the whole algorithm. A quantity flows backwards through the graph — the
-derivative of the loss with respect to *this node's output* — and each operation
-multiplies it by its own local derivative before passing it further back.
+That is the whole algorithm.
+
+A quantity flows backwards through the graph — the derivative of the loss with
+respect to *this node's output* — and each operation multiplies it by its own
+local derivative before passing it further back.
 
 The flowing quantity is universally called the **gradient**, or in older texts
 delta ($\delta$). PyTorch calls it `grad_output` inside an autograd function.
+Same thing, three names.
 </Aside>
 
-## Why it is cheap
+## Why it's cheap
 
 Consider a chain $x \to h_1 \to h_2 \to \dots \to h_n \to L$.
 
-The forward pass computes each $h_i$ once: $n$ operations. The backward pass
-computes each $\partial L/\partial h_i$ once, right to left, reusing the value
-from the step before: another $n$ operations.
+The forward pass computes each $h_i$ once: $n$ operations.
+
+The backward pass computes each $\partial L/\partial h_i$ once, right to left,
+reusing the value from the step before: another $n$ operations.
 
 So the gradient with respect to *everything* costs about the same as evaluating
-the function. Not per parameter — total.
+the function once. Not per parameter. Total.
 
-<Reveal title="Why right-to-left, and not left-to-right" kind="math">
+<Wonder title="Why right-to-left, and not left-to-right?">
+Here's the part I think is genuinely lovely, and it's a fact about *bracketing*.
 
-The chain rule does not specify an order. For a function
+The chain rule doesn't specify an order. For a function
 $\mathbb{R}^n \to \mathbb{R}^m$ the derivative is a Jacobian matrix, and a
 composition's Jacobian is a product of Jacobians:
 
@@ -84,8 +99,10 @@ $$
 J = J_n \cdot J_{n-1} \cdots J_2 \cdot J_1
 $$
 
-Matrix multiplication is associative, so you may bracket that product however you
-like — and the *cost* differs enormously depending on how.
+Matrix multiplication is associative — so you may bracket that product however
+you like, and every bracketing gives the *same answer*.
+
+But they don't cost the same. Not remotely.
 
 **Forward mode** brackets left to right, propagating derivatives with respect to
 one *input* forward. Cost is proportional to the number of inputs.
@@ -93,18 +110,28 @@ one *input* forward. Cost is proportional to the number of inputs.
 **Reverse mode** brackets right to left, propagating derivatives of one *output*
 backward. Cost is proportional to the number of outputs.
 
-In machine learning there are $10^{11}$ inputs (parameters) and exactly **one**
-output (the scalar loss). Reverse mode is therefore cheaper by a factor of
-$10^{11}$, and the fact that a loss is a single number is not a convention — it
-is what makes training affordable.
+Now count what we've got. In machine learning there are $10^{11}$ inputs (the
+parameters) and exactly **one** output (the scalar loss).
+
+So reverse mode is cheaper by a factor of $10^{11}$. And notice what's really
+doing the work here: the fact that a loss is a *single number*. That isn't a
+convention or a stylistic choice — it is the property that makes training
+affordable at all.
+
+If you wanted to optimise two things at once, genuinely and separately, you'd pay
+twice. The entire economics of deep learning rests on collapsing everything you
+care about into one scalar and then bracketing the product from the right.
 
 <Aside type="nice">
-This also tells you when forward mode wins: few inputs, many outputs. It is used
-for sensitivity analysis and inside some physics simulators, and JAX exposes both
-(`jax.grad` is reverse, `jax.jvp` is forward). Backpropagation is simply reverse-
-mode automatic differentiation with a machine-learning-shaped name.
+This also tells you exactly when forward mode wins: few inputs, many outputs.
+It's used for sensitivity analysis and inside some physics simulators, and JAX
+exposes both (`jax.grad` is reverse, `jax.jvp` is forward).
+
+Which means backpropagation isn't really a machine learning invention at all.
+It's reverse-mode automatic differentiation — a general technique from numerical
+computing — wearing a machine-learning-shaped name.
 </Aside>
-</Reveal>
+</Wonder>
 
 ## Deriving it for our network
 
@@ -119,23 +146,34 @@ $$
 
 with <M id="cross-entropy">binary cross-entropy</M> loss.
 
-<Reveal title="The full derivation" kind="math" open>
+Five steps. Let's do them properly.
+
+<Reveal title="The full derivation, one step at a time" kind="math" open>
 
 **Step 1 — the output layer, where a small miracle happens.**
 
 Cross-entropy is $L = -\frac{1}{n}\sum [y\log\hat{y} + (1-y)\log(1-\hat{y})]$ and
-$\hat{y} = \sigma(z_2)$. Differentiating the loss with respect to $\hat{y}$ gives
-a denominator of $\hat{y}(1-\hat{y})$; differentiating the sigmoid gives a
-numerator of $\hat{y}(1-\hat{y})$. They cancel exactly:
+$\hat{y} = \sigma(z_2)$.
+
+Differentiate the loss with respect to $\hat{y}$ and you get a denominator of
+$\hat{y}(1-\hat{y})$. Differentiate the sigmoid and you get a numerator of
+$\hat{y}(1-\hat{y})$.
+
+They cancel. Exactly. Everything disappears and you're left with:
 
 $$
 \frac{\partial L}{\partial z_2} = \frac{1}{n}(\hat{y} - y)
 $$
 
-Just the error. This is why sigmoid pairs with cross-entropy and not with squared
-error — the pairing is chosen so the derivative is clean and does not vanish when
-the model is confidently wrong. Softmax with categorical cross-entropy does
-exactly the same thing.
+Just the error. Prediction minus target, nothing else.
+
+This is why sigmoid pairs with cross-entropy and not with squared error — the
+pairing is *chosen* so the derivative comes out clean and doesn't vanish when the
+model is confidently wrong. Softmax with categorical cross-entropy does precisely
+the same thing for many classes.
+
+You met this cancellation already in chapter 5, when the logistic gradient turned
+out to look identical to the linear one. Now you know why.
 
 Call this $\delta_2$.
 
@@ -149,11 +187,15 @@ $$
 \frac{\partial L}{\partial b_2} = \sum_{\text{rows}} \delta_2
 $$
 
-The weight gradient is *the input to the layer, transposed, times the error
-coming back*. That pattern holds for every dense layer in every network you will
-ever write. The bias gradient sums over the batch because the bias was
+Read the first one in words: the weight gradient is **the input to the layer,
+transposed, times the error coming back**.
+
+That pattern holds for every dense layer in every network you will ever write.
+Learn it once and you can write the backward pass for anything.
+
+The bias gradient sums over the batch because the bias was
 <Py id="broadcasting">broadcast</Py> across it — and the gradient of a broadcast
-is a sum, always.
+is a sum. Always. That's a rule worth keeping: broadcast forward, sum backward.
 
 **Step 3 — push the error through the weights.**
 
@@ -161,21 +203,29 @@ $$
 \frac{\partial L}{\partial a_1} = \delta_2 W_2^{\top}
 $$
 
-Forward, activations went through $W_2$. Backward, the error goes through
-$W_2^{\top}$. The transpose is not decoration — it is what makes the shapes line
-up, and it is worth checking on paper once.
+Forward, the activations went *through* $W_2$. Backward, the error goes through
+$W_2^{\top}$.
+
+The transpose isn't decoration. It's what makes the shapes line up, and it's
+worth checking on paper exactly once so you never doubt it again.
 
 **Step 4 — through the ReLU.**
 
-ReLU's derivative is 1 where its input was positive and 0 elsewhere:
+ReLU's derivative is 1 where its input was positive and 0 everywhere else:
 
 $$
 \delta_1 = \frac{\partial L}{\partial a_1} \odot \mathbb{1}[z_1 > 0]
 $$
 
-where $\odot$ is elementwise multiplication. The gradient is simply *masked*:
-units that were off contribute nothing and learn nothing this step. That is
-exactly the "dying ReLU" problem, visible in the algebra.
+where $\odot$ is elementwise multiplication.
+
+So the gradient is simply **masked**. Units that were off contribute nothing and
+learn nothing this step.
+
+And there — right there in the algebra — is the "dying ReLU" problem you measured
+yesterday. A unit that's always negative is always masked, always gets zero
+gradient, and can therefore never change. It's dead, and the maths shows you
+exactly why it can't come back.
 
 **Step 5 — the input layer, identical in form to step 2.**
 
@@ -185,8 +235,10 @@ $$
 \frac{\partial L}{\partial b_1} = \sum_{\text{rows}} \delta_1
 $$
 
-Five steps, and the middle three repeat per layer. A hundred-layer network is
-these same three lines in a loop.
+Five steps — and the middle three *repeat per layer*.
+
+A hundred-layer network is these same three lines in a loop. That's not a
+simplification for teaching. That is literally what the code says.
 </Reveal>
 
 ## The implementation
@@ -228,12 +280,22 @@ grads = backward(p, cache, X_tr, y_tr, y_hat)
 {k: v.shape for k, v in grads.items()}
 ```
 
-Every gradient shape matches its parameter shape. That is the first thing to
-check, always — if `gW1.shape != p["W1"].shape`, something is transposed.
+Seven lines in `backward`, numbered to match the five steps you just derived.
+Read them side by side — that's the whole payoff of doing the derivation.
+
+Notice every gradient shape matches its parameter's shape. **That's the first
+thing to check, always.** If `gW1.shape != p["W1"].shape`, something is
+transposed, and you've found your bug before you've even run anything.
+
+Notice also that `forward` returns a **cache**. The backward pass needs values
+the forward pass computed — that's not an implementation detail, it's inherent.
+It's also why training uses far more memory than inference: you have to keep
+every intermediate activation around until the gradient comes back for it.
 
 ## Gradient checking
 
-Never trust a hand-written backward pass. Verify it against the definition.
+Never trust a hand-written backward pass. Not yours, not mine. Verify it against
+the definition.
 
 ```python run title="the check every framework's tests do"
 def loss_of(p, X, y):
@@ -265,14 +327,19 @@ for key in ["W1", "b1", "W2", "b2"]:
 print(f"\nworst relative error: {worst:.2e}   {'PASS' if worst < 1e-5 else 'FAIL'}")
 ```
 
-Relative errors around $10^{-9}$ mean the derivation is right. Anything above
-$10^{-4}$ means a bug — and the usual culprits are a missing transpose, a missing
-`/n`, or summing the bias gradient over the wrong axis.
+Relative errors around $10^{-9}$ mean the derivation is right — that's floating
+point noise and nothing else.
+
+Anything above $10^{-4}$ means a bug, and the usual culprits are boringly
+consistent: a missing transpose, a missing `/n`, or summing the bias gradient
+over the wrong axis.
 
 <Aside type="key">
-Gradient checking is how every autodiff library is tested, and it is what you
-should do the moment you write a custom layer. It is slow, so you run it once on
-fifty examples, not in the training loop.
+Gradient checking is how *every* autodiff library is tested, and it's what you
+should do the moment you write a custom layer.
+
+It's slow, so you run it once on fifty examples — never inside the training loop.
+Think of it as a unit test for calculus.
 </Aside>
 
 ## Now train it properly
@@ -298,8 +365,10 @@ acc = ((forward(p, X_va)[0].ravel() > 0.5).astype(int) == y_va).mean()
 print(f"4000 steps in {dt:.2f}s   final loss {hist[-1]:.4f}   validation accuracy {acc:.3f}")
 ```
 
-Now the honest comparison — the same network, the same data, one gradient
-computed both ways:
+Four thousand steps, in about a second, on a browser.
+
+Now the comparison I promised you yesterday. Same network, same data, one
+gradient computed both ways:
 
 ```python run title="how much faster, exactly"
 def numerical_all(p, X, y, eps=1e-5):
@@ -331,10 +400,16 @@ print(f"  backpropagation : {back_ms:8.2f} ms")
 print(f"  numerical       : {num_ms:8.2f} ms   ({num_ms / back_ms:.0f}x slower)")
 ```
 
-And that ratio *grows linearly with the parameter count*. At 129 parameters it is
-already over a hundred times; at ten million parameters it would be millions.
-That is the difference the algorithm makes, and it is why it is the one algorithm
-worth deriving by hand.
+And here's the thing that makes it matter: **that ratio grows linearly with the
+parameter count.**
+
+At 129 parameters the gap is already big (I get somewhere around 80x; you'll
+get your own number, since it depends on your machine and which runtime you're
+on). At ten million parameters it would be a factor of millions. At a hundred
+billion, the numerical version doesn't finish before the sun does.
+
+That's the difference one algorithm makes. And it's why this is the one algorithm
+genuinely worth deriving by hand, once, yourself — which you now have.
 
 ```python run title="the result"
 xx, yy = np.meshgrid(np.linspace(-2.2, 2.4, 240), np.linspace(-2.4, 2.4, 240))
@@ -349,19 +424,24 @@ ax[1].set_xticks([]); ax[1].set_yticks([]); ax[1].set_title(f"validation accurac
 plt.tight_layout()
 ```
 
+There's your crescent boundary, learned by a network you wrote every line of.
+
 ## Where gradients go wrong
 
 **Vanishing.** Each layer multiplies the flowing gradient by its local
 derivative. Sigmoid's derivative maxes at 0.25, so ten sigmoid layers scale the
-gradient by at most $10^{-6}$ and the early layers stop learning. This is the
-reason deep networks did not work before about 2010, and
+gradient by at most $10^{-6}$ — and the early layers simply stop learning.
+
+This is the reason deep networks didn't work before about 2010, and
 <M id="relu">ReLU</M> is the largest single part of the fix, alongside residual
 connections and normalisation layers.
 
 **Exploding.** The mirror image: local derivatives above 1 compound upward until
 the update is enormous and the loss becomes `nan`. The standard defence is
 gradient clipping — if <M id="norm">the gradient's norm</M> exceeds a threshold,
-scale the whole vector down.
+scale the whole vector down and carry on.
+
+Let's just measure both:
 
 ```python run title="both failure modes, measured"
 for name, act, dact in [("sigmoid", lambda z: 1/(1+np.exp(-z)), lambda a: a*(1-a)),
@@ -382,15 +462,43 @@ for name, act, dact in [("sigmoid", lambda z: 1/(1+np.exp(-z)), lambda a: a*(1-a
 ```
 
 Thirty layers of sigmoid shrinks the gradient by many orders of magnitude. ReLU
-holds it roughly steady. That one measurement is the practical content of a
-decade of research.
+holds it roughly steady.
 
-**Silently accumulating.** In PyTorch, `.grad` adds rather than overwrites, so a
-missing <Py id="optimiser">`zero_grad()`</Py> means every step uses the sum of all
-gradients so far. Training diverges and nothing errors. It is the most common
-PyTorch bug there is.
+That one measurement is the practical content of about a decade of research, and
+you just ran it in a browser tab.
 
-## Exercise
+**Silently accumulating.** In PyTorch, `.grad` *adds* rather than overwrites — so
+a missing <Py id="optimiser">`zero_grad()`</Py> means every step uses the sum of
+every gradient so far.
+
+Training diverges. Nothing errors. Nothing warns you. It's the most common
+PyTorch bug there is, and now you'll recognise it on sight tomorrow.
+
+<Stuck>
+**"Why does `forward` return a cache? That feels like a hack."** It isn't — the
+backward pass genuinely needs values the forward pass computed (`a1` for step 2,
+`z1` for step 4). Every framework does this. It's also why training uses far more
+memory than inference.
+
+**"I can't see why `d1 = da1 * (z1 > 0)` is the ReLU derivative."** `(z1 > 0)` is
+a boolean array, which multiplies as 1s and 0s. So the gradient survives where
+the unit was on and is zeroed where it was off. That *is* the derivative of
+`max(0, z)`, written as a mask.
+
+**"My gradient check fails on the biases but passes on the weights."** Almost
+always a `sum(0)` versus `sum(1)` mix-up. The bias was broadcast across the
+batch, so the gradient sums across the batch — which is axis 0 in `(n, hidden)`.
+
+**"Where did the `/ n` come from?"** From the `.mean()` in the loss. A mean is a
+sum divided by n, and that constant carries all the way through the backward
+pass. Exercise 1 below deletes it deliberately, and the result is instructive.
+
+**"This all works for two layers. What about fifty?"** Steps 3 and 4 in a loop.
+That's genuinely it — the exercise at the bottom has you add a third layer, and
+once you've done that you've done all of them.
+</Stuck>
+
+<TryThis title="Break it, change it, extend it" reveal="Show solutions">
 
 ```python run title="your turn"
 # 1. Introduce a bug on purpose: delete the `/ n` in backward's `d2`.
@@ -405,7 +513,14 @@ PyTorch bug there is.
 print("replace me")
 ```
 
-<Reveal title="Solutions" kind="deep">
+<Fragment slot="hint">
+Number 3 is the one that will teach you the most. Before writing any code, write
+out steps 2, 3 and 4 for the new layer on paper. You'll find they're the same
+three expressions with different subscripts — and *noticing that* is the whole
+lesson.
+</Fragment>
+
+<Fragment slot="answer">
 
 ```python run
 # 1. The missing /n
@@ -422,10 +537,18 @@ print(f"ratio bad/good = {(bad / good).mean():.1f}   (= n = {len(ys)})")
 ```
 
 Gradient checking catches it instantly — every gradient is off by exactly the
-batch size. Note the insidious part: **it still trains**, because a constant
-factor on the gradient is indistinguishable from a larger learning rate. It works
-at batch size 50 and diverges at batch size 512, which is a genuinely horrible
-bug to find without a gradient check.
+batch size.
+
+But here's the genuinely insidious part, and I want to dwell on it: **it still
+trains.**
+
+A constant factor on the gradient is indistinguishable from a larger learning
+rate. So the bug works fine at batch size 50, and then quietly diverges at batch
+size 512 — because now the same bug multiplies by ten times more.
+
+That is a horrible bug to find without a gradient check. Six months later, in
+production, when somebody increases the batch size for speed. Gradient checking
+takes thirty seconds.
 
 ```python run
 # 2. tanh
@@ -450,17 +573,29 @@ plt.tight_layout()
 print(f"relu final {hist[-1]:.4f}   tanh final {hist_t[-1]:.4f}")
 ```
 
-Both work at two layers — the vanishing-gradient argument is about *depth*, and
-two layers is not deep. tanh is often slightly smoother early on because it is
-zero-centred. The difference becomes decisive somewhere past ten layers, which is
-what the measurement cell above was showing.
+Both work perfectly well — and that's worth understanding rather than being
+surprised by. The vanishing-gradient argument is about **depth**, and two layers
+is not deep. Nothing has had a chance to vanish.
 
-Question 3 is the one worth actually doing. The pattern to notice is that steps
-2, 3 and 4 are *identical for every layer* — input transposed times incoming
-error, error pushed back through the transposed weights, mask by the activation
-derivative. Once you have written that loop, you have written a deep learning
-framework's core. Which is exactly what PyTorch is, plus GPU kernels and a great
-deal of engineering.
-</Reveal>
+tanh is often slightly smoother early on, because it's zero-centred. The
+difference becomes decisive somewhere past ten layers, which is exactly what the
+measurement cell above was showing you.
 
-Tomorrow: let a library do all of this, and see how little is left.
+So: don't over-apply a rule outside the range where it bites. "ReLU beats tanh" is
+true at depth and roughly irrelevant here.
+
+**Question 3** is the one genuinely worth doing.
+
+The pattern to notice is that steps 2, 3 and 4 are *identical for every layer*:
+input transposed times incoming error; error pushed back through the transposed
+weights; mask by the activation derivative.
+
+Once you've written that as a loop, you have written the core of a deep learning
+framework. Which is, more or less exactly, what PyTorch is — plus GPU kernels,
+plus a great deal of very good engineering.
+
+That's tomorrow.
+</Fragment>
+</TryThis>
+
+Tomorrow: let a library do all of this, and see how little is left of your code.

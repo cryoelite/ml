@@ -1,0 +1,28 @@
+---
+title: 'argsort'
+lib: 'numpy'
+summary: 'Returns the indices that would sort an array, rather than the sorted values. The basis of every ranking and retrieval operation.'
+signature: 'np.argsort(a)  ->  indices'
+example: |-
+  scores = np.array([0.2, 0.9, 0.5])
+  order = np.argsort(scores)[::-1]     # descending
+  order, scores[order]
+output: '(array([1, 2, 0]), array([0.9, 0.5, 0.2]))'
+rust: '`(0..n).sorted_by_key(|&i| a[i])` — you sort the indices, not the data, so you can carry other arrays along in the same order.'
+docs: 'https://numpy.org/doc/stable/reference/generated/numpy.argsort.html'
+docsLabel: 'numpy.argsort ↗'
+---
+
+The `arg` prefix is a convention worth learning once: `argmax` gives you *where*
+the maximum is rather than what it is, and `argsort` gives you the ordering
+rather than the ordered values.
+
+That indirection is the point. Once you have the order, you can apply it to any
+number of parallel arrays — sort your predictions and carry the labels, the IDs
+and the timestamps along with them.
+
+Reverse with `[::-1]` for descending; NumPy has no `reverse=True`.
+
+For a top-k on a large array, `np.argpartition` is much faster because it only
+partially sorts. Retrieving the 10 nearest neighbours out of a million vectors is
+`argpartition`, not `argsort`, and the difference is real.

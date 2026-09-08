@@ -1,0 +1,31 @@
+---
+title: 'squeeze and unsqueeze'
+lib: 'torch'
+summary: 'Add or remove a dimension of size 1. The fix for the most common silent shape bug in PyTorch.'
+signature: 'x.unsqueeze(dim)  |  x.squeeze()'
+example: |-
+  pred = torch.randn(8, 1)      # what nn.Linear(h, 1) gives you
+  targ = torch.randn(8)         # what your labels look like
+  (pred - targ).shape, (pred.squeeze() - targ).shape
+output: '(torch.Size([8, 8]), torch.Size([8]))'
+rust: 'A pure metadata change, like reinterpreting a `[[f64; 1]; 8]` as an `[f64; 8]`. No data moves.'
+docs: 'https://pytorch.org/docs/stable/generated/torch.squeeze.html'
+docsLabel: 'torch.squeeze ↗'
+---
+
+Look hard at that example, because it is the bug.
+
+`nn.Linear(h, 1)` outputs `(n, 1)`. Your labels are `(n,)`. Subtracting them
+does not fail — it [broadcasts](/appendix/python/#broadcasting) into `(n, n)`,
+and your loss becomes the mean of $n^2$ meaningless numbers. The model trains.
+The loss goes down. Nothing is right.
+
+`squeeze()` removes every dimension of size 1; `squeeze(dim)` removes only the
+one you name, which is safer — a batch of size 1 would otherwise vanish along
+with the dimension you meant.
+
+`unsqueeze(dim)` inserts one. NumPy spells the same operation `arr[:, None]`, and
+you will see both.
+
+The habit that prevents the bug entirely: print the shape of your predictions and
+your labels, side by side, before your first training run.

@@ -1,0 +1,18 @@
+---
+import Base from "../layouts/Base.astro";
+import Doodle from "../components/Doodle.astro";
+import { doodles } from "../lib/doodles";
+const names = Object.keys(doodles);
+---
+<Base title="Doodles">
+  <main id="main" style="padding:2rem;">
+    <div style="display:grid;grid-template-columns:repeat(3,1fr);gap:2rem;">
+      {names.map((n) => (
+        <figure style="margin:0;padding:1rem;border:1px solid #ddd;border-radius:12px;background:#fff;">
+          <Doodle name={n} />
+          <figcaption style="font:600 12px system-ui;margin-top:.5rem;color:#666;">{n}</figcaption>
+        </figure>
+      ))}
+    </div>
+  </main>
+</Base>

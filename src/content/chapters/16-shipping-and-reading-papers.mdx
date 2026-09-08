@@ -8,8 +8,10 @@ minutes: 90
 introduces: ["eval", "deploy"]
 ---
 
-The last day, and the two things that separate a model from a system: knowing
-what number to report, and being able to keep learning without a curriculum.
+Last day. Two things separate a model from a system: knowing what number to
+report, and being able to keep learning without anybody writing you a curriculum.
+
+Let's do both, and then you're done.
 
 ## Accuracy is usually the wrong number
 
@@ -27,8 +29,11 @@ print(f"model that always says 'not fraud': accuracy {(always_no == truth).mean(
 print(f"frauds caught: {((always_no == 1) & (truth == 1)).sum()} of {truth.sum()}")
 ```
 
-Ninety-nine percent accuracy, zero value. Any metric that a constant can score
-well on is not measuring your problem.
+Ninety-nine percent accuracy. Zero frauds caught. Zero value.
+
+You met this in chapter 3 and here it is again, because it's the mistake that
+keeps happening. **Any metric that a constant can score well on is not measuring
+your problem.**
 
 ```python run title="the confusion matrix, which is the real object"
 scores = np.where(truth == 1,
@@ -48,16 +53,22 @@ print(f"\nprecision {tp/(tp+fp):.3f}  — of those flagged, how many really were
 print(f"recall    {tp/(tp+fn):.3f}  — of the real frauds, how many did we catch")
 ```
 
-Learn these two by their sentences, not their formulas:
+Four numbers instead of one. That's the real object, and accuracy is just a lossy
+summary of it.
+
+Learn these two by their **sentences**, not their formulas — formulas you can look
+up, sentences you can use in a meeting:
 
 - **Precision** — when the model says yes, how often is it right? Low precision
-  means you waste effort on false alarms.
-- **Recall** — of the things that really were true, how many did you find? Low recall
-  means you missed them.
+  means you're wasting effort chasing false alarms.
+- **Recall** — of the things that really were true, how many did you find? Low
+  recall means you missed them.
 
-They trade off. A model that flags everything has recall 1.0 and dreadful
-precision; one that flags only its single most confident case has precision near
-1.0 and useless recall.
+And they trade off against each other, necessarily. A model that flags
+*everything* has recall 1.0 and dreadful precision. A model that flags only its
+single most confident case has precision near 1.0 and useless recall.
+
+Neither of those is a better model. They're the same model at different settings.
 
 ## The threshold is a business decision
 
@@ -71,9 +82,19 @@ for t in [0.2, 0.35, 0.5, 0.65, 0.8]:
           f"precision {prec:.2f}  recall {rec:.2f}")
 ```
 
-**The model did not change.** One set of scores, five different systems. Moving
-the threshold moves you along a curve, and choosing where to sit is a question
-about costs, not about machine learning.
+Now look hard at that table, because there's something important in it:
+
+**The model did not change.**
+
+One set of scores. Five completely different systems, with completely different
+operational characteristics, from one trained model.
+
+Moving the threshold moves you along a curve — and choosing *where on that curve
+to sit* is a question about costs. It is not a machine learning question at all,
+and it very often gets left at 0.5 by default, which is to say it gets decided by
+whoever wrote the tutorial rather than by whoever owns the money.
+
+Let's decide it properly instead.
 
 ```python run title="pick it with money, not with intuition"
 COST_FALSE_ALARM = 4        # an analyst spends five minutes
@@ -93,11 +114,19 @@ print(f"default 0.50 threshold  ->  total cost "
       f"{d[1] * COST_FALSE_ALARM + d[2] * COST_MISSED_FRAUD:,}")
 ```
 
+Compare those two totals. Same model, same data, no retraining — a materially
+better system, from changing one number.
+
 <Aside type="key">
-Two numbers — what a false positive costs and what a false negative costs — turn
-an unanswerable question into arithmetic. Getting them from whoever owns the
-problem is the highest-leverage half hour in most projects, and it is very often
-never done.
+Two numbers — what a false positive costs, and what a false negative costs —
+turn an unanswerable question into arithmetic.
+
+Getting those two numbers from whoever owns the problem is the
+highest-leverage half hour in most machine learning projects.
+
+It is also very often never done at all. People will spend six weeks on model
+architecture and zero minutes on the number that turns out to matter more. Be the
+person who asks.
 </Aside>
 
 ```python run title="the whole curve"
@@ -116,14 +145,19 @@ plt.tight_layout()
 ```
 
 <Aside type="nice">
-Report **PR-AUC** for imbalanced problems and **ROC-AUC** for balanced ones. The
-reason is that ROC's x-axis is the false-positive *rate*, and when 99% of your
-data is negative, a great many false positives still make a small rate — so ROC
-looks flattering. Precision has the count of false positives in its denominator
-and stays honest.
+Report **PR-AUC** for imbalanced problems and **ROC-AUC** for balanced ones, and
+here's the reason, which is worth understanding rather than memorising.
 
-A single number is still a summary of a whole curve. Quote the curve, or at
-minimum quote precision and recall at the threshold you actually intend to use.
+ROC's x-axis is the false-positive *rate*. When 99% of your data is negative, a
+great many false positives still make a small *rate* — so ROC looks flattering on
+imbalanced problems, sometimes wildly so.
+
+Precision has the raw count of false positives in its denominator, so it stays
+honest. It can't be fooled by a large negative class.
+
+And a single number is still a summary of a whole curve. Quote the curve, or at
+absolute minimum quote precision and recall **at the threshold you actually
+intend to use**.
 </Aside>
 
 ## Calibration
@@ -147,75 +181,102 @@ plt.legend(); plt.tight_layout()
 print("when it says 0.7, does it happen 70% of the time?")
 ```
 
-A model is **calibrated** if, among the cases it scored 0.7, roughly 70% are
-positive. Ranking correctly and being calibrated are different properties, and
-you need calibration whenever the probability itself feeds a decision — expected
-value, triage, pricing. Neural networks are typically *over*confident; the usual
-fixes are Platt scaling or temperature scaling on a held-out set.
+That printed question is the whole concept. A model is **calibrated** if, among
+the cases it scored 0.7, roughly 70% turn out positive.
+
+And here's the subtlety worth having: **ranking correctly and being calibrated
+are different properties.** A model can put every case in exactly the right order
+and still have all its probabilities squashed into 0.4–0.6, or spread out to 0
+and 1. For ranking, that's fine. For anything where the probability itself feeds
+a decision — expected value, triage, pricing — it's not.
+
+Neural networks are typically *over*confident. The usual fixes are Platt scaling
+or temperature scaling on a held-out set, and both are about ten lines.
 
 ## After it ships
 
 **Distribution shift.** A model learns the distribution it was shown. When the
-world moves — new competitor, new product line, a pandemic — performance decays
-without anything erroring. Monitor the *inputs* as well as the outputs, because
-input drift is visible immediately while label-based metrics may take months to
-arrive.
+world moves — a new competitor, a new product line, a pandemic — performance
+decays and *nothing errors*.
 
-**The feedback loop.** A fraud model that blocks transactions never learns whether
-those transactions were fraudulent. A recommender that only shows five items only
-gets feedback on five items. Your training data becomes a product of your own past
-predictions, and this is a genuinely hard problem — the usual mitigation is to hold
-out a small random slice that bypasses the model.
+Monitor the **inputs** as well as the outputs. Input drift is visible
+immediately; label-based metrics might take months to arrive, and by then you've
+been quietly wrong for a quarter.
 
-**Training/serving skew.** The single most common production bug: features
-computed one way in the training pipeline and another way at serving time. A
-mean imputed from the training set, a category encoded in a different order, a
-timezone. The defence is architectural — compute features with the *same code* in
-both paths.
+**The feedback loop.** A fraud model that blocks transactions never finds out
+whether those transactions were fraudulent. A recommender that shows five items
+only ever gets feedback on five items.
 
-**A model is a function, and you know how to ship functions.** Version it, pin
-its dependencies, log its inputs and outputs, health-check it, and keep the
-previous one warm. Most of MLOps is ordinary operations applied to an artefact
-that happens to be a matrix.
+Your training data becomes a product of your own past predictions — and this is a
+genuinely hard problem, not a tidiness issue. The usual mitigation is to hold out
+a small random slice of traffic that bypasses the model entirely, so you keep
+seeing unfiltered reality.
+
+**Training/serving skew.** The single most common production bug in the field:
+features computed one way in the training pipeline and a subtly different way at
+serving time. A mean imputed from the training set. A category encoded in a
+different order. A timezone.
+
+The defence is architectural, not disciplinary — **compute features with the same
+code in both paths.** Don't rely on remembering.
+
+**A model is a function, and you already know how to ship functions.** Version
+it, pin its dependencies, log its inputs and outputs, health-check it, keep the
+previous one warm.
+
+Most of what gets called MLOps is ordinary operations applied to an artefact that
+happens to be a matrix. You are not starting from zero here — you've been doing
+this for years.
 
 <Aside type="warn">
-Log the model version alongside every prediction, from day one. The first time
-someone asks "why did it decline this application in March", you will need to
-know which weights answered — and if you did not log it, no amount of later
-effort recovers it.
+Log the model version alongside every single prediction, from day one.
+
+The first time somebody asks "why did it decline this application in March?", you
+will need to know which weights answered — and if you didn't log it, no amount of
+later effort recovers it. The model has been retrained eleven times since.
+
+This costs one column and saves an entire terrible week.
 </Aside>
 
 ## Reading a paper
 
-You now have enough to get the gist of most machine learning papers. The trick is
-not to read them front to back.
+You now have enough to get the gist of most machine learning papers. Genuinely —
+this is not encouragement, it's an assessment.
 
-**Pass 1, five minutes.** Title, abstract, figures, and the conclusion. Figure 1
-is almost always the architecture or the headline result, and it is usually the
-densest information in the paper. After this you should be able to say what
-problem they attacked and whether the result is interesting to you. Most papers
-stop here, correctly.
+The trick is to not read them front to back.
 
-**Pass 2, twenty minutes.** The method section, ignoring proofs. Ask four
+**Pass 1, five minutes.** Title, abstract, figures, conclusion. Figure 1 is
+almost always the architecture or the headline result, and it's usually the
+densest information in the whole paper.
+
+After this pass you should be able to say what problem they attacked and whether
+the result is interesting *to you*. Most papers should stop here, and that's not
+a failure — it's triage.
+
+**Pass 2, twenty minutes.** The method section, skipping proofs. Ask four
 questions, all of which you can now answer:
 
 1. What is the **input and output**? (Chapter 3)
 2. What is the **loss**? (Chapters 4–5)
-3. What is the **architecture**, in terms of pieces you know? (Chapters 8–13)
+3. What is the **architecture**, in terms of pieces you already know? (Chapters 8–13)
 4. What is the **baseline**, and is the comparison fair? (Chapter 6)
 
 **Pass 3, an afternoon.** Reproduce something. This is where actual understanding
-happens, and it is the pass almost everyone skips.
+happens, and it's the pass that almost everybody skips.
 
 <Aside type="key">
-The question that catches most weak papers is number 4. Look for: a baseline
-tuned less carefully than the proposed method; a test set consulted repeatedly; a
-comparison against an old version of a competitor; results averaged over one
-seed. None of these require you to understand the mathematics, and all of them
-are common.
+Question 4 is the one that catches most weak papers, and you can ask it without
+understanding a single equation.
+
+Look for: a baseline tuned less carefully than the proposed method. A test set
+that was clearly consulted repeatedly. A comparison against an old version of a
+competitor. Results averaged over one seed.
+
+None of those require mathematics to spot. All of them are common. And noticing
+them is most of what "reading critically" actually means in this field.
 </Aside>
 
-Some notation that used to be opaque and now is not:
+Some notation that used to be opaque and now isn't:
 
 <div class="table-scroll">
 
@@ -233,10 +294,15 @@ Some notation that used to be opaque and now is not:
 
 </div>
 
-So the sentence
-$\min_\theta \mathbb{E}_{(x,y)\sim D}\left[\mathcal{L}(f_\theta(x), y)\right] + \lambda\|\theta\|_2^2$
+So this sentence:
+
+$$\min_\theta \mathbb{E}_{(x,y)\sim D}\left[\mathcal{L}(f_\theta(x), y)\right] + \lambda\|\theta\|_2^2$$
+
 says: *make the average loss on your data small, and penalise large weights while
-you are at it.* Which is the whole of Chapters 5 and 6, written in nine symbols.
+you're at it.*
+
+Which is the whole of Chapters 5 and 6, written in nine symbols. It looked like a
+foreign language a fortnight ago. It's a sentence about a hill and a penalty.
 
 ## A checklist for your first real project
 
@@ -247,80 +313,122 @@ you are at it.* Which is the whole of Chapters 5 and 6, written in nine symbols.
 4. **Get the two costs** — false positive, false negative — from whoever owns the
    problem.
 5. **Fit the boring model.** Logistic regression or gradient boosting.
-6. **Look at the errors.** Not the metric, the actual rows it got wrong. This is
+6. **Look at the errors.** Not the metric — the actual rows it got wrong. This is
    the highest-value hour in any project and the one most often skipped.
 7. **Only now** consider something more complicated.
 8. **Check for leakage** whenever a result is better than you expected.
 9. **Pick the threshold with the costs from step 4.**
 10. **Ship it with logging**, and watch the input distribution.
 
+Print it, put it somewhere. Steps 2, 4 and 6 are the ones people skip, and
+they're the ones that decide whether the project works.
+
 ## Where to go next
 
 **Consolidate.** Do a Kaggle playground competition end to end — not to win, but
-to feel the loop of validate, change one thing, measure. A week of that is worth
-a month of reading.
+to feel the loop of *validate, change one thing, measure*. A week of that is
+worth a month of reading, and it's the fastest way to build the instinct.
 
 **Go deeper on the code.** Karpathy's *Zero to Hero* series builds a GPT from
-nothing and is the natural sequel to Chapters 9 and 13. The fastai course is
-excellent and takes the opposite route to this one — top down, library first —
-which makes the two complementary rather than redundant.
+nothing and is the natural sequel to chapters 9 and 13. The fastai course is
+excellent and takes the *opposite* route to this one — top down, library first —
+which makes the two genuinely complementary rather than redundant. You'll get
+more from it now than you would have a fortnight ago.
 
 **Go deeper on the theory.** Bishop's *Pattern Recognition and Machine Learning*
 for the probabilistic view; Goodfellow, Bengio and Courville's *Deep Learning*
-for the standard reference. Both are demanding and both are better after this
-than before it.
+for the standard reference. Both are demanding, and both are much better after
+this than before it.
 
-**Read papers.** *Attention Is All You Need* (2017) is the one to start with — you
-have implemented most of it. Then follow whatever is cited by the thing you
-actually want to build.
+**Read papers.** *Attention Is All You Need* (2017) is the one to start with —
+you've implemented most of it. Then simply follow whatever is cited by the thing
+you actually want to build. That's how everybody does it; there's no reading list.
 
 <Aside type="key">
-The most useful habit: **when you meet something new, find where it sits on
-[the map](/map/).** Is it a new supervision signal, a new model family, or a new
-piece of the fitting machinery? Almost everything is one of those three, and
-placing it correctly turns a strange new thing into a variation on something you
-have already built.
+The single most useful habit, and the thing I'd most like you to keep:
+
+**When you meet something new, find where it sits on [the map](/map/).**
+
+Is it a new supervision signal? A new model family? A new piece of the fitting
+machinery? Almost everything is one of those three.
+
+Placing it correctly turns a strange new thing into a variation on something
+you've already built — which is the difference between a field that feels
+infinite and one that feels navigable.
 </Aside>
 
-## Exercise
+<TryThis title="The last one, and there's no code in it" reveal="Show why question 7 is the important one">
 
-The last one, and it is not a code cell.
+Pick a problem from your own work. A real one — something you have data for, or
+could get data for.
 
-Pick a problem from your own work. A real one — something you have data for or
-could get data for. Write half a page:
+Write half a page:
 
 1. Supervision, task, features, target.
-2. How you would build the validation set, and why that structure.
+2. How you'd build the validation set, and *why that structure*.
 3. The trivial baseline, and what it would score.
 4. The cost of a false positive and of a false negative.
-5. The first model you would try, and why.
-6. One way this could be leakage, and how you would check.
-7. What would make you abandon the project.
+5. The first model you'd try, and why.
+6. One way this could be leakage, and how you'd check.
+7. **What would make you abandon the project.**
 
-If you can answer all seven, you can start. If you cannot answer 2, 4 or 7, that
-is where the work is — and it is not modelling work.
+If you can answer all seven, you can start.
 
-<Reveal title="Why question 7 is the important one" kind="deep">
+If you can't answer 2, 4 or 7 — that's where the work is. And notice that none of
+it is modelling work.
 
-Every one of the other six has a technical answer you could look up. Question 7
-does not, and it is the one that decides whether the project is worth doing.
+<Fragment slot="answer">
 
-Good abandonment criteria are concrete and set in advance: *if a well-tuned
-gradient-boosted model cannot beat the baseline by 5 points on the validation
-set within two weeks, the signal is not there.* Or: *if fixing the label noise
-requires more annotator time than the project saves, stop.*
+Every one of the first six questions has a technical answer you could look up.
 
-Written down beforehand, that is a decision. Discovered afterwards, it is four
-months and an awkward meeting. The habit is worth more than any architecture in
-this tutorial.
-</Reveal>
+Question 7 doesn't. And it's the one that decides whether the project is worth
+doing at all.
+
+Good abandonment criteria are **concrete and set in advance**. For example:
+
+> *If a well-tuned gradient-boosted model cannot beat the baseline by 5 points on
+> the validation set within two weeks, the signal isn't there.*
+
+Or:
+
+> *If fixing the label noise requires more annotator time than the project saves,
+> stop.*
+
+Written down beforehand, that is a **decision** — clean, defensible, and made
+while everyone is still calm.
+
+Discovered afterwards, it's four months and an awkward meeting.
+
+The habit of writing question 7 down before you start is worth more than any
+architecture in this book. It's also the one nobody teaches, because it isn't
+technical and it doesn't demo well.
+</Fragment>
+</TryThis>
 
 ---
 
-That is the fortnight. You have built a linear model, a gradient descent
-optimiser, a neural network, a backward pass, an attention mechanism, an
-embedding, an autoencoder and a tokeniser — every one of them from
-<Py id="ndarray">arrays</Py> and arithmetic — and you know which of them to reach
-for and when the answer is none of them.
+## That's the fortnight
 
-The field will keep moving. The frame will not.
+You've built a linear model, a gradient descent optimiser, a neural network, a
+backward pass, an attention mechanism, an embedding, an autoencoder and a
+tokeniser — every one of them out of <Py id="ndarray">arrays</Py> and arithmetic,
+with nothing hidden.
+
+You know which of them to reach for. You know when the answer is none of them.
+You can open a paper and place it on a map.
+
+And I hope somewhere in there — the hinges adding up into a curve, the templates
+turning out to be pictures of digits, the gradient walking downhill in the fog,
+one triangle of booleans separating BERT from GPT — some of it was actually
+*fun*. That was the other half of the point.
+
+The field will keep moving. The frame won't.
+
+<div class="pip-note">
+  <Doodle name="pipCheer" decorative />
+  <p>Go and build something. That's the whole reason for any of this.</p>
+</div>
+
+If you want more, the [extras](/extras/) are everything that didn't fit in
+fourteen days — the roads not taken, the deeper whys, and the things you only
+learn by shipping.

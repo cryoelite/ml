@@ -1,0 +1,218 @@
+---
+title: "How research in this field actually works"
+blurb: "arXiv, peer review that mostly isn't, benchmarks that rot, and a reproducibility problem. How to read the literature without either believing everything or dismissing it."
+order: 50
+minutes: 11
+kind: "culture"
+after: "16-shipping-and-reading-papers"
+covers: ["eval"]
+---
+
+Chapter 16 taught you the three-pass read and the four questions. That's the
+mechanics.
+
+This is the *context* — how papers get made, who checks them, and what that means
+for how much weight to put on any given claim. It matters because the answer
+isn't "a lot" or "none", and calibrating between those two is a real skill that
+takes people years to acquire by osmosis.
+
+## Papers appear before anyone checks them
+
+Almost every machine learning paper you read will be on **arXiv** (pronounced
+"archive" — the X is a chi), a preprint server. Authors upload; a moderator checks
+it's on-topic and not obvious nonsense; it's public within about a day.
+
+That's it. No peer review, no gatekeeping on correctness.
+
+The upside is real and shouldn't be dismissed: the field moves fast because
+nobody waits nine months for a review cycle. Ideas compound in weeks.
+
+The downside is equally real: **a paper on arXiv has been checked by nobody.** Not
+its statistics, not its baselines, not whether its central claim survives a
+careful reading.
+
+Conferences — NeurIPS, ICML, ICLR, CVPR, ACL — do run real peer review, and
+acceptance there means several people read it and had objections addressed. But:
+
+- The paper was on arXiv, cited, and possibly built upon months earlier.
+- Reviewers are volunteers, often overloaded, sometimes junior, always unpaid.
+- Nobody re-runs the experiments. Nobody has time.
+- Acceptance rates around 20–25% select for *interesting* as much as *correct*.
+
+<Aside type="key">
+The practical rule I'd offer: **treat a paper as a well-argued claim by an
+interested party, not as an established fact.**
+
+That's not cynicism — it's the correct epistemic status of a document written by
+people who wanted a particular result and checked by people who had ninety
+minutes.
+
+It's also how experienced researchers actually read. The difference between them
+and a newcomer isn't that they trust papers less; it's that they know *which
+parts* to trust. Methods sections are usually reliable. Headline comparisons
+frequently aren't.
+</Aside>
+
+## The reproducibility problem
+
+A number of studies have tried to reproduce published ML results, and the general
+finding is consistent and uncomfortable: **a substantial fraction don't
+reproduce**, and many papers don't provide enough information to try.
+
+The causes are mostly mundane rather than sinister:
+
+**Undisclosed tuning.** The proposed method got a hyperparameter sweep. The
+baseline got defaults. Nobody lied — the effort was simply asymmetric, because
+the authors cared about one of them.
+
+**Seed selection.** Run five seeds, report the best. Sometimes deliberate, more
+often an artefact of "I ran it a few times and this is the number I wrote down."
+
+**Test-set overfitting, collectively.** A thousand groups evaluate on the same
+benchmark. Every one uses the test score to guide their next idea. The benchmark
+becomes a validation set for the *entire field*, and reported gains drift
+optimistic — chapter 6's warning about looking at your test set, at community
+scale.
+
+**Missing details.** Learning rate schedule, data preprocessing, initialisation,
+the exact augmentations. Often the difference between a result and no result, and
+often not in the paper.
+
+**Compute asymmetry.** "Our method beats X" where X was trained with a tenth of
+the compute is a claim about budgets, not methods.
+
+<Aside type="warn">
+The one to watch for hardest is the first, because it's invisible and it's
+everywhere.
+
+A striking pattern in retrospective studies: when someone tunes the *old* method
+as carefully as the new one, the gap frequently narrows sharply and sometimes
+vanishes. This has been documented across recommender systems, metric learning,
+and language model architectures.
+
+None of those authors cheated. They tuned what they were interested in, which is
+the natural thing to do, and the incentive structure did the rest.
+
+So when you read "we improve on the state of the art by 1.2%", the honest
+question isn't "is that true?" — it's **"would that gap survive if someone tuned
+the baseline as hard?"** Often nobody knows, including the authors.
+</Aside>
+
+## Benchmarks rot
+
+A benchmark is a proxy for a capability. Over time, effort optimises the proxy
+and the link to the capability weakens.
+
+**Saturation.** When everyone scores 97%, the remaining 3% is mostly label noise
+and ambiguous examples, and differences stop being meaningful. ImageNet reached
+this; a chunk of its residual error is genuinely mislabelled images.
+
+**Contamination.** Benchmarks published on the web end up in the training data of
+models trained on the web. A model that has memorised the test set scores
+brilliantly and has learned nothing. This is a serious and growing problem for
+language model evaluation, and detecting it is hard.
+
+**Goodhart's law**, which is the general form: *when a measure becomes a target,
+it ceases to be a good measure.* Every benchmark in this field is a target.
+
+The healthy response isn't to distrust benchmarks — it's to prefer results on
+*multiple* benchmarks, to weight recently-constructed ones more heavily, and to
+be most convinced by evaluations on data that couldn't have been in training.
+
+## What a good paper looks like
+
+Positive signals, roughly in order of how much they move me:
+
+- **Code and weights released**, and the code actually corresponds to the paper.
+- **Error bars over multiple seeds.** A single number for a stochastic process is
+  not a result. This alone puts a paper in a better tier.
+- **Ablations.** "We changed five things, here's what each contributed." Without
+  this you can't know which part mattered, and often neither can the authors.
+- **A limitations section with real content**, rather than "future work will
+  explore other datasets."
+- **Baselines tuned with stated effort.** "We ran the same sweep for both" is a
+  sentence worth trusting.
+- **Negative results reported.** Rare, and a strong signal of honesty.
+
+Warning signs:
+
+- A single number, one seed, no variance.
+- Comparison against a baseline from three years ago.
+- The improvement is within the range the seed variance would explain.
+- Evaluation only on the benchmark the method was designed around.
+- No code, and the method has eleven hyperparameters.
+
+## The economics, which shape the science
+
+Worth naming plainly, because it explains a lot of what you'll observe.
+
+Frontier-scale experiments cost millions. That means a small number of
+organisations can run them, and those organisations are mostly companies with
+products. Consequences follow:
+
+**Publication is strategic.** Some results are published, some are described
+vaguely, some aren't mentioned. "Technical reports" for major models increasingly
+omit architecture, data and training details. That's a commercial decision, and
+it's a real loss for the field's ability to check itself.
+
+**Academic groups work on what's affordable** — efficiency, analysis,
+interpretability, small models, theory. That's a healthy division of labour in
+some ways and a distortion in others: the people with the most freedom to be
+critical have the least access to the objects of study.
+
+**"Scaling works" is partly self-fulfilling.** If most compute goes to scaling
+one approach, that approach improves fastest, which justifies more compute. It
+might also be true on the merits. Both can hold at once, and disentangling them
+is genuinely hard.
+
+<Aside type="nice">
+None of this is unique to machine learning. Every empirical field has publication
+bias, incentive problems, and results that don't replicate.
+
+What *is* unusual here is the speed, the absence of gatekeeping before
+publication, and the tight coupling between research and commercial products.
+Those make the field fast and productive, and they also make it noisier than a
+newcomer expects.
+
+Knowing that is protective. The failure mode isn't reading papers — it's reading
+one paper and treating it as settled.
+</Aside>
+
+## How to keep up without drowning
+
+Roughly a hundred ML papers hit arXiv every day. You cannot read them, and
+attempting to is a reliable way to feel permanently behind while learning
+nothing.
+
+What actually works:
+
+**Follow problems, not feeds.** Pick something you want to build. Read what's
+cited by the thing closest to it. Depth-first beats breadth-first, every time.
+
+**Wait.** A paper that still matters in six months is worth reading; most aren't.
+Deliberately being three months behind costs you almost nothing and saves you
+enormous amounts of noise.
+
+**Read the survey first.** A good survey gives you the map for a subfield in one
+sitting and tells you which five papers to read.
+
+**Reproduce one thing a quarter.** You'll learn more from implementing one paper
+than from skimming fifty, and you'll acquire a permanent sense of which claims
+are load-bearing.
+
+**Notice who you're reading.** Some groups reliably release code, report error
+bars and tune baselines fairly. Track them.
+
+<Aside type="key">
+And the reassuring part, which is genuinely true:
+
+**The fundamentals move much more slowly than the headlines.** Gradient descent
+is from the 1840s. Backprop's modern form is 1986. The transformer is 2017 and
+essentially unchanged in its core. Cross-entropy, validation sets, the
+bias–variance trade — none of that is going anywhere.
+
+You've spent a fortnight on the parts with the longest half-life. The
+week-to-week churn sits on top of a foundation that mostly doesn't move, and
+knowing the foundation is what lets you read the churn quickly instead of being
+overwhelmed by it.
+</Aside>

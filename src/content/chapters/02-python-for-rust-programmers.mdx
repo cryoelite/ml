@@ -7,22 +7,27 @@ part: orientation
 minutes: 90
 ---
 
-You do not need to learn Python. You need to learn *NumPy*, and enough Python to
-hold it. This chapter is arranged accordingly: forty minutes on the language,
-then the rest on arrays, because arrays are what machine learning is actually
-written in.
+Here's a secret about this chapter: you don't really need to learn Python.
+
+You need to learn **NumPy**, and just enough Python to carry it around. So that's
+how the day is arranged — forty minutes on the language, and then the rest of it
+on arrays, because arrays are what machine learning is actually written in. Every
+model in this course, including the ones in PyTorch, is arrays underneath.
 
 <Aside type="key">
-The mental shift that matters is not syntax. It is that **you stop writing
-loops**. In Rust you express computation as iteration over elements. In NumPy you
-express it as operations on whole arrays, and the loop happens somewhere you
-never see, in C, on eight cores at once.
+The shift that matters isn't syntax. It's that **you stop writing loops.**
+
+In Rust you express computation as iteration over elements, and you do it well.
+In NumPy you express it as operations on *whole arrays*, and the loop happens
+somewhere you never see — in C, across eight cores, faster than you could have
+written it. Letting go of the loop is the whole adjustment.
 </Aside>
 
 ## The language, briefly
 
-Everything is an object, everything is a reference, and nothing is checked until
-it runs.
+Three sentences of orientation: everything is an object, everything is a
+reference, and nothing is checked until it runs. That last one is going to feel
+like walking off a cliff for about a day. It passes.
 
 ```python run title="the shape of it"
 def train(examples, lr=0.01, *, verbose=False):
@@ -37,37 +42,42 @@ def train(examples, lr=0.01, *, verbose=False):
 train([(1.0, 0.8), (2.0, 2.4)], verbose=True)
 ```
 
-Six things are happening there that are worth naming.
+Six things just happened that are worth naming out loud.
 
-Indentation is the block structure — no braces, and a wrong indent is a syntax
-error rather than a style complaint. Arguments after `*` are **keyword-only**, so
-callers must write `verbose=True`; use this liberally, because a bare `True` at a
-call site is unreadable. <Py id="f-string">f-strings</Py> interpolate any
-expression. <Py id="zip-enumerate">`enumerate`</Py> pairs items with indices, and
-<Py id="tuple-unpacking">tuple unpacking</Py> pulls the pair apart in the loop
-header. `**` is exponentiation, not dereference. And `/` on two integers gives a
-float — `7 / 2` is `3.5`, while `7 // 2` is `3`.
+Indentation *is* the block structure — no braces, and a wrong indent is a syntax
+error rather than a style complaint. Arguments after the bare `*` are
+**keyword-only**, so callers have to write `verbose=True`; use that liberally,
+because a bare `True` at a call site tells the reader nothing.
+<Py id="f-string">f-strings</Py> interpolate any expression you like.
+<Py id="zip-enumerate">`enumerate`</Py> pairs items with their indices, and
+<Py id="tuple-unpacking">tuple unpacking</Py> pulls each pair apart right there
+in the loop header. `**` is exponentiation, not a dereference. And `/` on two
+integers gives you a float — `7 / 2` is `3.5`, where `7 // 2` is `3`.
 
 <Aside type="rust">
-Four differences that will cost you an hour each if nobody says them out loud.
+Four differences that will each cost you an hour if nobody says them out loud, so
+here they are out loud.
 
-**No ownership, no borrows, and no `mut`.** Everything is a reference to a heap
-object; assignment rebinds a name, it does not copy. `b = a` followed by
-`b.append(1)` mutates what `a` sees. There is no compiler to catch it.
+**No ownership, no borrows, no `mut`.** Everything is a reference to a heap
+object, and assignment rebinds a name rather than copying. So `b = a` followed by
+`b.append(1)` mutates what `a` sees. There is no compiler to catch this. There is
+no compiler at all.
 
-**No `Option`, no `Result`.** Absence is `None`, and failure is an exception that
-propagates up until something catches it. There is no `?`, and no warning if you
-ignore a failure path.
+**No `Option`, no `Result`.** Absence is `None`. Failure is an exception that
+propagates upward until something catches it. There's no `?`, and nothing warns
+you that you ignored a failure path.
 
-**Annotations are not types.** `def f(x: int)` is a comment that tooling can read.
-Passing a string works fine right up until something inside does arithmetic.
+**Annotations are not types.** `def f(x: int)` is a comment that tooling can
+read. Passing a string works perfectly right up until something inside does
+arithmetic on it.
 
-**No overflow, ever.** Python integers are arbitrary precision. `2 ** 1000` is an
-exact number. NumPy integers, however, are fixed-width and *do* wrap silently,
-which is a genuinely nasty edge when you mix the two.
+**No overflow. Ever.** Python integers are arbitrary precision — `2 ** 1000` is
+an exact number, and it will happily print all 302 digits. NumPy integers, on the
+other hand, are fixed-width and *do* wrap silently. Mixing the two is a genuinely
+nasty edge, and you will meet it eventually.
 </Aside>
 
-### Comprehensions replace iterator chains
+### Comprehensions replace your iterator chains
 
 ```python run
 xs = list(range(10))
@@ -79,13 +89,13 @@ squares, lookup
 A <Py id="list-comprehension">list comprehension</Py> is
 `iter().filter().map().collect()` with the collect implied. Dict and set
 comprehensions use the same syntax with `{}`. Swap the brackets for parentheses
-and you get a <Py id="generator">generator</Py> — lazy, like an unconsumed Rust
-iterator.
+and you get a <Py id="generator">generator</Py> — lazy, exactly like a Rust
+iterator you haven't consumed yet.
 
-The rule of thumb is the same as for iterator chains: one `for` and one `if` is
-clearer than a loop; two of each is worse than a loop.
+The rule of thumb transfers too: one `for` and one `if` reads better than a loop.
+Two of each reads worse than a loop. Write the loop.
 
-### The pieces you will meet constantly
+### The pieces you'll meet constantly
 
 ```python run
 from dataclasses import dataclass
@@ -100,19 +110,22 @@ print(cfg)
 print({**cfg.__dict__, "epochs": 10})   # ** spreads a dict
 ```
 
-<Py id="dataclass">`@dataclass`</Py> is a <Py id="decorator">decorator</Py>: it
-takes the class and returns a modified one with a constructor, a repr and
-equality generated from the annotations. `**` spreads a dict, which is the
-mechanism behind every `**kwargs` you will see in a library signature — and
-<Py id="kwargs">there are a lot of them</Py>.
+<Py id="dataclass">`@dataclass`</Py> is a <Py id="decorator">decorator</Py> — it
+takes the class, and hands back a modified one with a constructor, a `repr` and
+equality all generated from the annotations. It's `#[derive(Debug, PartialEq)]`
+with a slightly different spelling.
 
-Two more you will read every day: <Py id="with-statement">`with`</Py>, which is
-scoped setup and teardown, and <Py id="pathlib">`pathlib.Path`</Py>, where `/`
-joins path components.
+`**` spreads a dict, and that's the mechanism behind every `**kwargs` you'll ever
+see in a library signature — and <Py id="kwargs">there are a lot of them</Py>.
 
-## NumPy: the actual subject
+Two more you'll read every single day: <Py id="with-statement">`with`</Py>, which
+is scoped setup and teardown, and <Py id="pathlib">`pathlib.Path`</Py>, where `/`
+joins path components. Yes, really — they overloaded division to build paths, and
+after a week you'll find you rather like it.
 
-Everything from here is the point of the chapter.
+## NumPy, which is the actual subject
+
+Right. Everything from here is the point of the day.
 
 ```python run setup title="arrays, not lists"
 import numpy as np
@@ -124,11 +137,12 @@ a * 2 + 1
 ```
 
 An <Py id="ndarray">`ndarray`</Py> is one contiguous, fixed-size, single-dtype
-block of memory, plus a shape describing how to index it. Think
-`Vec<f64>` you cannot push to, carrying a `shape: [usize; N]`, with every
-arithmetic operator overloaded to apply elementwise.
+block of memory, plus a shape describing how to walk it. Think of a `Vec<f64>`
+you can't push to, carrying a `shape: [usize; N]`, with every arithmetic operator
+overloaded to apply elementwise.
 
-The reason it exists is worth measuring rather than asserting.
+Now, I could tell you it's faster. But you have a Python right there in the page,
+so let's just find out.
 
 ```python run title="why the loop has to go"
 import time
@@ -149,21 +163,34 @@ print(f"python list : {py_ms:7.2f} ms")
 print(f"numpy array : {np_ms:7.2f} ms   ({py_ms / np_ms:.0f}x faster)")
 ```
 
-<Aside type="rust">
-The gap is not because Python is slow at arithmetic. It is because a Python
-`list` of a million floats is a million *pointers* to a million separately
-allocated, individually type-tagged objects, and every `x * 2` is a dynamic
-dispatch. A `float64` array is eight megabytes of doubles and one pointer.
+<Wonder title="Where the speed actually comes from">
+The gap isn't because Python is bad at multiplication. It's a *memory layout*
+story, and it's a nice one.
 
-You already know this cost model — it is `Vec<Box<dyn Any>>` versus `Vec<f64>`,
-and the reason you would never write the first one. NumPy is how Python gets the
-second.
-</Aside>
+A Python list of a million floats is a million **pointers**, aimed at a million
+separately allocated, individually type-tagged objects scattered across the heap.
+Every `x * 2` has to chase a pointer, ask the object what type it is, look up the
+right multiply, allocate a new object for the answer, and store another pointer.
+
+A `float64` array is eight megabytes of doubles, laid end to end, and one
+pointer. The CPU can walk it in a straight line, pull 4 or 8 values into a
+register at a time, and never ask a single question about types.
+
+You already have the intuition for this — it's `Vec<Box<dyn Any>>` versus
+`Vec<f64>`, and it's the reason you'd never write the first one. What's rather
+delightful is that this is the *same* insight, arrived at independently, that
+makes columnar databases fast, and game engines fast, and Polars fast. Put the
+same kind of thing next to the same kind of thing, and hardware built in 1978
+still rewards you for it.
+
+NumPy is simply how Python buys its way back into that world.
+</Wonder>
 
 ### Shape is the whole game
 
-Almost every bug you will hit for the next fortnight is a shape bug. Learn to
-read shapes and you will debug in seconds what otherwise takes an hour.
+I want to be direct about this: almost every bug you hit for the next fortnight
+will be a shape bug. Not a logic bug. A shape bug. Learn to read shapes and
+you'll fix in ten seconds what would otherwise eat an evening.
 
 ```python run
 a = np.arange(12)
@@ -173,11 +200,14 @@ print("as ?x2    ", a.reshape(-1, 2).shape)     # -1 means 'you work it out'
 print("transposed", a.reshape(3, 4).T.shape)
 ```
 
-<Py id="reshape">`reshape`</Py> costs nothing — the buffer does not move, only the
-metadata describing how to walk it. That is why you will see it used freely.
+<Py id="reshape">`reshape`</Py> is free. The buffer doesn't move — only the
+metadata describing how to walk it changes. That's why you'll see it thrown
+around so casually.
 
-The other half is <Py id="axis">`axis`</Py>, and there is exactly one thing to
-remember: **`axis=k` is the dimension that disappears.**
+The other half of shape is <Py id="axis">`axis`</Py>, and there's exactly one
+thing to remember, so let me put it on its own line:
+
+**`axis=k` is the dimension that disappears.**
 
 ```python run
 m = np.arange(6).reshape(2, 3)
@@ -187,14 +217,14 @@ print("sum(axis=1) collapses the 3 ->", m.sum(axis=1), m.sum(axis=1).shape)
 ```
 
 In practice `axis=0` means "down the rows, across the batch" — the average of one
-feature over every example. And `axis=-1` means "along the last dimension", which
+feature over every example. And `axis=-1` means "along the last dimension," which
 is where class scores live, so `preds.argmax(axis=-1)` is how a matrix of scores
-becomes a vector of predicted labels.
+becomes a vector of predicted labels. You'll write that line a hundred times.
 
 ### Broadcasting
 
-This is the one piece of NumPy with no Rust analogue, and it is used on every
-line of every neural network.
+This is the one piece of NumPy with no Rust analogue at all, and it's on
+essentially every line of every neural network ever written.
 
 ```python run
 rows = np.arange(3).reshape(3, 1)   # shape (3, 1)
@@ -202,11 +232,13 @@ cols = np.arange(4)                 # shape (4,)
 print(rows + cols)                  # -> (3, 4)
 ```
 
-<Py id="broadcasting">Broadcasting</Py> stretches mismatched dimensions of size
-`1` up to whatever is needed, without copying. The rule, applied right to left:
-dimensions are compatible if they are equal or one of them is `1`.
+A `(3,1)` plus a `(4,)` gave a `(3,4)`. Nothing was copied to make that happen.
 
-Its most important use is undramatic — adding a bias vector to a batch:
+<Py id="broadcasting">Broadcasting</Py> stretches mismatched dimensions of size
+`1` up to whatever's needed, without allocating. The rule, applied right to left:
+dimensions are compatible if they're equal, or if one of them is `1`.
+
+Its most important use is completely undramatic — adding a bias vector to a batch:
 
 ```python run
 batch = np.ones((32, 4))     # 32 examples, 4 features
@@ -214,13 +246,13 @@ bias  = np.array([10., 20., 30., 40.])   # one per feature
 (batch + bias).shape, (batch + bias)[0]
 ```
 
-Thirty-two rows, the same four numbers added to each. Written as a loop that is
-five lines; written as broadcasting it is `+`, and it is the line every linear
-layer contains.
+Thirty-two rows, the same four numbers added to each one. As a loop that's five
+lines. As broadcasting it's `+`. And it is the line inside every linear layer
+you will ever meet.
 
 <Aside type="warn">
-Broadcasting is also the most common silent bug in the field, because the failure
-mode is not an exception.
+Broadcasting is also the most common silent bug in the entire field, because the
+failure mode isn't an exception. It's a number.
 
 ```python run title="the bug you will write"
 pred  = np.array([1., 2., 3.])            # shape (3,)
@@ -230,9 +262,12 @@ print("expected shape (3,), got", err.shape, "and", err.size, "numbers")
 print(err)
 ```
 
-Three predictions minus three truths gave nine numbers, and `err.mean()` is now a
-plausible-looking number that means nothing at all. When a metric is
-inexplicable, print `.shape` before you print anything else.
+Three predictions minus three truths gave you **nine numbers**. And `err.mean()`
+is now a perfectly plausible-looking float that means absolutely nothing.
+
+I'm not being dramatic — you will write this bug. Everyone does. The habit that
+saves you: when a metric looks weird, print `.shape` before you print anything
+else. Before you think, even.
 </Aside>
 
 ### The operations that matter
@@ -248,15 +283,19 @@ print("X > 0        ", (X > 0).sum(), "positive entries")
 print("X[X > 0][:3] ", X[X > 0][:3].round(2), " <- boolean indexing")
 ```
 
-<Py id="matmul">`@`</Py> is matrix multiplication; `*` is elementwise. Confusing
-them is the second most common bug, and unlike broadcasting it usually does throw.
-<Py id="boolean-indexing">Boolean indexing</Py> selects where a mask is true, and
-`(a == b).mean()` — the fraction of positions that match — is the entire
-implementation of accuracy.
+<Py id="matmul">`@`</Py> is matrix multiplication; `*` is elementwise. Mixing
+those up is the second most common bug, and mercifully — unlike broadcasting — it
+usually does throw.
+
+<Py id="boolean-indexing">Boolean indexing</Py> selects wherever a mask is true,
+and here's a small thing I find quietly beautiful: `(a == b).mean()` — the
+fraction of positions that match — is the *entire* implementation of accuracy.
+Comparison makes booleans, booleans are 1 and 0, and the mean of those is a
+percentage. One expression, no branches.
 
 <Py id="default-rng">`default_rng(0)`</Py> is how you make a run reproducible.
-Use it every time; the alternative is being unable to tell an improvement from
-luck.
+Please use it every single time. The alternative is being genuinely unable to
+tell an improvement from luck, which is a bad place to spend a week.
 
 ### The one that will actually bite you
 
@@ -273,14 +312,40 @@ print("b is still", b)
 ```
 
 Slicing a Python <Py id="slicing">list</Py> copies. Slicing a NumPy array does
-not — you get a view over the same buffer, and writing through it mutates the
-original. This is a deliberate performance decision and it is exactly the
-aliasing that Rust's borrow checker exists to prevent. Nothing here will stop
-you. When you need independence, say `.copy()`.
+**not** — you get a view over the same buffer, and writing through it mutates the
+original.
+
+This is a deliberate performance decision, and yes: it is precisely the aliasing
+that Rust's borrow checker exists to make impossible. Nothing here will stop you.
+Nothing will even mention it. When you need independence, say `.copy()`, and say
+it on purpose.
+
+<Stuck>
+**"How do I know if I have a view or a copy?"** Slicing gives a view. Fancy
+indexing (`a[[0, 2, 4]]`) and boolean indexing (`a[a > 0]`) give copies.
+`.reshape()` gives a view when it can. If it matters, `arr.base is not None`
+tells you it's a view of something.
+
+**"I keep getting `shapes not aligned`."** That's `@` telling you the inner
+dimensions disagree. For `A @ B`, `A.shape[-1]` must equal `B.shape[-2]`. Print
+both shapes and read them next to each other — the mismatch is usually a missing
+`.T`.
+
+**"Comprehensions still feel unnatural."** Read them from the `for` outward:
+`[x * x for x in xs if x % 2 == 0]` is "for each x in xs, if it's even, give me
+x squared." The output expression sits at the front for the same reason
+`.map()` sits at the end of a Rust chain — you read the transformation last,
+even though it's written first.
+
+**"I don't believe broadcasting isn't copying."** Fair. It's implemented with
+*strides*: a stretched dimension is given a stride of zero, so walking along it
+reads the same memory over and over. There's no copy because there's nothing to
+copy — the array simply lies about how to move.
+</Stuck>
 
 ## Ten minutes of pandas
 
-You need enough to load a table and look at it.
+You need just enough to load a table and look at it honestly.
 
 ```python run
 import pandas as pd
@@ -294,9 +359,9 @@ df.head(3)
 ```
 
 A <Py id="dataframe">`DataFrame`</Py> is a `Vec<Struct>` turned inside out: one
-typed array per column rather than one allocation per row. If you have used
-Polars, this is the same design — Polars is written in Rust and its API is a
-tidier version of this one.
+typed array per column, rather than one allocation per row. If you've used
+Polars, this is the same design — Polars is written in Rust, and its API is a
+tidier version of this one. You're allowed to think so out loud.
 
 ```python run
 print(df.dtypes.to_dict())
@@ -304,19 +369,62 @@ print()
 print(df.groupby("cohort")["passed"].mean())
 ```
 
-<Py id="groupby">`groupby`</Py> before you model, always. If the target's average
-does not move across the values of a column, that column carries no signal, and
-no model will invent some. Ten minutes here regularly saves an afternoon of
-training.
+<Py id="groupby">`groupby`</Py> before you model. Always. Here's the reasoning,
+and it's worth more than it looks: if the target's average doesn't move across
+the values of a column, that column carries no signal — and no model, however
+clever, will invent signal that isn't there.
+
+Ten minutes of `groupby` regularly saves an afternoon of training. It is the
+cheapest thing in this entire course.
 
 Two more: <Py id="loc-iloc">`df.loc`</Py> selects by label and `df.iloc` by
-position, and `df["col"].values` hands you the underlying NumPy array, which is
-what every model actually wants.
+position, and `df["col"].values` hands you the underlying NumPy array — which is
+what every model actually wants from you anyway.
 
-## Exercise
+<SideQuest title="The rest of the array ecosystem" time="8 min" why="What SciPy, Polars, JAX and einsum are for, so the names stop being noise.">
 
-Do these before moving on — twenty minutes, and they are exactly the operations
-the next four chapters assume.
+You'll see these names constantly and it's nice not to be mystified by them.
+
+**SciPy** sits on top of NumPy and adds the things a numerical analyst wants:
+optimisation, statistics, sparse matrices, signal processing, linear algebra
+beyond the basics. When you need a chi-squared test or a sparse matrix, it's
+already installed.
+
+**Polars** is a DataFrame library written in Rust, with a lazy query optimiser
+and genuinely better ergonomics than pandas. If you're doing heavy tabular work
+in a Rust-adjacent shop, it's a real option. This course uses pandas purely
+because every tutorial, Stack Overflow answer and paper you'll meet uses pandas,
+and being able to read them matters more here than being fast.
+
+**JAX** is NumPy with three superpowers bolted on: automatic differentiation
+(chapter 9's subject, done for you), just-in-time compilation to GPU/TPU, and
+automatic vectorisation. It's beloved in research and rare in production. If you
+enjoy chapter 9, you'll enjoy JAX.
+
+**`einsum`** deserves a mention because it looks like line noise and isn't:
+
+```python run title="einsum, gently"
+import numpy as np
+A = np.arange(6).reshape(2, 3)
+B = np.arange(12).reshape(3, 4)
+
+print("normal :", (A @ B).shape)
+print("einsum :", np.einsum("ij,jk->ik", A, B).shape)
+```
+
+Read `"ij,jk->ik"` as: first array is indexed by `i` and `j`, second by `j` and
+`k`, and I want a result indexed by `i` and `k`. Any index that appears on the
+left but not the right gets summed over. That's the whole rule.
+
+It's verbose for a matrix multiply, and it's a lifesaver for the six-dimensional
+tensor contractions inside a transformer, where you genuinely cannot remember
+which axis is which. You'll see it in chapter 13's neighbourhood.
+</SideQuest>
+
+<TryThis title="Twenty minutes, and then you're done for the day" reveal="Show the solutions">
+
+Do these before moving on. They're not busywork — they're precisely the
+operations the next four chapters assume you can do without thinking.
 
 ```python run title="your turn"
 rng = np.random.default_rng(42)
@@ -337,7 +445,17 @@ Xs = ...
 print("replace the ... above and re-run")
 ```
 
-<Reveal title="Solutions" kind="deep">
+<Fragment slot="hint">
+For 1, remember `X.mean(axis=0)` has shape `(3,)` and `X` has shape `(100, 3)` —
+broadcasting will do the rest if you just write the obvious thing.
+
+For 2, think about what the mean of a bunch of 0s and 1s actually *is*.
+
+For 3, boolean indexing gives you the rows you want; then take a mean over
+axis 0.
+</Fragment>
+
+<Fragment slot="answer">
 
 ```python run
 Xs = (X - X.mean(axis=0)) / X.std(axis=0)
@@ -351,14 +469,21 @@ X1 = np.column_stack([np.ones(len(X)), X])
 print("4.", X1.shape, X1[0].round(3))
 ```
 
-Number 1 is the single most common preprocessing step in the field, and it is
-broadcasting doing all the work: `X` is `(100, 3)`, `X.mean(axis=0)` is `(3,)`,
-and the subtraction stretches the second across all 100 rows.
+Number 1 is the single most common preprocessing step in the entire field, and
+broadcasting is doing all the work: `X` is `(100, 3)`, `X.mean(axis=0)` is
+`(3,)`, and the subtraction quietly stretches those three numbers across all
+hundred rows. Note the means come out as `-0.0` and the stds as exactly `1.0` —
+that's the point of the operation.
 
-Number 4 is the trick that lets you fold the bias term into the weight vector, so
-that $wx + b$ becomes a single matrix multiply. You will see it in the next
-chapter.
-</Reveal>
+Number 2 is the small delight from earlier: the mean of a 0/1 array *is* the
+proportion. No counting required.
 
-Tomorrow, before writing another model: how to tell what kind of problem you are
-looking at, and how to tell when it is not one.
+Number 4 is a trick you'll see in the very next chapter. Adding a column of ones
+lets you fold the bias term into the weight vector, so that $wx + b$ collapses
+into a single matrix multiply. It's a small piece of algebraic sleight of hand
+and it makes the code noticeably cleaner.
+</Fragment>
+</TryThis>
+
+Tomorrow, before we write another line of model: how to tell what kind of problem
+you're looking at — and how to tell when you're not looking at one at all.

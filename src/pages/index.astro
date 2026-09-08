@@ -2,60 +2,84 @@
 import { getCollection } from "astro:content";
 import Base from "../layouts/Base.astro";
 import ConceptMap from "../components/ConceptMap.astro";
+import Doodle from "../components/Doodle.astro";
 
 const chapters = (await getCollection("chapters", ({ data }) => !data.draft)).sort(
   (a, b) => a.data.order - b.data.order,
 );
+const extras = await getCollection("extras", ({ data }) => !data.draft);
 const first = chapters[0];
 const total = chapters.reduce((n, c) => n + c.data.minutes, 0);
 
 const PARTS = [
-  { id: "orientation",   label: "Part I", title: "Orientation",         gist: "What this field actually is, where it sits next to normal programming, and a working model in your browser before any theory." },
-  { id: "foundations",   label: "Part II", title: "How learning works",  gist: "Loss, gradients, overfitting. The machinery that is identical whether you are fitting a line or a language model." },
-  { id: "deep-learning", label: "Part III", title: "Deep learning",      gist: "Neural networks built by hand from matrix multiplies, then backpropagation, then the same thing in PyTorch." },
-  { id: "frontier",      label: "Part IV", title: "The modern stack",    gist: "Convolutions, embeddings, attention, transformers, and how a next-token predictor became an assistant." },
-  { id: "practice",      label: "Part V", title: "Doing it for real",    gist: "Reading papers, picking metrics, shipping a model, and knowing when the answer is not machine learning." },
+  { id: "orientation",   title: "Orientation",        art: "inversion",
+    gist: "What this field actually is, where it sits next to normal programming, and a working model running in your browser before any theory." },
+  { id: "foundations",   title: "How learning works", art: "hill",
+    gist: "Loss, gradients, overfitting. The machinery is identical whether you're fitting a line or a language model, so we build it once, by hand." },
+  { id: "deep-learning", title: "Deep learning",      art: "layers",
+    gist: "Neural networks built from matrix multiplies, then backpropagation derived on paper, then the same thing in PyTorch in a tenth of the code." },
+  { id: "frontier",      title: "The modern stack",   art: "beam",
+    gist: "Convolutions, embeddings, attention, transformers — and how a next-token predictor became something that answers your questions." },
+  { id: "practice",      title: "Doing it for real",  art: "ship",
+    gist: "Reading papers, picking metrics, shipping a model, and knowing when the honest answer is that machine learning isn't the tool." },
 ];
 ---
 
 <Base title="Gradient">
   <main class="home" id="main">
-    <h1 class="home__title">Machine learning, from the ground up.</h1>
-    <p class="home__lede">
-      Fourteen days. Written for someone who already ships software and wants to
-      know <em>where every piece fits</em> — not a survey, not a maths course, and
-      not a tour of one library's API.
-    </p>
-
-    <div class="home__cta">
-      {first && <a class="btn btn--primary" href={`/learn/${first.id}/`}>Start day one →</a>}
-      <a class="btn btn--ghost" href="/map/">See the whole map</a>
-      <a class="btn btn--ghost" href="/setup/">Set up your machine</a>
+    <div class="hero">
+      <div>
+        <h1 class="home__title">Machine learning,<br />from the ground up.</h1>
+        <p class="home__lede">
+          Fourteen days. Every code block runs, right here in the page. Written
+          for someone who already ships software and would like to know
+          <em>where every piece fits</em> — not a survey, not a maths course, and
+          not a tour of one library's API.
+        </p>
+        <div class="home__cta">
+          {first && <a class="btn btn--primary" href={`/learn/${first.id}/`}>Start day one →</a>}
+          <a class="btn btn--ghost" href="/map/">See the whole map</a>
+          <a class="btn btn--ghost" href="/setup/">Set up your machine</a>
+        </div>
+      </div>
+      <div class="hero__art"><Doodle name="pipWave" /></div>
     </div>
 
-    <h2>How this is built</h2>
+    <div class="pip-note">
+      <Doodle name="pip" decorative />
+      <p>
+        This is Pip. Pip rolls downhill, which turns out to be the entire
+        algorithm behind everything here — you'll meet the joke properly on day
+        five.
+      </p>
+    </div>
+
+    <h2>How this works</h2>
     <p>
-      Every code block on this site runs. Press <strong>Run</strong> and Python
-      starts inside your browser — no install, nothing to configure, works offline.
-      The chapters that need real PyTorch say so and connect to a kernel on your
-      own machine instead.
+      Press <strong>Run</strong> on any code block and Python starts inside your
+      browser. No install, nothing to configure, works offline, works on a plane.
+      The three chapters that need real PyTorch say so and connect to a kernel on
+      your own machine instead.
     </p>
     <p>
-      Python constructs are underlined and explained on hover, once, with the Rust
-      construct you already reach for. Derivations are folded away: the spine is
-      meant to be readable end to end without opening a single one, and every one
-      of them is there when you want it.
+      Python constructs are underlined and explained on hover — once, with the
+      Rust construct you'd already reach for. Derivations are folded away, so the
+      path reads end to end without opening a single one, and every one of them is
+      there the moment you want it.
     </p>
 
     <h2>The path</h2>
     <div class="parts">
       {
-        PARTS.map((part) => {
+        PARTS.map((part, i) => {
           const items = chapters.filter((c) => c.data.part === part.id);
           if (!items.length) return null;
           return (
             <div class="part">
-              <h3>{part.title}</h3>
+              <div class="part__head">
+                <span class="part__art"><Doodle name={part.art} decorative /></span>
+                <h3>Part {["I", "II", "III", "IV", "V"][i]} · {part.title}</h3>
+              </div>
               <p>{part.gist}</p>
               <ol>
                 {items.map((c) => (
@@ -67,15 +91,27 @@ const PARTS = [
         })
       }
     </div>
-    <p style="font-family:var(--sans);font-size:.8rem;color:var(--ink-3);margin-top:1rem">
-      {chapters.length} chapters · about {Math.round(total / 60)} hours of reading and running,
-      spread over two weeks.
+    <p class="home__meta">
+      {chapters.length} chapters · about {Math.round(total / 60)} hours of reading
+      and running, spread over two weeks.
+    </p>
+
+    <h2>And when you want more</h2>
+    <p>
+      Keeping a promise about two weeks means leaving things out, and a lot of
+      what got left out is lovely. It lives in
+      <a href="/extras/">{extras.length} extras</a> — the deeper whys, the roads
+      not taken, and the things you only learn by shipping. Nothing in the
+      fourteen days depends on any of it, which is exactly what makes it safe to
+      write.
     </p>
 
     <h2>Where it all fits</h2>
     <p>
       Before anything else, the shape of the field. Solid boxes are taught here;
-      dashed ones exist and are deliberately out of scope.
+      dashed ones exist and are deliberately out of scope. You won't understand
+      most of it yet — that's the design. Come back after each part and watch it
+      fill in.
     </p>
     <ConceptMap compact />
   </main>

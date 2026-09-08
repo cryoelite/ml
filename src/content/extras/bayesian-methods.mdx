@@ -1,0 +1,259 @@
+---
+title: "The probabilistic tradition"
+blurb: "The branch that lost the scaling race and is very much alive where data is scarce or being wrong is expensive. Its selling point is the one thing neural networks are worst at: knowing what they don't know."
+order: 23
+minutes: 13
+kind: "sibling"
+after: "07-the-model-zoo"
+covers: ["bayes"]
+---
+
+Every model in the sixteen chapters gives you a point estimate. One number, or
+one probability, and no indication of how much to trust it.
+
+Chapter 16 touched on calibration — whether a stated 0.7 happens 70% of the time.
+That's a useful patch. The Bayesian tradition treats uncertainty as **the object
+you compute**, rather than something you retrofit afterwards.
+
+It lost the scaling race decisively. It is also the right answer in a set of
+situations you will eventually meet, and its vocabulary shows up in places you
+wouldn't expect.
+
+## The core move
+
+Frequentist: *the parameter has one true value; my estimate has uncertainty.*
+
+Bayesian: *the parameter is a distribution; I update it as evidence arrives.*
+
+<M id="bayes-rule">Bayes' rule</M> is the update:
+
+$$
+\underbrace{p(\theta \mid D)}_{\text{posterior}} \propto
+\underbrace{p(D \mid \theta)}_{\text{likelihood}} \cdot
+\underbrace{p(\theta)}_{\text{prior}}
+$$
+
+You already know the likelihood — it's the thing maximum likelihood maximises.
+The addition is the **prior**: what you believed before seeing data. And the
+output isn't a number, it's a whole distribution.
+
+```python run setup title="watching a belief update"
+import numpy as np, matplotlib.pyplot as plt
+
+# Estimating a coin's bias. Prior: Beta(2,2) — "probably fairish, not certain".
+grid = np.linspace(0, 1, 400)
+
+def beta_pdf(x, a, b):
+    from math import lgamma
+    logc = lgamma(a + b) - lgamma(a) - lgamma(b)
+    return np.exp(logc + (a - 1) * np.log(np.clip(x, 1e-12, 1))
+                  + (b - 1) * np.log(np.clip(1 - x, 1e-12, 1)))
+
+rng = np.random.default_rng(0)
+flips = (rng.random(200) < 0.7).astype(int)     # a coin that lands heads 70%
+
+plt.figure(figsize=(5.6, 3.4))
+for n in [0, 1, 5, 20, 200]:
+    heads = flips[:n].sum()
+    # Beta is conjugate to Bernoulli: the posterior is just Beta(2+heads, 2+tails)
+    plt.plot(grid, beta_pdf(grid, 2 + heads, 2 + (n - heads)),
+             label=f"after {n} flips")
+plt.axvline(0.7, ls=":", c="k", lw=1)
+plt.xlabel("P(heads)"); plt.ylabel("belief density"); plt.legend(fontsize=7)
+plt.tight_layout()
+
+for n in [1, 5, 20, 200]:
+    h = flips[:n].sum(); a, b = 2 + h, 2 + n - h
+    mean = a / (a + b); sd = np.sqrt(a * b / ((a + b) ** 2 * (a + b + 1)))
+    print(f"after {n:3d} flips: estimate {mean:.3f} ± {sd:.3f}")
+```
+
+Watch what that gives you that a point estimate doesn't.
+
+After one flip, the answer is 0.6 ± 0.2 — the model is telling you, unprompted,
+that it hasn't got a clue. After 200 flips it's 0.70 ± 0.03 and confident, and
+correctly so.
+
+**The uncertainty came out of the same machinery as the estimate.** Nobody
+calibrated it afterwards.
+
+<Aside type="key">
+That's the whole pitch, and it matters most in exactly the situations where
+neural networks are worst.
+
+A neural network asked about an input unlike anything in training will produce a
+confident answer, because nothing in its objective rewarded saying "I don't
+know." Softmax always sums to one; some class always wins.
+
+A Bayesian model's posterior *widens* in regions where it has no data. The
+uncertainty is a computed consequence of where the evidence was.
+</Aside>
+
+## Priors: the part people argue about
+
+The prior is where you put what you knew before. Two honest views of it:
+
+**It's a feature.** With 30 data points you genuinely do know things the data
+doesn't say — that a probability is between 0 and 1, that an effect size is
+unlikely to be enormous, that this parameter should be near zero unless the data
+insists. Encoding that is *using your knowledge*, and refusing to is not
+neutrality, it's just a different and usually worse prior.
+
+**It's a liability.** Two analysts with different priors get different answers
+from the same data, and with small samples the difference can be large.
+
+```python run title="the prior matters when data is scarce, and stops when it isn't"
+print(f"{'prior':>26s} {'after 5 flips':>15s} {'after 200':>12s}")
+for name, (a0, b0) in {
+    "uniform: Beta(1,1)": (1, 1),
+    "gently fair: Beta(2,2)": (2, 2),
+    "strongly fair: Beta(50,50)": (50, 50),
+    "wrong: Beta(1,20)": (1, 20),
+}.items():
+    row = []
+    for n in [5, 200]:
+        h = flips[:n].sum()
+        row.append((a0 + h) / (a0 + b0 + n))
+    print(f"{name:>26s} {row[0]:15.3f} {row[1]:12.3f}")
+print("\ntrue value 0.700 — after 200 flips even the badly wrong prior has been overruled")
+```
+
+Which is the resolution, and it's a satisfying one: **with enough data the prior
+washes out.** Priors matter exactly when data is scarce, which is exactly when
+you most want your prior knowledge in play.
+
+And note that regularisation is a prior in disguise. L2 regularisation is
+*precisely* a Gaussian prior on the weights centred at zero; L1 is a Laplace
+prior. Chapter 6's penalty terms were Bayesian all along and nobody mentioned it.
+
+<Wonder title="Three things you already use are the same thing">
+Follow that thread, because it ties together three chapters.
+
+Maximum a posteriori estimation maximises $\log p(D \mid \theta) + \log p(\theta)$
+— likelihood plus prior.
+
+The first term, from the maximum-likelihood extra, gives you your loss function.
+The second term, for a Gaussian prior, is $-\lambda\|\theta\|^2$.
+
+Which means:
+
+$$\text{loss} + \lambda\|\theta\|_2^2$$
+
+That is chapter 6's regularised objective. Character for character. The equation
+chapter 16 asked you to read in nine symbols.
+
+So "add a penalty on large weights because it generalises better" and "encode a
+prior belief that weights are probably small" are **the same operation**, arrived
+at from completely different directions — one empirical, one philosophical.
+
+I find that genuinely pleasing. The Bayesians and the practitioners were doing
+identical arithmetic and arguing about what it meant.
+</Wonder>
+
+## Gaussian processes
+
+The most useful Bayesian method to actually know about. Instead of a distribution
+over parameters, put a distribution over **functions**.
+
+```python run title="a model that widens where it has no data"
+def rbf(a, b, length=1.0):
+    return np.exp(-0.5 * (a[:, None] - b[None, :]) ** 2 / length ** 2)
+
+X_train = np.array([-3.0, -2.0, -1.5, 1.5, 2.0, 3.0])
+y_train = np.sin(X_train) + rng.normal(0, 0.1, len(X_train))
+X_test = np.linspace(-5, 5, 300)
+
+noise = 0.01
+K = rbf(X_train, X_train) + noise * np.eye(len(X_train))
+Ks, Kss = rbf(X_train, X_test), rbf(X_test, X_test)
+alpha = np.linalg.solve(K, y_train)
+mean = Ks.T @ alpha
+var = np.clip(np.diag(Kss) - np.sum(Ks * np.linalg.solve(K, Ks), axis=0), 0, None)
+sd = np.sqrt(var)
+
+plt.figure(figsize=(5.8, 3.4))
+plt.fill_between(X_test, mean - 2 * sd, mean + 2 * sd, alpha=0.22, label="±2 sd")
+plt.plot(X_test, mean, label="mean prediction")
+plt.plot(X_test, np.sin(X_test), "k:", lw=1, label="truth")
+plt.scatter(X_train, y_train, c="crimson", s=28, zorder=5, label="data")
+plt.legend(fontsize=7); plt.tight_layout()
+
+print(f"uncertainty near a data point (x=2.0) : {sd[np.argmin(abs(X_test - 2.0))]:.3f}")
+print(f"uncertainty in the gap     (x=0.0)    : {sd[np.argmin(abs(X_test - 0.0))]:.3f}")
+print(f"uncertainty extrapolating  (x=5.0)    : {sd[-1]:.3f}")
+```
+
+Look at the three numbers. The uncertainty band pinches shut at the data points,
+opens in the gap between the two clusters, and flares as you extrapolate past the
+edge.
+
+That behaviour is not engineered in. It falls out of the maths. And it's precisely
+what you want from a model that's about to be asked something it has no basis for
+answering.
+
+The catch is cost: fitting requires inverting an $n \times n$ matrix, so it's
+$O(n^3)$. Wonderful at 500 points. Impossible at 500,000. That single fact is
+most of why this tradition lost the scaling race.
+
+## Where it's genuinely the right tool
+
+**Bayesian optimisation.** Optimising a function that's expensive to evaluate —
+hyperparameter search, experiment design, drug screening. A GP models the
+objective and its uncertainty, and you sample where the expected improvement is
+highest. When each evaluation costs four GPU-hours, spending thought to choose the
+next one pays for itself immediately.
+
+**A/B testing and sequential experiments.** "How confident are we that B beats A,
+and should we stop?" is natively a posterior question, and Bayesian methods handle
+peeking at results without the multiple-comparisons headache that plagues
+frequentist stopping rules.
+
+**Small data with real structure.** Clinical trials, ecology, psychometrics,
+anywhere n is 200 and always will be. You cannot brute-force 200 samples; you have
+to use what you know.
+
+**Anything where a confident wrong answer is expensive.** Medical decisions,
+autonomous systems, anomaly detection. Knowing when the model is out of its depth
+is worth more than a point of accuracy.
+
+<Aside type="nice">
+And there are Bayesian ideas hiding inside deep learning already.
+
+**Dropout at inference time** ("MC dropout") approximates a Bayesian posterior —
+run the model twenty times with dropout on, and the spread of predictions is an
+uncertainty estimate. It's cheap and surprisingly serviceable.
+
+**Deep ensembles** — train five networks from different seeds, look at their
+disagreement — work at least as well and are embarrassingly simple. When they
+agree, be confident; when they disagree, don't.
+
+**Variational autoencoders** are variational inference, which is the standard
+Bayesian tool for approximating an intractable posterior. The "variational" in
+the name is not decoration.
+
+So the tradition didn't lose so much as get absorbed in pieces, with the
+philosophy quietly filed off.
+</Aside>
+
+## The honest summary
+
+<div class="table-scroll">
+
+| | Bayesian | What you've been doing |
+|---|---|---|
+| Output | a distribution | a point |
+| Prior knowledge | explicit, in the prior | implicit, in regularisation and architecture |
+| Small data | strong | weak |
+| Big data | computationally hopeless | strong |
+| Uncertainty | native | retrofitted, if at all |
+| Reproducibility | the assumptions are written down | the assumptions are in the code |
+
+</div>
+
+The genuinely useful takeaway isn't "learn Bayesian statistics." It's:
+
+**When someone hands you a prediction, ask what its uncertainty is. If the answer
+is "we don't compute that," you've found a real limitation of the system**, and
+whether it matters depends entirely on what happens when it's wrong.
+
+Some days it doesn't matter at all. Some days it's the only thing that does.

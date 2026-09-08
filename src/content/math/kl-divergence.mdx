@@ -1,0 +1,39 @@
+---
+title: 'KL divergence'
+summary: 'The extra bits you pay for believing q when the truth is p. Zero when they match, and never symmetric.'
+formula: 'D_{KL}(p \parallel q) = \sum_i p_i \log \frac{p_i}{q_i}'
+docs: 'https://en.wikipedia.org/wiki/Kullback%E2%80%93Leibler_divergence'
+docsLabel: 'Wikipedia ↗'
+prereqs: ['entropy', 'cross-entropy']
+symbols:
+  - sym: 'D_{KL}'
+    means: 'the divergence — a directed measure of difference between distributions'
+  - sym: 'p'
+    means: 'the true distribution'
+  - sym: 'q'
+    means: 'your model''s distribution'
+  - sym: '\parallel'
+    means: 'read as "from" — it separates the two arguments and the order matters'
+---
+
+Cross-entropy splits cleanly into two parts:
+
+$$H(p, q) = H(p) + D_{KL}(p \parallel q)$$
+
+The first term is fixed by the data. The second is yours. So **minimising
+cross-entropy is exactly minimising the KL divergence between your model and
+reality** — which is the justification for the loss you have been using since
+chapter 4.
+
+It is *not* a distance, whatever it feels like: $D_{KL}(p \parallel q)$ and
+$D_{KL}(q \parallel p)$ are different numbers, and the asymmetry has real
+consequences.
+
+Minimising the forward direction is **mode-covering** — $q$ must put mass
+everywhere $p$ does, or the $\log(p/q)$ term blows up — so the model hedges and
+spreads out. Minimising the reverse is **mode-seeking**: $q$ can safely ignore
+parts of $p$, so it picks one mode and commits sharply.
+
+That is the technical root of why VAEs blur and GANs do not, and why RLHF's KL
+penalty keeps a tuned model close to its starting point rather than letting it
+drift into whatever maximises the reward model.

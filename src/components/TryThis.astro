@@ -1,0 +1,35 @@
+---
+/**
+ * Your turn.
+ *
+ * A prompt with the answer folded away underneath. The fold matters: the
+ * learning happens in the gap between reading the question and opening the
+ * answer, and an answer sitting in plain sight removes the gap entirely.
+ *
+ * Use the `hint` slot for the nudge that unsticks someone without spoiling it.
+ */
+interface Props {
+  title?: string;
+  /** Label for the fold — "answer", "one way to do it", "what I got". */
+  reveal?: string;
+}
+const { title = "Your turn", reveal = "Show one answer" } = Astro.props;
+const hasHint = Astro.slots.has("hint");
+const hasAnswer = Astro.slots.has("answer");
+---
+<div class="try">
+  <p class="try__label">{title}</p>
+  <div class="try__prompt"><slot /></div>
+  {hasHint && (
+    <details class="try__fold try__fold--hint">
+      <summary>Nudge me</summary>
+      <div><slot name="hint" /></div>
+    </details>
+  )}
+  {hasAnswer && (
+    <details class="try__fold">
+      <summary>{reveal}</summary>
+      <div><slot name="answer" /></div>
+    </details>
+  )}
+</div>

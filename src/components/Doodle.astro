@@ -1,0 +1,39 @@
+---
+/**
+ * Renders one drawing from src/lib/doodles.ts.
+ *
+ * Everything goes through the shared `#pencil` filter defined in Base.astro,
+ * which is what gives the whole site one drawing hand. `alt` comes from the
+ * doodle itself unless overridden, because a drawing that carries information
+ * should say so to a screen reader too.
+ */
+import { doodles } from "../lib/doodles";
+
+interface Props {
+  name: string;
+  size?: number;
+  alt?: string;
+  class?: string;
+  /** Ornaments are decoration and should be skipped by assistive tech. */
+  decorative?: boolean;
+}
+const { name, size, alt, class: cls = "", decorative = false } = Astro.props;
+const d = doodles[name];
+if (!d) throw new Error(`Unknown doodle "${name}" — see src/lib/doodles.ts`);
+
+const label = alt ?? d.alt;
+const hidden = decorative || !label;
+const [, , w, h] = d.viewBox.split(/\s+/).map(Number);
+const height = size ? (size * h) / w : undefined;
+---
+<svg
+  class={`doodle ${cls}`.trim()}
+  viewBox={d.viewBox}
+  width={size}
+  height={height}
+  role={hidden ? "presentation" : "img"}
+  aria-hidden={hidden ? "true" : undefined}
+  aria-label={hidden ? undefined : label}
+  fill="none"
+  xmlns="http://www.w3.org/2000/svg"
+><g filter="url(#pencil)" set:html={d.body} /></svg>

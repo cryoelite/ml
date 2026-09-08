@@ -1,0 +1,290 @@
+---
+title: "Why the loss is called cross-entropy"
+blurb: "Entropy, KL divergence, and the fact that a language model is a compression algorithm. A short tour of the vocabulary that half of machine learning borrows without explaining."
+order: 13
+minutes: 12
+kind: "theory"
+after: "14-llms"
+covers: ["loss"]
+---
+
+You've used cross-entropy since chapter 4 and it has worked perfectly well
+without you knowing where the name comes from. That's fine — but the underlying
+ideas are genuinely lovely, they take twenty minutes, and they explain a family
+of things that otherwise look unrelated.
+
+Including one that I think is the best single sentence in this whole book:
+**a language model is a compression algorithm.**
+
+## Information is surprise
+
+Shannon's starting question, in 1948: how much information is in a message?
+
+His answer inverts the intuitive framing. Information isn't about *content* — it's
+about **how surprised you were**. Learning something you already expected tells
+you nothing. Learning something unlikely tells you a lot.
+
+So define the information in an event of probability $p$ as:
+
+$$
+I(p) = -\log_2 p \quad \text{bits}
+$$
+
+```python run setup title="surprise, quantified"
+import numpy as np, matplotlib.pyplot as plt
+
+for p, label in [(1.0, "certain"), (0.5, "a coin flip"), (0.25, "one of four"),
+                 (0.01, "a 1-in-100 event"), (1/1024, "one of 1024")]:
+    bits = -np.log2(p) + 0.0                 # + 0.0 turns -0.0 into 0.0
+    print(f"P = {p:8.5f}  ({label:16s}) -> {bits:6.2f} bits of information")
+```
+
+Read the extremes. A certain event carries **zero** bits — you learned nothing,
+you already knew. One of 1024 equally likely things carries exactly 10 bits, which
+is $\log_2 1024$, which is the number of yes/no questions you'd need.
+
+That's why the log is there. It makes information **additive**: two independent
+events multiply their probabilities and add their bits, which is the property you
+want from a measure of "how much did I learn."
+
+## Entropy is average surprise
+
+**Entropy** is the expected information of a distribution — how surprising it is
+*on average*:
+
+$$
+H(p) = -\sum_i p_i \log_2 p_i
+$$
+
+```python run title="entropy across distributions"
+def entropy(p):
+    p = np.asarray(p, float); p = p[p > 0]
+    return -(p * np.log2(p)).sum()
+
+cases = {
+    "fair coin":            [0.5, 0.5],
+    "biased coin (0.9)":    [0.9, 0.1],
+    "certain":              [1.0, 0.0],
+    "fair 8-sided die":     [1/8] * 8,
+    "skewed 8 outcomes":    [0.9] + [0.1/7] * 7,
+}
+for name, p in cases.items():
+    print(f"{name:22s} {entropy(p):6.3f} bits")
+```
+
+A fair coin is exactly 1 bit — the definition of a bit, in fact. A certain
+outcome is 0. And note the skewed 8-outcome case: eight possibilities, but only
+0.68 bits, because you can nearly always guess right.
+
+**Entropy is the theoretical minimum average bits needed to encode outcomes from
+this distribution.** That's not a metaphor — it's Shannon's source coding theorem,
+and it's the reason this quantity matters practically rather than just
+aesthetically.
+
+## Cross-entropy: encoding with the wrong beliefs
+
+Now the one you've been minimising all fortnight.
+
+**Cross-entropy** is the average bits needed if you encode data that truly follows
+$p$, using a code optimised for a *different* distribution $q$:
+
+$$
+H(p, q) = -\sum_i p_i \log q_i
+$$
+
+```python run title="the cost of being wrong about the distribution"
+truth = np.array([0.7, 0.2, 0.1])
+
+print(f"true entropy (best possible)     : {entropy(truth):.4f} bits\n")
+print(f"{'your belief q':>28s} {'cross-entropy':>14s} {'excess':>9s}")
+for name, q in {
+    "exactly right":      [0.7, 0.2, 0.1],
+    "slightly off":       [0.6, 0.25, 0.15],
+    "quite wrong":        [0.2, 0.3, 0.5],
+    "uniform (no idea)":  [1/3, 1/3, 1/3],
+}.items():
+    q = np.array(q)
+    ce = -(truth * np.log2(q)).sum()
+    print(f"{name:>28s} {ce:14.4f} {ce - entropy(truth):9.4f}")
+```
+
+Three things fall straight out of that table, and they're the whole point:
+
+**Cross-entropy is minimised when $q = p$.** So minimising it drives your model's
+distribution toward the truth. That's the entire justification for the loss.
+
+**It can never go below the true entropy.** There's a floor, set by the data's own
+randomness — which is the irreducible error from the bias–variance extra, wearing
+information-theoretic clothes.
+
+**The excess is the price of being wrong.** That excess has a name.
+
+## KL divergence
+
+$$
+D_{KL}(p \parallel q) = H(p, q) - H(p) = \sum_i p_i \log\frac{p_i}{q_i}
+$$
+
+The **Kullback–Leibler divergence**: the extra bits you pay for believing $q$ when
+the truth is $p$. Zero when they match, positive otherwise.
+
+```python run title="cross-entropy = entropy + KL"
+def kl(p, q):
+    p, q = np.asarray(p, float), np.asarray(q, float)
+    m = p > 0
+    return (p[m] * np.log2(p[m] / q[m])).sum()
+
+q = np.array([0.2, 0.3, 0.5])
+print(f"H(p)        = {entropy(truth):.4f}")
+print(f"D_KL(p||q)  = {kl(truth, q):.4f}")
+print(f"sum         = {entropy(truth) + kl(truth, q):.4f}")
+print(f"H(p, q)     = {-(truth * np.log2(q)).sum():.4f}   <- the same number")
+```
+
+<Aside type="key">
+So here's why minimising cross-entropy is the right thing to do, stated precisely:
+
+$$H(p,q) = \underbrace{H(p)}_{\text{fixed by the data}} + \underbrace{D_{KL}(p \parallel q)}_{\text{yours to minimise}}$$
+
+$H(p)$ doesn't depend on your model at all — it's a property of the world.
+
+So **minimising cross-entropy is exactly minimising the KL divergence between
+your model and reality.** Not approximately. Exactly, up to a constant you can't
+influence.
+
+That's the justification chapter 4 didn't have room for.
+</Aside>
+
+<Aside type="warn">
+KL is **not symmetric**: $D_{KL}(p \parallel q) \neq D_{KL}(q \parallel p)$. It is
+not a distance, whatever it feels like.
+
+And the asymmetry has real consequences. Minimising $D_{KL}(p \parallel q)$ —
+what maximum likelihood does — is *mode-covering*: $q$ must put mass wherever $p$
+has mass, or the $\log(1/q)$ term explodes. Your model spreads itself to cover
+everything, including averaging between modes it can't represent.
+
+Minimising the reverse, $D_{KL}(q \parallel p)$, is *mode-seeking*: $q$ can safely
+ignore regions where $p$ has mass, so it picks one mode and commits.
+
+That's the technical root of the VAE-blur-versus-GAN-sharpness difference from
+the generative models extra. Two directions of the same quantity, two very
+different failure modes.
+</Aside>
+
+## Perplexity, and reading language model papers
+
+Language model papers rarely report cross-entropy. They report **perplexity**:
+
+$$
+\text{perplexity} = 2^{H(p,q)} \quad \text{(or } e^{\text{loss}} \text{ in nats)}
+$$
+
+```python run title="what a perplexity number means"
+print(f"{'loss (nats)':>12s} {'perplexity':>12s}   interpretation")
+for loss in [np.log(50000), 5.0, 3.0, 2.0, 1.5]:
+    print(f"{loss:12.3f} {np.exp(loss):12.1f}   "
+          f"as unsure as picking uniformly among {np.exp(loss):.0f} tokens")
+```
+
+That's the useful reading: **perplexity is the effective number of options the
+model is choosing between.**
+
+A model with perplexity 50,000 on a 50,000-token vocabulary has learned nothing —
+it's guessing uniformly. Perplexity 20 means that at each position it's about as
+uncertain as picking among 20 words, which is a genuinely good language model.
+
+Exponentiating makes the numbers *comparable to intuition*. A loss dropping from
+3.0 to 2.9 sounds trivial; perplexity dropping from 20 to 18 is visibly a tenth
+of the remaining uncertainty gone.
+
+<Wonder title="A language model is a compression algorithm">
+Now the connection I've been building toward, and it's genuinely one of my
+favourite facts in this subject.
+
+Shannon's source coding theorem says the optimal code length for a symbol of
+probability $q$ is $-\log_2 q$ bits.
+
+A language model outputs exactly that: a probability for every possible next
+token. So you can use it as the probability model inside an arithmetic coder —
+and compress text at precisely the cross-entropy loss, in bits per token.
+
+**The loss you've been minimising *is* the compressed file size.**
+
+Not analogous to it. Equal to it, up to a negligible constant.
+
+Which means every improvement in language modelling is, exactly and literally, an
+improvement in text compression. And the best neural compressors do beat
+general-purpose algorithms like gzip and xz by a wide margin, because they
+understand what they're compressing.
+
+Turn it around and it gets more interesting still. To compress well you must
+predict well. To predict the next word of a proof, or a chess game, or a piece of
+code, you need to have modelled something about proofs, chess and code.
+
+So there's a real sense — this is Shannon's, not mine — in which **compression and
+understanding are the same problem**. A model that can compress all human text
+into very few bits must have found the structure in it, because structure is
+exactly what redundancy is.
+
+That's an old idea (Solomonoff, Kolmogorov, Chaitin), it's the basis of the
+minimum description length principle, and there's a long-running competition —
+the Hutter Prize — that treats compressing a chunk of Wikipedia as an AI
+benchmark on precisely these grounds.
+
+You've been training compressors this whole time.
+</Wonder>
+
+```python run title="the loss is the file size"
+# The bigram model's cross-entropy on its own corpus, read as bits per character.
+text = ("the quick brown fox jumps over the lazy dog " * 40 +
+        "pack my box with five dozen liquor jugs " * 40)
+
+counts = {}
+for a, b in zip(text, text[1:]):
+    counts.setdefault(a, {}); counts[a][b] = counts[a].get(b, 0) + 1
+
+total_bits = 0.0
+for a, b in zip(text, text[1:]):
+    row = counts[a]; n = sum(row.values())
+    total_bits += -np.log2(row[b] / n)
+
+bits_per_char = total_bits / (len(text) - 1)
+print(f"raw ASCII                 : 8.00 bits/char")
+print(f"under this bigram model   : {bits_per_char:.2f} bits/char")
+print(f"implied compression ratio : {8 / bits_per_char:.1f}x")
+print(f"\n{len(text)} chars -> {total_bits / 8:.0f} bytes at the model's own loss")
+```
+
+A model built from a dictionary of character counts is a working compressor. A
+transformer is the same thing with a much better probability estimate.
+
+## The vocabulary, collected
+
+<div class="table-scroll">
+
+| Term | Means | Where you'll meet it |
+|---|---|---|
+| **Entropy** $H(p)$ | average surprise; the compression floor | decision tree splits, the noise floor |
+| **Cross-entropy** $H(p,q)$ | bits when you believe $q$ and reality is $p$ | your loss function, every chapter |
+| **KL divergence** | the excess over the floor | VAEs, RLHF's constraint, distillation |
+| **Perplexity** | $e^{\text{loss}}$; effective number of choices | every language model paper |
+| **Mutual information** | how much one variable tells you about another | feature selection, representation learning |
+
+</div>
+
+Three places this shows up that you'd otherwise have to take on faith:
+
+**Decision trees** split on **information gain** — the reduction in entropy from
+a split. Chapter 7's "impurity" is this quantity.
+
+**Knowledge distillation** trains a small model to match a large one's full output
+*distribution*, minimising KL rather than cross-entropy against hard labels. The
+extra information in "it was 70% cat, 25% dog" is why distillation works better
+than retraining on labels.
+
+**RLHF** adds a KL penalty against the original model, keeping the tuned policy
+from drifting too far. That's the term stopping a reward-hacked model from
+collapsing into gibberish that happens to score well.
+
+Same quantity, three chapters, one idea.

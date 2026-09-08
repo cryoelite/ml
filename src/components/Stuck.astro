@@ -1,0 +1,28 @@
+---
+/**
+ * "If this is where you got stuck."
+ *
+ * Perkins calls it working on the hard parts: the places learners reliably
+ * trip are known in advance, and pretending otherwise just means everyone
+ * trips privately and concludes they are the stupid one. So each of these
+ * names the confusion out loud, in the reader's own words, and answers it.
+ *
+ * Closed by default — if you are not stuck, you should not have to read about
+ * being stuck.
+ */
+import Doodle from "./Doodle.astro";
+
+interface Props {
+  title?: string;
+  open?: boolean;
+}
+const { title = "If something isn't clicking", open = false } = Astro.props;
+---
+<details class="stuck" open={open}>
+  <summary>
+    <span class="stuck__icon"><Doodle name="pipStuck" decorative /></span>
+    <span class="stuck__title">{title}</span>
+    <span class="stuck__chev" aria-hidden="true"></span>
+  </summary>
+  <div class="stuck__body"><slot /></div>
+</details>

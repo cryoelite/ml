@@ -1,0 +1,34 @@
+---
+title: 'dtype'
+lib: 'numpy'
+summary: 'Every array has one element type, fixed at creation. Guessing it wrong is the quietest bug in numerical Python.'
+signature: 'np.array([1, 2, 3]).dtype  ->  int64'
+example: |-
+  ints = np.array([1, 2, 3])        # int64 — note the missing decimal points
+  ints[0] = 2.7                     # silently truncated
+  ints
+output: 'array([2, 2, 3])'
+rust: 'It is the `T` in `Vec<T>`, except chosen for you by whatever literals you happened to type. There is no compiler to notice that you wanted floats.'
+rustCode: 'let v: Vec<f64> = vec![1.0, 2.0, 3.0];  // you would have said so'
+docs: 'https://numpy.org/doc/stable/reference/arrays.dtypes.html'
+docsLabel: 'NumPy dtypes ↗'
+---
+
+Write `np.array([1, 2, 3])` and you get integers. Write `np.array([1., 2., 3.])`
+— three extra characters — and you get floats. Everything downstream depends on
+which one you did.
+
+The failure mode is not an error. Assigning `2.7` into an integer array truncates
+to `2` without a word, and a gradient step that should have moved a weight by
+0.003 moves it by zero, forever.
+
+Three habits that remove the whole category:
+
+- Write `1.` rather than `1` when you mean a float. Always.
+- Pass `dtype=` explicitly when you build an array that matters.
+- Print `.dtype` alongside `.shape` when something is behaving strangely.
+
+PyTorch inherits the same trap and adds one of its own: its default float is
+`float32`, not `float64`, so a NumPy array converted with `torch.from_numpy` may
+arrive as `float64` and then refuse to multiply with a model's `float32` weights.
+The fix is `.float()`, and you will type it many times.

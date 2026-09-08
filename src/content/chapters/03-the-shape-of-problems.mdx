@@ -1,6 +1,6 @@
 ---
 title: "The shape of problems"
-blurb: "Before any model: what kind of question is this, what feedback exists, and how to notice when the honest answer is that no model can help."
+blurb: "Before any model: what kind of question is this, what feedback exists, and how to spot the moment when the honest answer is that no model can help."
 order: 3
 day: 3
 part: orientation
@@ -8,19 +8,23 @@ minutes: 80
 introduces: ["supervision", "supervised", "unsupervised", "selfsup", "rl"]
 ---
 
-Yesterday you learned the tools. Today, the thing that actually separates people
-who ship models from people who train them: deciding what the problem *is*.
+Yesterday you got the tools. Today is the thing that quietly separates people who
+*ship* models from people who merely train them: working out what the problem
+actually is.
 
-This is the least glamorous chapter here and the one with the highest return. A
-mediocre model on a well-framed problem beats an excellent model on a badly
-framed one, every time, and the second failure is invisible until it is
-expensive.
+I'll be honest with you — this is the least glamorous chapter in the book. It has
+the fewest impressive outputs and the highest return of any day here. A mediocre
+model on a well-framed problem beats a brilliant model on a badly framed one,
+every single time, and the second kind of failure stays invisible until it has
+become expensive.
 
-## Three independent questions
+So let's spend a day learning to look before we leap.
 
-Every project answers all three of these. They are orthogonal — knowing one tells
-you nothing about the others — and conflating them is the main reason the field's
-vocabulary feels like soup.
+## Three questions, and they're independent
+
+Every project answers all three of these. They're orthogonal — knowing one tells
+you nothing at all about the others — and running them together is the main
+reason this field's vocabulary feels like soup when you first meet it.
 
 <div class="table-scroll">
 
@@ -32,31 +36,41 @@ vocabulary feels like soup.
 
 </div>
 
-So "supervised classification with a gradient-boosted tree" is one answer from
-each column. Not a single thing with a long name.
+So when somebody says "supervised classification with a gradient-boosted tree,"
+they've given you one answer from each column. It isn't one thing with a long
+name. It's three small decisions wearing a trench coat.
+
+Once you can hear the three separately, an enormous amount of jargon just
+resolves itself.
 
 <Aside type="key">
-Question 1 decides what data you must go and collect, and that is the expensive
-irreversible decision. Question 3 is a one-line change you can revisit on a
-Thursday afternoon. Spend your thinking accordingly.
+Here's why the order matters. Question 1 decides **what data you have to go and
+collect**, and that's the expensive, slow, hard-to-reverse decision. Question 3
+is a one-line change you can revisit on a Thursday afternoon.
+
+Spend your thinking in proportion. Most people spend it exactly backwards.
 </Aside>
 
 ## Question 1: what feedback do you get?
 
-**Supervised** means every example carries the right answer. You have 50,000
-emails and, for each, a human-supplied "spam" or "not spam". This is where nearly
-all commercially deployed machine learning lives, because it is the setting where
-you can actually measure whether you are winning.
+**Supervised** means every example carries the right answer with it. You have
+50,000 emails and, for each one, a human-supplied "spam" or "not spam."
+
+This is where nearly all commercially deployed machine learning lives, for a
+reason worth naming: it's the setting where you can actually *measure* whether
+you're winning. That sounds mundane. It's the whole ball game.
 
 The catch is that labels cost money. A radiologist labelling scans is a
-radiologist not doing radiology. Half of applied machine learning is the question
-"how do I get labels cheaply enough" — and the answers include buying them,
-crowdsourcing them, mining them from logs you already have, or the next category.
+radiologist not doing radiology. So half of applied machine learning is really
+the question "how do I get labels cheaply enough" — and the answers are: buy
+them, crowdsource them, mine them out of logs you already have, or use the next
+category.
 
-**Self-supervised** is the trick that ate the world: hide part of the input and
-train the model to predict it. No human labels the data because the data labels
-itself. Take any sentence, remove the last word, and you have a training example.
-The whole internet is now a labelled dataset.
+**Self-supervised** is the trick that ate the world. Ready? Here it is: *hide
+part of the input, and train the model to predict the part you hid.*
+
+No human labels anything, because the data labels itself. Take any sentence,
+remove the last word, and you have a training example. Any sentence. All of them.
 
 ```python run title="self-supervision, in four lines"
 text = "the quick brown fox jumps over the lazy dog"
@@ -66,41 +80,54 @@ for context, target in pairs[:4]:
     print(f"{' '.join(context):32s} -> {target}")
 ```
 
-That is the training objective of every large language model, in its entirety.
-The sophistication is all in the model and the scale; the supervision signal is
-this. It is the single most important idea in the last decade, and the reason it
-matters is economic rather than mathematical — it made data free.
+Look at what just happened. One nine-word sentence became eight training
+examples, and nobody was paid a cent.
 
-**Unsupervised** means no labels at all, and no way to manufacture them. You have
-a million customer records and no idea what the interesting groupings are.
-Clustering, dimensionality reduction and anomaly detection live here. The
-uncomfortable property is that there is no score: nothing tells you whether your
-clusters are *right*, only whether they are useful to a human downstream. Budget
-for that ambiguity before you promise anyone a number.
+That is the training objective of every large language model on Earth, in its
+entirety. All the sophistication is in the model and the scale; the *supervision
+signal* is those four lines. And the reason it changed everything is economic
+rather than mathematical — it made data free. The whole internet became a
+labelled dataset overnight, and it had been sitting there the whole time.
 
-**Reinforcement learning** means feedback that is delayed and evaluative rather
-than instructive. You are not told the correct move; you are told, forty moves
-later, that you lost. It is how game-playing agents and robot controllers are
-trained, and — as RLHF — how a raw language model is turned into something that
-answers your question instead of continuing your sentence.
+**Unsupervised** means no labels, and no way to manufacture any. You have a
+million customer records and genuinely no idea what the interesting groupings
+are.
+
+Clustering, dimensionality reduction and anomaly detection all live here. The
+uncomfortable property — and I want to be straight with you about it — is that
+there's no score. Nothing tells you whether your clusters are *right*, only
+whether a human downstream finds them useful. Budget for that ambiguity before
+you promise anybody a number in a planning meeting.
+
+**Reinforcement learning** means feedback that is delayed and *evaluative* rather
+than instructive. Nobody tells you the correct move. Forty moves later, somebody
+tells you that you lost.
+
+It's how game-playing agents and robot controllers are trained, and — as RLHF —
+it's how a raw language model gets turned into something that answers your
+question instead of cheerfully continuing your sentence.
 
 <Aside type="nice">
-Reinforcement learning is deliberately out of scope here. It is a genuinely
-separate discipline with its own vocabulary (states, actions, policies, value
-functions, the Bellman equation) and its own failure modes, and two weeks cannot
-hold both. What you need for now is to recognise the shape: *delayed,
-evaluative, and the agent's own actions determine what data it sees next.* That
-last clause is what makes it hard.
+Reinforcement learning is deliberately out of scope for the fortnight. It's a
+genuinely separate discipline with its own vocabulary (states, actions, policies,
+value functions, the Bellman equation) and its own distinctive ways of going
+wrong, and two weeks can't hold both honestly.
+
+What you need today is just to recognise its *shape*: feedback that is delayed,
+evaluative, and — this is the killer — where the agent's own actions determine
+what data it sees next. That last clause is what makes it so much harder than
+everything else here. There's a full tour in the extras if you're curious.
 </Aside>
 
 ## Question 2: what shape is the output?
 
 Given supervision, the output shape determines your loss function and your
-metric — which is to say, it determines what "good" means.
+metric. Which is to say: it determines what the word "good" means. Worth getting
+right.
 
 <div class="table-scroll">
 
-| Task | Output | Loss you will use | Example |
+| Task | Output | Loss you'll use | Example |
 |---|---|---|---|
 | Binary classification | one of two labels | binary cross-entropy | fraud / not fraud |
 | Multi-class | one of k labels | cross-entropy | which of 37 breeds |
@@ -112,19 +139,25 @@ metric — which is to say, it determines what "good" means.
 
 </div>
 
-The row people get wrong is **multi-label**. "Which breed is this dog" has one
-answer and wants softmax, where the probabilities compete and sum to one. "Which
-of these tags apply to this photo" can have three answers, and forcing them to
-compete is simply the wrong model of the world. It is one line of code — sigmoid
-per label instead of one softmax — and it is a substantial accuracy difference.
+Two rows deserve a word.
 
-The row people underestimate is **ordinal**. A 1-star and a 5-star review are not
-merely two different classes; being wrong by four stars is worse than being wrong
-by one, and plain classification does not know that.
+The row people get **wrong** is multi-label. "Which breed is this dog?" has one
+answer, and wants a softmax, where the probabilities compete and sum to one.
+"Which of these tags apply to this photo?" can have three answers at once, and
+forcing them to compete is simply the wrong model of the world — you're telling
+the machine that being a sunset makes it *less* of a beach.
+
+The fix is one line: a sigmoid per label instead of one softmax. One line, and a
+substantial accuracy difference.
+
+The row people **underestimate** is ordinal. A 1-star and a 5-star review aren't
+just two different classes. Being wrong by four stars is much worse than being
+wrong by one, and plain classification has no idea. It thinks all mistakes are
+equally bad, because nobody told it otherwise.
 
 ## Question 3: features and targets
 
-Now the concrete part. A supervised dataset is a table where you have chosen one
+Now the concrete part. A supervised dataset is a table where you've picked one
 column to predict.
 
 ```python run setup
@@ -139,12 +172,11 @@ df = pd.DataFrame({
 df
 ```
 
-- **Features** (`X`) — everything you are allowed to look at. Conventionally
-  capital, because it is a matrix of shape `(n_samples, n_features)`.
-- **Target** (`y`) — the thing you are predicting. Lowercase, because it is a
-  vector.
+- **Features** (`X`) — everything you're allowed to look at. Conventionally a
+  capital letter, because it's a matrix of shape `(n_samples, n_features)`.
+- **Target** (`y`) — the thing you're predicting. Lowercase, because it's a vector.
 - **A sample** — one row. Also called an example, an instance, or an observation,
-  depending on which decade the author learned this.
+  depending entirely on which decade the author learned this in.
 
 ```python run
 X = df[["sqm", "bedrooms"]].values      # numeric features only, for now
@@ -152,35 +184,49 @@ y = df["price_eur"].values
 X.shape, y.shape
 ```
 
-Note `X.shape` is `(8, 2)` and `y.shape` is `(8,)`. Nearly every shape error you
-hit in the next fortnight is `X` accidentally being one-dimensional, or `y`
-accidentally being `(8, 1)`. Print them.
+Note that `X.shape` is `(8, 2)` and `y.shape` is `(8,)`. Nearly every shape error
+you meet in the next fortnight is `X` accidentally being one-dimensional, or `y`
+accidentally being `(8, 1)`.
 
-### The `district` column
+Print them. I'll keep saying this.
 
-`district` is a string, and models consume numbers. The naive fix is to map
-`c → 0, n → 1, s → 2`, and it is wrong — it tells the model that south is three
-times north and that north sits *between* centre and south. You have invented an
-ordering that does not exist.
+### That `district` column
+
+`district` holds strings, and models eat numbers. So the obvious fix is to map
+`c → 0, n → 1, s → 2`.
+
+And that is *wrong*, in a way I'd like you to feel rather than just accept.
+
+You've just told the model that south is three times north. That north sits
+neatly *between* centre and south. That the average of centre and south is
+north. None of those sentences mean anything, and the model has no way to know
+that — it will happily do arithmetic on your fiction.
+
+You invented an ordering. Here's how not to:
 
 ```python run title="one-hot: k categories become k columns"
 onehot = pd.get_dummies(df["district"], prefix="d", dtype=int)
 pd.concat([df[["sqm"]], onehot], axis=1).head(4)
 ```
 
-One column per category, exactly one of them hot. No spurious ordering. The cost
-is width: 50,000 distinct user IDs become 50,000 columns, which is untenable —
-and the fix for that is **embeddings**, which are one of the genuinely beautiful
-ideas in the field and are [Chapter 12](/learn/12-embeddings-and-tabular/).
+One column per category, exactly one of them hot. No spurious ordering, because
+there's no arithmetic relationship left to misread.
+
+The cost is width. Fifty thousand distinct user IDs become fifty thousand
+columns, which is plainly untenable — and the fix for *that* is **embeddings**,
+which are one of the genuinely beautiful ideas in this field and get a whole
+chapter to themselves ([Chapter 12](/learn/12-embeddings-and-tabular/)).
 
 <Aside type="rust">
-One-hot encoding is exactly a fieldless `enum` lowered to its discriminant, then
-widened so no arithmetic relationship between variants is implied. An embedding
-is what you would build if you decided each variant should carry a small learned
-`[f32; 16]` payload, and let training decide what goes in it.
+One-hot encoding is exactly a fieldless `enum` lowered to its discriminant, and
+then widened so that no arithmetic relationship between variants is implied.
+
+An embedding is what you'd build if you decided each variant should carry a small
+learned `[f32; 16]` payload — and then let training decide what goes in it. Which
+is, when you put it that way, a rather lovely idea.
 </Aside>
 
-### Leakage: the mistake that feels like success
+### Leakage: the mistake that feels exactly like success
 
 ```python run title="a 100%-accurate model that is worthless"
 from sklearn.linear_model import LinearRegression
@@ -193,28 +239,62 @@ model = LinearRegression().fit(Xl, y)
 print(f"R^2 = {model.score(Xl, y):.4f}   (suspiciously perfect)")
 ```
 
-`price_per_sqm` was computed *from the price*. The model has been handed the
-answer in a thin disguise, and it scores perfectly in testing and catastrophically
-in production, where nobody knows the price yet — that being the entire reason
-you built it.
+A perfect score. Wonderful. Ship it.
 
-**Leakage** is any information in your features that would not be available at
-prediction time. It is the single most common way real projects fail, it always
-presents as unusually good results, and it is very rarely as obvious as this.
+Except `price_per_sqm` was computed *from the price*. The model has been handed
+the answer in a very thin disguise. It scores perfectly in testing and
+catastrophically in production, where nobody knows the price yet — that being,
+you'll recall, the entire reason anyone built it.
+
+**Leakage** is any information in your features that wouldn't be available at
+prediction time. It is the single most common way real projects fail. It always
+shows up as unusually *good* results. And it is very, very rarely as obvious as
+dividing by the target.
 
 <Aside type="warn">
-Real leakage looks like: a `last_updated` timestamp that only gets written when a
-case is resolved. A patient ID that encodes which hospital, where one hospital
-only sees severe cases. An "account status" field back-filled nightly. A row
-duplicated between your training and validation sets.
+Real leakage looks like this:
 
-The habit that catches it: when a result is much better than you expected, do not
-celebrate. Go and find out why. It is leakage far more often than it is genius.
+- A `last_updated` timestamp that only gets written when a case is *resolved*.
+- A patient ID that quietly encodes which hospital — where one hospital only sees
+  severe cases.
+- An "account status" field that gets back-filled nightly.
+- A single row duplicated across your training and validation sets.
+
+Each of those is invisible in a schema and fatal in production.
+
+The habit that catches all of them is simple and slightly unnatural: **when a
+result is much better than you expected, don't celebrate. Go and find out why.**
+
+It's leakage far more often than it's genius. That's not cynicism, it's just the
+base rate.
 </Aside>
+
+<Stuck>
+**"How is leakage different from just... a good feature?"** Ask one question: *at
+the moment I need a prediction, does this value exist yet?* A good feature is one
+you'd genuinely have on hand. Leakage is one you'd only have afterwards. The
+model can't tell the difference, so you have to.
+
+**"Why is `X` capital and `y` lowercase? That looks like a typo."** It's a
+convention borrowed from maths: capital for a matrix, lowercase for a vector.
+Every library and paper uses it, so it's worth adopting even though it looks odd
+in Python.
+
+**"`get_dummies` gave me columns of `True`/`False` and I expected numbers."**
+That's the `dtype=int` argument's job, and it's why it's there in the cell above.
+Without it, modern pandas gives you booleans — which mostly work, right up until
+something does arithmetic and surprises you.
+
+**"I framed my problem and it looks like three problems."** That's usually
+correct, and it's a good sign rather than a bad one. Real systems are often a
+learned perception step feeding a hand-written decision step. Splitting them is
+allowed, and it's frequently the better design — see the VAT answer at the
+bottom of the page.
+</Stuck>
 
 ## How to interrogate a dataset
 
-Before modelling, always. Fifteen minutes, in this order.
+Fifteen minutes, in this order, before you model anything. Every time.
 
 ```python run title="1. what is even here"
 print(df.dtypes.to_dict()); print()
@@ -228,10 +308,13 @@ print("class balance:", np.bincount(labels))
 print(f"always-predict-0 accuracy: {(labels == 0).mean():.1%}")
 ```
 
-Ninety-five percent accuracy, from a model that is a constant. If somebody quotes
-you an accuracy without a class balance, they have told you nothing. This is why
-[metrics](/learn/16-shipping-and-reading-papers/) get a chapter of their own, and
-why precision and recall exist.
+Ninety-five percent accuracy — from a model that is a *constant*. It doesn't look
+at the input. It doesn't have parameters. It just says "no" forever, and it beats
+a great many earnest afternoons of work.
+
+So: if somebody quotes you an accuracy without a class balance, they have told
+you precisely nothing. This is why [metrics](/learn/16-shipping-and-reading-papers/)
+get a chapter of their own, and why precision and recall had to be invented.
 
 ```python run title="3. does any feature move the target"
 print(df.groupby("district")["price_eur"].agg(["mean", "count"]))
@@ -245,99 +328,148 @@ plt.xlabel("sqm"); plt.ylabel("price (k EUR)"); plt.title("always plot it")
 plt.tight_layout()
 ```
 
-Step 4 is not optional. Anscombe's quartet — four datasets with identical means,
-variances and correlations, and wildly different shapes — exists to make exactly
-this point. Summary statistics can be identical while the data is not remotely
-similar.
+<Wonder title="Why step 4 is not optional">
+In 1973 a statistician named Frank Anscombe built four small datasets and played
+a rather wonderful trick with them.
+
+All four have the same mean in x. The same mean in y. The same variance in both.
+The same correlation. The same fitted regression line, to two decimal places. By
+every summary statistic anyone would think to compute, they are the same data.
+
+Then you plot them. One is a tidy line. One is a smooth curve. One is a perfect
+line with a single outlier dragging it off course. One is a vertical stack of
+points with a lone dot far to the right doing all the work.
+
+Anscombe's point — made in four little tables, sixty years ago, and never
+improved upon — is that **summarising is lossy, and you don't get to choose what
+it loses.** The numbers agreed completely and the data could not have been more
+different.
+
+It takes eight seconds to plot something. Plot it.
+</Wonder>
 
 ## Is this even a machine learning problem?
 
 Four questions, in order. A "no" to any of them means stop.
 
 **1. Could a competent human do it from the same information?**
-If a person staring at the same row cannot tell, the signal is probably not
-there. This is not a law — models find patterns humans cannot, particularly in
-high dimensions — but as a first filter it is excellent, and it will save you
-from most doomed projects.
 
-**2. Do I have enough examples, of the thing I care about?**
-Not rows — *examples of the positive class*. A million transactions with eleven
-frauds is eleven examples. The rough floors: hundreds per class for tabular
-problems, a few dozen per class for images if you can start from a pretrained
-model ([Chapter 11](/learn/11-vision-and-transfer/)), and thousands if you are
-training from scratch.
+If a person staring at the same row can't tell, the signal probably isn't in the
+row. This isn't a law — models genuinely do find patterns humans can't,
+especially in high dimensions — but as a first filter it's excellent, and it will
+rescue you from most doomed projects before they start.
+
+**2. Do I have enough examples *of the thing I care about*?**
+
+Not rows. Examples of the **positive class**. A million transactions with eleven
+frauds in them is eleven examples, and no amount of rows changes that.
+
+Rough floors: hundreds per class for tabular problems. A few dozen per class for
+images, *if* you start from a pretrained model
+([Chapter 11](/learn/11-vision-and-transfer/)). Thousands if you're training from
+scratch.
 
 **3. Will the future resemble the past?**
-Models learn the distribution they were shown. If your training data is
-pre-pandemic travel behaviour, or pre-competitor pricing, the model is a
-historian. This is *distribution shift*, and it is why models decay in production
-rather than staying fixed.
 
-**4. What happens when it is wrong?**
+Models learn the distribution they were shown, and nothing else. If your training
+data is pre-pandemic travel behaviour, or pre-competitor pricing, then your model
+isn't a predictor — it's a historian.
+
+This is **distribution shift**, and it's the reason models decay in production
+rather than sitting there staying correct. Nothing broke. The world moved.
+
+**4. What happens when it's wrong?**
+
 Not rhetorical. Write down the cost of a false positive and the cost of a false
-negative, in whatever units your organisation cares about. Those two numbers
-determine your metric, your decision threshold, and whether the project is worth
-doing. Skipping this is how teams optimise accuracy for six months on a problem
-where recall was the only thing that mattered.
+negative, in whatever units your organisation actually cares about.
+
+Those two numbers determine your metric, your decision threshold, and — quite
+often — whether the project is worth doing at all. Skipping this is how teams
+spend six months optimising accuracy on a problem where recall was the only thing
+that ever mattered.
 
 <Aside type="key">
-Frame the problem, then check that a trivial baseline does not already solve it,
-then model. The baseline — predict the mean, predict the majority class, use last
-week's value — takes ten minutes and is the number every later result must beat
-to mean anything.
+Frame the problem. Then check that a trivial baseline doesn't already solve it.
+*Then* model.
+
+The baseline — predict the mean, predict the majority class, use last week's
+value — takes ten minutes, and it's the number every later result has to beat in
+order to mean anything at all. Without it you have a percentage and no idea
+whether it's good.
 </Aside>
 
-## Exercise
+<TryThis title="Frame these three" reveal="Show how I'd answer these">
 
-Frame these three. For each, name the supervision, the task, the features, the
-target, one plausible source of leakage, and a trivial baseline. Then decide
-whether it is a machine learning problem at all.
+For each one, name: the supervision, the task, the features, the target, one
+plausible source of leakage, and a trivial baseline. Then decide whether it's a
+machine learning problem at all.
 
 1. Predict which of your users will cancel their subscription next month.
 2. Decide which of 4 million support tickets are about the same underlying bug.
 3. Compute VAT owed on an invoice.
 
-<Reveal title="How I would answer these" kind="deep">
+Take ten minutes. Writing the answers down beats thinking them.
+
+<Fragment slot="hint">
+For number 2, ask yourself whether you *really* have zero labels — or whether
+somebody, somewhere, has already merged a few thousand pairs by hand.
+
+For number 3, read the four questions above again and notice which one it fails.
+</Fragment>
+
+<Fragment slot="answer">
 
 **1. Churn.** Supervised binary classification. Features: usage in the last 30
 days, tenure, support contacts, plan, payment failures. Target: cancelled in the
 following month.
 
-Leakage is everywhere here and it is temporal. A `cancellation_reason` field is
+Leakage is *everywhere* here, and it's temporal. A `cancellation_reason` field is
 obviously fatal. Less obviously: "number of support tickets" counted over a
 window that overlaps the prediction month, or a `plan` field that already records
-the downgrade they made while cancelling. The discipline is to fix a cutoff date
-and use **only** what was knowable before it.
+the downgrade they made on their way out the door.
 
-Baseline: predict cancellation for anyone with zero logins in 30 days. It is
-often startlingly hard to beat, and if the model does not, the model is not
-worth deploying.
+The discipline that saves you: fix a cutoff date, and use **only** what was
+knowable before it. Write the cutoff in the code, not in your head.
 
-Also note question 4: a false positive costs you a discount offer, a false
-negative costs you a customer. Those are wildly different numbers, so accuracy is
-the wrong metric and the threshold is a business decision, not a modelling one.
+Baseline: predict cancellation for anyone with zero logins in 30 days. It's often
+startlingly hard to beat — and if your model doesn't beat it, your model should
+not be deployed.
 
-**2. Duplicate tickets.** This is unsupervised, or *nearly* — you probably have a
-few thousand pairs a human already merged, which makes it weakly supervised and
-changes the approach entirely. Ask before assuming.
+And notice question 4 doing real work here. A false positive costs you a discount
+offer. A false negative costs you a customer. Those are wildly different numbers,
+so accuracy is the wrong metric and the threshold is a business decision wearing
+a modelling costume.
 
-Task: clustering, or better, retrieval — embed each ticket and find near
+**2. Duplicate tickets.** Unsupervised — or *nearly*. You probably have a few
+thousand pairs some support engineer already merged by hand, which makes it
+weakly supervised and changes the whole approach. Go and ask before you assume.
+
+Task: clustering, or better, **retrieval** — embed each ticket, find near
 neighbours ([Chapter 12](/learn/12-embeddings-and-tabular/)). Framing it as
-retrieval rather than clustering is the better call, because it gives you a
-ranked list a human can confirm rather than a partition you must trust.
+retrieval rather than clustering is the better call, because it hands a human a
+ranked list they can confirm, instead of a partition they have to trust.
 
-Baseline: TF-IDF cosine similarity. It is thirty years old, takes an afternoon,
-and is a genuinely strong baseline on this task.
+That distinction is worth more than it looks. "Here are the five most similar
+tickets" is a product. "Here are your 400 clusters" is a homework assignment for
+somebody else.
 
-**3. VAT.** Not a machine learning problem. It is defined in legislation; write
-the rules. A model would give you 99.4% accuracy where 100% was free, and would
-be unable to explain the 0.6% to an auditor.
+Baseline: TF-IDF cosine similarity. Thirty years old, takes an afternoon, and is
+a genuinely strong baseline on this exact task.
 
-The interesting variant: *extracting the line items from a scanned invoice* very
-much is a machine learning problem — supervised, and these days a vision-language
-model. Note the shape of that: the perception step is learned, the arithmetic
-step stays code. Splitting a system along that seam is one of the most useful
-design instincts you can develop.
-</Reveal>
+**3. VAT.** Not a machine learning problem. It's defined in legislation — write
+the rules. A model would hand you 99.4% accuracy where 100% was free, and then be
+unable to explain the 0.6% to an auditor, which is a conversation you do not want
+to have.
 
-Tomorrow: build a model from nothing, and watch it learn.
+But here's the interesting variant: *extracting the line items from a scanned
+invoice* very much **is** a machine learning problem. Supervised, and these days
+a vision-language model.
+
+Look at the shape of that system. The perception step is learned. The arithmetic
+step stays code. Splitting a problem along that seam — learn the messy part,
+write the exact part — is one of the most useful design instincts you can
+develop, and almost nobody teaches it explicitly.
+</Fragment>
+</TryThis>
+
+Tomorrow: we build a model out of nothing, and watch it learn.

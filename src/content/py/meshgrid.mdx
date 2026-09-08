@@ -1,0 +1,26 @@
+---
+title: 'meshgrid'
+lib: 'numpy'
+summary: 'Turns two 1-D ranges into a full 2-D grid of every combination, so you can evaluate a function everywhere at once.'
+signature: 'X, Y = np.meshgrid(xs, ys)'
+example: |-
+  X, Y = np.meshgrid([0, 1, 2], [10, 20])
+  X.shape, (X + Y)
+output: '((2, 3), array([[10, 11, 12], [20, 21, 22]]))'
+rust: '`xs.iter().cartesian_product(ys)`, but returned as two parallel 2-D arrays instead of a stream of pairs — so you can do arithmetic on all combinations at once.'
+docs: 'https://numpy.org/doc/stable/reference/generated/numpy.meshgrid.html'
+docsLabel: 'numpy.meshgrid ↗'
+---
+
+Two 1-D arrays in, two 2-D arrays out, such that `X[i, j], Y[i, j]` is one
+combination. Doing arithmetic on `X` and `Y` then evaluates your function at
+every point of the grid, with no loop.
+
+It is how every contour plot and decision-boundary picture in this tutorial is
+made: build a grid over the input space, run the model on all of it, reshape the
+predictions back to the grid's shape, and hand the result to `contourf`.
+
+The one gotcha is ordering. By default the first argument varies along the
+*columns*, which is the opposite of what matrix intuition suggests. If your plot
+comes out transposed, that is why — `indexing="ij"` swaps it to matrix
+convention.

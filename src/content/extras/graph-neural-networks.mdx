@@ -1,0 +1,243 @@
+---
+title: "When your data is a graph"
+blurb: "Molecules, social networks, fraud rings, road systems. The same weight-sharing idea as convolution, with a graph in place of a grid — and once you see that, GNNs stop being a separate subject."
+order: 24
+minutes: 11
+kind: "sibling"
+after: "11-vision-and-transfer"
+covers: ["gnn"]
+---
+
+Chapter 11 made an argument I'd like to reuse: a dense layer is the wrong tool for
+pixels, because it knows nothing about the *structure* of its input.
+
+The same argument applies whenever your data has structure a dense layer would
+throw away. And graphs — molecules, social networks, transaction ledgers, road
+systems, code dependency trees — are the case where it applies most sharply.
+
+## The problem with flattening a graph
+
+```python run setup title="a small graph, and why ordering is a trap"
+import numpy as np
+
+# 6 nodes. Adjacency matrix: A[i, j] = 1 if there's an edge.
+A = np.array([
+    [0, 1, 1, 0, 0, 0],
+    [1, 0, 1, 0, 0, 0],
+    [1, 1, 0, 1, 0, 0],
+    [0, 0, 1, 0, 1, 1],
+    [0, 0, 0, 1, 0, 1],
+    [0, 0, 0, 1, 1, 0],
+], float)
+features = np.arange(6).reshape(-1, 1) * 1.0     # one feature per node
+
+print("adjacency:\n", A.astype(int))
+print("\nnode degrees:", A.sum(1).astype(int))
+```
+
+Suppose you flatten that adjacency matrix and feed it to a dense network.
+
+Two problems, and the second is fatal.
+
+**Size.** The matrix is $n^2$, so it doesn't transfer between graphs of different
+sizes. A model trained on 6-node molecules can't look at a 40-node one.
+
+**Ordering.** Node 0 and node 3 are labels you assigned. Relabel them and the
+adjacency matrix changes completely — but it's the *same graph*.
+
+```python run title="the same graph, a different matrix"
+perm = np.array([3, 1, 4, 0, 5, 2])
+A_perm = A[perm][:, perm]
+
+print("relabelled adjacency:\n", A_perm.astype(int))
+print("\nidentical graph?", np.array_equal(sorted(A.sum(1)), sorted(A_perm.sum(1))))
+print("identical matrix?", np.array_equal(A, A_perm))
+print("\nA dense layer sees two unrelated inputs. It would have to learn every")
+print("labelling of every graph separately — of which there are n! per graph.")
+```
+
+So you need an operation that gives the **same answer regardless of node
+ordering**. That property is called *permutation invariance*, and it's the whole
+design constraint.
+
+<Aside type="key">
+Notice this is the exact same shape of argument as chapter 11's.
+
+For images, the structural fact was **translation**: a cat is a cat wherever it
+sits, so share weights across positions.
+
+For graphs, the structural fact is **permutation**: a molecule is the same
+molecule however you number its atoms, so share weights across nodes.
+
+In both cases the architecture exists to bake in a symmetry the data actually has
+— so the model doesn't have to spend data learning it. That's what an inductive
+bias *is*, and graphs are the cleanest example of it.
+</Aside>
+
+## Message passing
+
+The answer is beautifully simple: each node updates itself using an aggregate of
+its neighbours.
+
+Three steps, repeated:
+
+1. **Message** — each neighbour sends something (often just its current features).
+2. **Aggregate** — combine the incoming messages with a *permutation-invariant*
+   operation: sum, mean, or max. Never concatenation, which would reintroduce
+   ordering.
+3. **Update** — transform the node's own features together with the aggregate.
+
+```python run title="one round of message passing"
+def normalise(A):
+    """Symmetric normalisation with self-loops — the standard GCN operator."""
+    A_hat = A + np.eye(len(A))                  # let a node see itself
+    d = A_hat.sum(1)
+    D_inv_sqrt = np.diag(1 / np.sqrt(d))
+    return D_inv_sqrt @ A_hat @ D_inv_sqrt
+
+A_norm = normalise(A)
+rng = np.random.default_rng(0)
+W = rng.normal(0, 0.5, (1, 4))                  # 1 input feature -> 4 hidden
+
+h1 = np.tanh(A_norm @ features @ W)             # <- the entire GCN layer
+print("input features :", features.ravel())
+print("after one layer:", h1.round(2)[:3], "...")
+print("\nshape", features.shape, "->", h1.shape)
+```
+
+That one line — `A_norm @ features @ W` — is a graph convolutional layer in its
+entirety.
+
+Read it right to left: `features @ W` transforms each node independently (that's
+just a dense layer), and `A_norm @` averages each node together with its
+neighbours. Transform, then mix along the edges.
+
+Compare it to a convolution, which transforms each pixel and mixes it with its
+spatial neighbours. **Same operation, different definition of "neighbour."**
+
+```python run title="permutation invariance, verified"
+h_orig = np.tanh(normalise(A) @ features @ W)
+h_perm = np.tanh(normalise(A_perm) @ features[perm] @ W)
+
+print("outputs match after undoing the permutation:",
+      np.allclose(h_orig[perm], h_perm))
+print("\nrelabelling the nodes just relabels the outputs — which is exactly")
+print("what we needed and exactly what a dense layer could not give us.")
+```
+
+## Depth is reach
+
+```python run title="how far information travels"
+reach = np.eye(len(A))
+for layers in range(1, 5):
+    reach = ((reach @ (A + np.eye(len(A)))) > 0).astype(float)
+    print(f"{layers} layer(s): node 0 can see nodes "
+          f"{[int(i) for i in np.flatnonzero(reach[0])]}")
+```
+
+One layer of message passing lets a node see its immediate neighbours. Two layers
+let it see neighbours-of-neighbours. **k layers gives a receptive field of k
+hops** — precisely the same relationship between depth and receptive field that a
+CNN has.
+
+So depth in a GNN has a concrete meaning: how far across the graph information can
+travel. Choosing the number of layers is choosing how much of the graph each node
+gets to know about.
+
+<Aside type="warn">
+And unlike a CNN, you can't just keep stacking. Two specific failures appear:
+
+**Over-smoothing.** After many rounds of averaging with neighbours, every node's
+representation converges toward the same value — the graph average. The model
+loses the ability to tell nodes apart, which is usually the entire point.
+
+Most GNNs are **2 to 4 layers**. That's not laziness; deeper genuinely tends to be
+worse, and it's one of the sharpest differences from the "just add layers"
+instinct that vision gives you.
+
+**Over-squashing.** Information from an exponentially growing neighbourhood has
+to be squeezed into a fixed-size node vector. Long-range dependencies get crushed
+— which, if it sounds familiar, is the RNN bottleneck from the
+[pre-transformer extra](/extras/before-transformers/) appearing in a new shape.
+</Aside>
+
+```python run title="over-smoothing, watched"
+h = features.copy()
+print("spread of node representations after k rounds of averaging:")
+for k in range(1, 9):
+    h = A_norm @ h
+    print(f"  k={k}: std {h.std():.4f}")
+print("\nthe nodes are converging toward each other. by k=8 they are")
+print("nearly indistinguishable, and no classifier can separate them.")
+```
+
+## The three things you can predict
+
+GNNs do three levels of task, and papers assume you know which is which:
+
+**Node-level.** Classify each node. *Is this account fraudulent? What's this
+paper's topic?* Read out per-node representations.
+
+**Edge-level.** Predict whether an edge exists or what it means. *Will these two
+users connect? Does this drug interact with that one?* Combine the two endpoint
+representations.
+
+**Graph-level.** One prediction for the whole graph. *Is this molecule toxic? Is
+this program buggy?* Pool all node representations — with a permutation-invariant
+pool, naturally.
+
+```python run title="graph-level pooling"
+node_repr = np.tanh(A_norm @ features @ W)
+for name, pooled in [("mean", node_repr.mean(0)), ("sum", node_repr.sum(0)),
+                     ("max", node_repr.max(0))]:
+    print(f"{name:>5s} pooling -> {pooled.round(3)}")
+print("\nall three are order-independent. mean loses graph size; sum keeps it.")
+```
+
+That last note matters more than it looks: **sum pooling preserves information
+about graph size, mean pooling discards it.** If a 50-atom molecule should behave
+differently from a 5-atom one, use sum.
+
+## The variants worth recognising
+
+<div class="table-scroll">
+
+| Name | Aggregation | Why it exists |
+|---|---|---|
+| **GCN** | normalised mean of neighbours | the simple baseline; what you just wrote |
+| **GraphSAGE** | sample a fixed number of neighbours | scales to graphs too big to fit in memory |
+| **GAT** | attention-weighted neighbours | not all neighbours matter equally |
+| **MPNN** | a learned message function per edge | the general form; edges can carry features |
+
+</div>
+
+**GAT** deserves a moment. It applies chapter 13's attention to a node's
+neighbourhood: learn how much to weight each neighbour rather than averaging them
+equally.
+
+Which points at something rather nice. A transformer is a GNN on a **fully
+connected** graph — every token is a node, every token attends to every other, and
+positional encoding is what stops it being permutation-invariant.
+
+Convolution, attention and message passing are three points on one spectrum: *how
+do I mix information between elements, and what defines which elements are
+adjacent?* Grid, complete graph, arbitrary graph.
+
+## When to reach for one
+
+**Use a GNN when the edges carry real information** — molecular bonds, social
+connections, transaction links, road topology, function calls. The structure has
+to be doing work.
+
+**Don't** when the graph is incidental. If your problem is fundamentally tabular
+and you've constructed a graph by thresholding a similarity matrix, you've
+probably invented structure rather than found it, and gradient boosting will beat
+you.
+
+The honest test is chapter 7's: **build the tabular baseline first.** Aggregate
+neighbour features by hand into columns (mean neighbour degree, count of
+neighbours of each type) and feed them to gradient boosting.
+
+That baseline is frequently strong, and if a GNN can't beat it, the graph
+structure wasn't the point. Finding that out costs an afternoon and saves a
+quarter.

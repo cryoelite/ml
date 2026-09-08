@@ -8,9 +8,11 @@ minutes: 85
 introduces: ["unsupervised", "clustering", "dimred", "autoenc", "density", "gan", "diffusion", "gnn", "rl"]
 ---
 
-Every model so far has been told the right answer. Today, what you can do when
-nobody will tell you — and then a deliberately quick tour of the entire field
-this fortnight has driven straight past.
+Every model so far has been told the right answer.
+
+Today: what you can do when nobody will tell you — and then a deliberately quick
+tour of the entire field this fortnight has driven straight past, so that none of
+the names are strangers.
 
 ## Clustering
 
@@ -35,10 +37,14 @@ assign, centres = kmeans(X, 4)
 print("cluster sizes:", np.bincount(assign))
 ```
 
-Two steps, alternated until nothing moves: *assign each point to its nearest
-centre*, then *move each centre to the mean of its points*. That is the entire
-algorithm, and the whole idea is visible in the
-<Py id="broadcasting">broadcasting</Py> on the distance line.
+Two steps, alternated until nothing moves:
+
+1. Assign each point to its nearest centre.
+2. Move each centre to the mean of its points.
+
+That's the entire algorithm. And the whole idea is visible in that one distance
+line — <Py id="broadcasting">broadcasting</Py> an `(n, 1, 2)` against a
+`(1, k, 2)` to get every point-to-centre distance at once, no loops.
 
 ```python run title="what it found"
 fig, ax = plt.subplots(1, 2, figsize=(8.4, 3.2))
@@ -52,19 +58,22 @@ plt.tight_layout()
 ```
 
 <Aside type="warn">
-Three things will bite you, and all three are consequences of the algorithm
-rather than bugs.
+Three things will bite you here, and all three are consequences of the algorithm
+rather than bugs in it.
 
 **You have to choose k.** There is no principled answer. The elbow method and
-silhouette score are heuristics, not criteria.
+silhouette score are heuristics, not criteria, and anyone who tells you otherwise
+is selling something.
 
-**It assumes round, similar-sized clusters**, because it uses Euclidean distance
-to a mean. Elongated or nested shapes defeat it entirely, and DBSCAN or spectral
-clustering exist for exactly that.
+**It assumes round, similar-sized clusters**, because it measures Euclidean
+distance to a mean. Elongated or nested shapes defeat it completely — DBSCAN and
+spectral clustering exist for exactly that reason.
 
-**There is no validation set.** This is the deep discomfort of unsupervised work:
-nothing tells you the answer is right. The only real test is whether the clusters
-are useful to whoever asked, which is a conversation, not a metric.
+**There is no validation set.** And this is the deep discomfort of all
+unsupervised work: nothing tells you the answer is right. Nothing can.
+
+The only real test is whether the clusters are *useful to whoever asked*, which
+is a conversation, not a metric. Go into that conversation knowing it's coming.
 </Aside>
 
 ```python run title="the elbow, and its limits"
@@ -77,6 +86,11 @@ plt.plot(range(1, 9), inertias, "o-"); plt.axvline(4, ls=":", c="crimson")
 plt.xlabel("k"); plt.ylabel("within-cluster sum of squares"); plt.tight_layout()
 print("inertia always falls with k — at k = n it is exactly zero, and useless")
 ```
+
+Read that printed line carefully, because it's the same trap as training accuracy
+in chapter 6. The metric improves monotonically as you add capacity, so you can't
+choose k by minimising it. At k = n every point is its own cluster and the
+inertia is exactly zero, which is perfect and tells you nothing.
 
 ## Dimensionality reduction
 
@@ -95,8 +109,10 @@ for k in [2, 8, 16, 32]:
 ```
 
 PCA finds the directions of greatest variance and re-expresses the data in them.
-No information is discarded until you truncate — it is a rotation, and the
-truncation is where the compression happens.
+
+I like framing it this way: **nothing is discarded until you truncate.** PCA
+itself is a rotation — you could rotate back and recover the data exactly. The
+compression happens entirely in the decision to keep only the first k directions.
 
 ```python run title="64 dimensions, drawn in 2"
 proj = Xd @ Vt[:2].T
@@ -107,25 +123,34 @@ plt.title("digits projected onto their two principal components")
 plt.tight_layout()
 ```
 
-The digits partly separate — from two numbers each, with no labels used. PCA
-never saw the colours; they are painted on afterwards to show what it recovered.
+The digits partly separate — from two numbers each, with no labels used anywhere.
+
+And to be clear about what you're looking at: **PCA never saw the colours.** They
+were painted on afterwards, so you could check what it recovered. The structure
+was in the pixels the whole time.
 
 <Aside type="nice">
-**UMAP** and **t-SNE** produce much prettier separations and are what you will
-see in papers. They are non-linear and optimise for preserving local
-neighbourhoods, so clusters look crisp.
+**UMAP** and **t-SNE** produce much prettier separations, and they're what you'll
+see in papers.
 
-The warning that belongs with every such plot: in a UMAP embedding, *distances
-between clusters are not meaningful*, cluster sizes are not meaningful, and the
-layout changes with the random seed. They are excellent for "are there groups
-here at all" and actively misleading for "how different are these two groups".
-PCA is less pretty and its axes mean something.
+They're non-linear and optimise for preserving *local* neighbourhoods, so clusters
+come out crisp and well-separated. Very satisfying to look at.
+
+Here's the warning that belongs beside every one of those plots, though. In a UMAP
+embedding, **distances between clusters are not meaningful**. Cluster sizes are
+not meaningful. And the whole layout changes with the random seed.
+
+They're excellent for answering "are there groups here at all?" and actively
+misleading for "how different are these two groups?" — which is, unfortunately,
+the question people usually ask them.
+
+PCA is less pretty and its axes mean something. Choose accordingly.
 </Aside>
 
 ## Autoencoders
 
-Train a network to reproduce its own input through a narrow bottleneck. The
-bottleneck is forced to be a compressed description.
+Train a network to reproduce its own input — through a narrow bottleneck. The
+bottleneck has no choice but to become a compressed description.
 
 ```python run local setup title="an autoencoder"
 import torch, torch.nn as nn
@@ -162,90 +187,150 @@ ax[1, 0].set_title("through 8 numbers", fontsize=8, loc="left")
 plt.tight_layout()
 ```
 
-Note the loss: `mse_loss(ae(Xt), Xt)`. The label is the input. This is
-self-supervision again — the same trick as masked language modelling, in a
-different costume.
+Look at that loss line again: `mse_loss(ae(Xt), Xt)`.
 
-Autoencoders give you **anomaly detection** for free: train on normal data, and
-anything that reconstructs badly is unlike what you trained on. That is a genuinely
-useful production pattern, and it needs no labelled anomalies, which is exactly
-the situation you are usually in.
+**The label is the input.** This is self-supervision again — precisely the same
+trick as masked language modelling, wearing different clothes. Hide something,
+predict it, get free labels. Third time we've met it.
+
+And autoencoders hand you **anomaly detection** for free: train on normal data,
+and anything that reconstructs badly is unlike what you trained on. That's a
+genuinely useful production pattern, and it needs no labelled anomalies — which
+is exactly the situation you're usually in, because if you had labelled anomalies
+you'd have trained a classifier.
+
+<Stuck>
+**"Why do I have to centre the data before PCA?"** Because PCA finds directions of
+maximum *variance*, and variance is measured about the mean. Skip the centring
+and your first component is mostly "the average digit", which is not a direction
+of variation at all.
+
+**"What's the difference between PCA and an autoencoder?"** An autoencoder with
+linear layers and no activation *is* PCA, essentially. The nonlinearity is what
+buys you a curved manifold instead of a flat subspace.
+
+**"My k-means gives different answers every run."** Correct, and exercise 1 is
+about exactly that. Set the seed, or run it ten times and keep the best inertia —
+which is what `n_init` does in scikit-learn.
+
+**"How do I know how many clusters there really are?"** You don't. This is not
+you missing a technique — it is a genuine property of the problem. Bring domain
+knowledge, or bring a human, or reframe it as something supervised.
+</Stuck>
 
 ## The branches this path did not take
 
 Everything below is real, used in production somewhere today, and deliberately
-out of scope. This section exists so that the names are not strangers — knowing
-*where a thing lives* is most of what it takes to pick it up later.
+out of scope for a fortnight.
+
+This section exists so the names aren't strangers — because knowing **where a
+thing lives** is most of what it takes to pick it up later. Each of these has a
+fuller treatment in the [extras](/extras/) if it catches your eye.
 
 ### Generative models
 
 **GANs** (2014) pit a generator against a discriminator: one makes fakes, the
-other spots them, and both improve. They produced the first genuinely convincing
-synthetic faces. They are also notoriously unstable to train — mode collapse,
-where the generator finds one good output and stops exploring, is a permanent
-hazard. Largely superseded for images.
+other tries to spot them, and both improve by competing. They produced the first
+genuinely convincing synthetic faces and were the story of the late 2010s.
+
+They're also notoriously unstable to train. *Mode collapse* — where the generator
+finds one good output and stops exploring — is a permanent hazard. Largely
+superseded for images now.
 
 **Diffusion models** (practical from 2020) learn to remove noise, one small step
 at a time, from pure static to an image. Training is stable and the objective is
-a simple regression — which is exactly why they beat GANs. Everything you have
-seen from image, video and audio generators is this.
+a simple regression, which is exactly why they beat GANs. Everything you've seen
+from image, video and audio generators is this.
 
-<Aside type="nice">
-Diffusion is worth one more sentence because the idea is so clean. Take a real
-image, add a known amount of Gaussian noise, and train a network to predict the
-noise you added. That is an ordinary supervised regression problem with free
-labels. Then, to generate: start from pure noise and repeatedly subtract the
-predicted noise. A hard generative problem was converted into an easy predictive
-one, which is a move worth recognising when you see it elsewhere.
-</Aside>
+<Wonder title="Why diffusion is such a satisfying idea">
+Generating a photorealistic image is an extremely hard problem. Predicting noise
+is an easy one.
+
+So here's the move. Take a real image. Add a known amount of Gaussian noise to
+it. Train a network to predict *the noise you just added*.
+
+That's an ordinary supervised regression problem, with perfect free labels,
+because you generated the noise yourself and know exactly what it was.
+
+Then, to generate something new: start from pure noise, and repeatedly subtract
+the noise the network predicts. Step by step, static resolves into an image.
+
+A hard generative problem was converted into an easy predictive one — and the
+conversion cost nothing, because the labels were free by construction.
+
+That's a move worth being able to recognise, because it's the same shape as
+self-supervision in chapter 3 and the autoencoder above. **When a problem is
+hard, look for a related prediction problem whose answers you already have.** It
+comes up again and again, and it's one of the genuinely transferable ideas in
+this field.
+</Wonder>
 
 ### Reinforcement learning
 
 Learning from delayed, evaluative reward rather than from correct answers. The
-agent's own actions determine what data it sees next, which is what makes it
-genuinely harder than everything in this tutorial.
+agent's own actions determine what data it sees next — which is precisely what
+makes it genuinely harder than everything else in this book.
 
-Vocabulary you will meet: *state*, *action*, *policy*, *value function*,
-*Q-learning*, *policy gradient*, *PPO*. It is how game-playing and robot control
-work, and — as RLHF — how a base language model becomes an assistant. Budget a
-month, not an afternoon.
+Vocabulary you'll meet: *state*, *action*, *policy*, *value function*,
+*Q-learning*, *policy gradient*, *PPO*. It's how game-playing and robot control
+work, and — as RLHF — how a base language model becomes an assistant.
+
+Budget a month, not an afternoon. I'd rather tell you that than have you bounce
+off it.
 
 ### Graph neural networks
 
 Message passing over the edges of a graph, so each node's representation is built
-from its neighbours'. The right tool when your data *is* a graph: molecules,
-social networks, fraud rings, road systems. Note the pattern from
-[Chapter 11](/learn/11-vision-and-transfer/) — it is the same "share weights over
-a structure" idea as convolution, with a graph in place of a grid.
+from its neighbours'. The right tool when your data genuinely *is* a graph:
+molecules, social networks, fraud rings, road systems.
+
+And notice the pattern from [Chapter 11](/learn/11-vision-and-transfer/) — it's
+the same "share weights over a structure" idea as convolution, with a graph in
+place of a grid. Once you've seen that idea twice, you start seeing it
+everywhere. Attention is arguably a third instance, on a fully-connected graph.
 
 ### The probabilistic tradition
 
-Naive Bayes, hidden Markov models, Gaussian processes, variational inference. Its
-selling point is **calibrated uncertainty**: not just a prediction but an honest
-statement of how sure the model is. It lost the scaling race and is very much
-alive wherever data is scarce or being wrong is expensive — clinical trials,
-scientific experiment design, small-sample forecasting. <M id="bayes-rule">Bayes'
-rule</M> is the entry point.
+Naive Bayes, hidden Markov models, Gaussian processes, variational inference.
+
+Its selling point is **calibrated uncertainty**: not just a prediction, but an
+honest statement of how sure the model is. Which is worth a great deal in some
+settings and nothing at all in others.
+
+It lost the scaling race, and it's very much alive wherever data is scarce or
+being wrong is expensive — clinical trials, scientific experiment design,
+small-sample forecasting. <M id="bayes-rule">Bayes' rule</M> is the entry point,
+and it's a short walk from what you already know.
 
 ### Classical time series
 
-ARIMA, exponential smoothing, Prophet, state-space models. Frequently better than
-a neural network on a single series with a few hundred points, and the honest
-default for forecasting problems. The critical discipline is the one from
-[Chapter 6](/learn/06-generalisation/): validate forward in time, never randomly.
+ARIMA, exponential smoothing, Prophet, state-space models.
+
+Frequently better than a neural network on a single series with a few hundred
+points, and the honest default for forecasting problems. Do not let anybody
+embarrass you out of using a 1970s method that works.
+
+The critical discipline is the one from
+[Chapter 6](/learn/06-generalisation/): validate *forward in time*, never
+randomly. You already have that reflex.
 
 <Aside type="key">
-The reason these fit in one section rather than one chapter each is not that they
-are unimportant. It is that they share the machinery you have already built — a
-model, a loss, gradients, a validation strategy — and differ in what they assume
-about the data.
+The reason all of these fit in one section rather than one chapter each is not
+that they're unimportant.
 
-Which is the actual payoff of the last fortnight. You now have the frame that all
-of them slot into, so picking any one up is learning a specific set of
-assumptions rather than learning a field from scratch.
+It's that they share the machinery you have already built — a model, a loss,
+gradients, a validation strategy — and differ mainly in what they *assume about
+the data*.
+
+Which is the real payoff of the last fortnight. You now have the frame that all
+of them slot into. So picking any one of them up is learning a specific set of
+assumptions, rather than learning a field from scratch.
+
+That's the difference between a fortnight and a career, and you've just done the
+fortnight.
 </Aside>
 
-## Exercise
+<TryThis title="Three, and the third builds something real" reveal="Show solutions">
 
 ```python run title="your turn"
 # 1. Run kmeans with k=4 from five different seeds. Do you always get
@@ -261,7 +346,16 @@ assumptions rather than learning a field from scratch.
 print("replace me")
 ```
 
-<Reveal title="Solutions" kind="deep">
+<Fragment slot="hint">
+For 3, the logic is: fit a compression to what "normal" looks like, then measure
+how badly each thing compresses. Things unlike the training data should compress
+badly.
+
+Predict roughly how well you think it'll work before you run it — and then read
+the numbers honestly. That's the actual exercise.
+</Fragment>
+
+<Fragment slot="answer">
 
 ```python run
 print("k-means is sensitive to initialisation:")
@@ -270,10 +364,12 @@ for seed in range(5):
     print(f"  seed {seed}: inertia {((X - c[a]) ** 2).sum():9.1f}   sizes {np.bincount(a, minlength=4)}")
 ```
 
-Different seeds, different answers — sometimes materially different. k-means finds
-a local optimum, not the global one. Real implementations run it ten times with
-different starts and keep the best inertia (`n_init=10` in scikit-learn), and use
-k-means++ initialisation, which spreads the initial centres apart on purpose.
+Different seeds, different answers — sometimes materially different.
+
+k-means finds a **local** optimum, not the global one. Real implementations run it
+ten times from different starts and keep the best inertia (`n_init=10` in
+scikit-learn), and use k-means++ initialisation, which deliberately spreads the
+initial centres apart. Neither trick guarantees anything; both help a lot.
 
 ```python run
 fig, ax = plt.subplots(5, 6, figsize=(7.5, 6.2))
@@ -285,8 +381,8 @@ for row, k in enumerate([2, 4, 8, 16, 64]):
 plt.tight_layout()
 ```
 
-Around 8–16 components the digits become clearly readable, which is a compression
-from 64 numbers to 16 — and it is the same trade the autoencoder made, with a
+Around 8–16 components the digits become clearly readable. That's a compression
+from 64 numbers down to 16 — and it's the same trade the autoencoder made, with a
 linear model instead of a network.
 
 ```python run
@@ -311,26 +407,35 @@ print(f"  detection rate on digit 3  : {det:.1%}")
 print(f"  lift over chance           : {det / far:.1f}x")
 ```
 
-An anomaly detector, from data with no anomaly labels in it. The principle
-generalises directly: fit a compression to what "normal" looks like, and flag
-whatever will not compress.
+You've just built an anomaly detector out of data containing no anomaly labels.
+The principle generalises directly: **fit a compression to what normal looks
+like, then flag whatever refuses to compress.**
 
-Now read the numbers honestly. It catches about 14% of the unseen digit at a 5%
-false-alarm rate — nearly three times better than chance, and a *weak* detector.
-That is not a failure of the code; it is the expected result when the "anomaly"
+Now — read those numbers honestly, because this is the important part.
+
+It catches about 14% of the unseen digit at a 5% false-alarm rate. That's nearly
+three times better than chance, and it is a **weak** detector. I could have picked
+a friendlier example and shown you a bigger number, and I'd rather not.
+
+That's not a failure of the code. It's the expected result when the "anomaly"
 looks a great deal like the normal data. A handwritten 3 shares most of its
-strokes with an 8, a 5 and a 9, so the subspace fitted to those reconstructs it
-fairly well.
+strokes with an 8, a 5 and a 9 — so a subspace fitted to those reconstructs it
+fairly well. The detector is telling you something true about the world.
 
-Two things worth taking from that. Unsupervised anomaly detection is a
-**screening** tool — it narrows a million rows to a thousand for a human, and it
-is not a decision procedure. And the threshold is a *choice*: moving it trades
-false alarms against missed detections, and where you put it depends entirely on
-what each costs you.
+Two things worth carrying away.
 
-That last sentence is tomorrow's chapter, and it is the point at which machine
-learning stops being a technical activity.
-</Reveal>
+**Unsupervised anomaly detection is a screening tool.** It narrows a million rows
+down to a thousand for a human to look at. It is not a decision procedure, and
+promising one is how these projects get people into trouble.
+
+**And the threshold is a choice.** Move it and you trade false alarms against
+missed detections. Where you put it depends entirely on what each of those costs
+you — which is a question about your organisation, not about your model.
+
+That last sentence is tomorrow's chapter. It's the point where machine learning
+stops being a technical activity.
+</Fragment>
+</TryThis>
 
 Tomorrow, the last day: turning a model into something someone can rely on, and
 learning to read the literature on your own.

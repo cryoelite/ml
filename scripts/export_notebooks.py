@@ -21,13 +21,20 @@ from pathlib import Path
 
 ROOT = Path(__file__).resolve().parent.parent
 CHAPTERS = ROOT / "src" / "content" / "chapters"
+EXTRAS = ROOT / "src" / "content" / "extras"
 OUT = ROOT / "lab" / "notebooks"
 
 FENCE = re.compile(r"^```([a-zA-Z0-9]*)([^\n]*)\n(.*?)^```", re.MULTILINE | re.DOTALL)
 FRONTMATTER = re.compile(r"\A---\n(.*?)\n---\n", re.DOTALL)
 
 # JSX-ish things that are meaningful on the page and noise in a notebook.
-STRIP_TAGS = re.compile(r"</?(Aside|Reveal|ConceptMap|Py|M|Cell)\b[^>]*>", re.DOTALL)
+# Keep this in step with the components a chapter may reach for; an unknown tag
+# survives into the .ipynb as literal angle brackets and looks like a bug.
+STRIP_TAGS = re.compile(
+    r"</?(Aside|Reveal|ConceptMap|Py|M|Cell|SideQuest|Stuck|TryThis|Wonder|Doodle|Fragment)"
+    r"\b[^>]*/?>",
+    re.DOTALL,
+)
 IMPORT_LINE = re.compile(r"^import .* from \"[^\"]+\";$", re.MULTILINE)
 
 
@@ -119,8 +126,11 @@ def cells_for(path: Path) -> list[dict]:
 
 def main() -> int:
     OUT.mkdir(parents=True, exist_ok=True)
+    (OUT / "extras").mkdir(parents=True, exist_ok=True)
     written = 0
-    for path in sorted(CHAPTERS.glob("*.mdx")):
+    paths = [(p, OUT) for p in sorted(CHAPTERS.glob("*.mdx"))]
+    paths += [(p, OUT / "extras") for p in sorted(EXTRAS.glob("*.mdx"))]
+    for path, out_dir in paths:
         nb = {
             "cells": cells_for(path),
             "metadata": {
@@ -134,7 +144,7 @@ def main() -> int:
             "nbformat": 4,
             "nbformat_minor": 5,
         }
-        target = OUT / f"{path.stem}.ipynb"
+        target = out_dir / f"{path.stem}.ipynb"
         target.write_text(json.dumps(nb, indent=1) + "\n")
         code_cells = sum(1 for c in nb["cells"] if c["cell_type"] == "code")
         print(f"  {target.relative_to(ROOT)}  ({code_cells} code cells)")

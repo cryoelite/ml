@@ -1,6 +1,6 @@
 ---
 title: "Your first model, built by hand"
-blurb: "A linear model in three lines of NumPy, a loss function that says what wrong means, and the discovery that finding the best parameters is a search problem."
+blurb: "A linear model in three lines of NumPy, a loss function that says what wrong means, and the discovery that finding good parameters is a search problem."
 order: 4
 day: 4
 part: foundations
@@ -8,9 +8,11 @@ minutes: 90
 introduces: ["linear", "logreg", "classification", "regression"]
 ---
 
-Today you write a model with no library doing anything on your behalf. It is
-twenty lines, it will not impress anybody, and every neural network in this
-tutorial is a stack of exactly this thing.
+Today you write a model with no library doing anything on your behalf.
+
+It's about twenty lines. It will not impress anybody at a party. And every neural
+network in the rest of this book — including the ones with billions of
+parameters — is a stack of exactly this thing. So it's worth doing slowly.
 
 ## A model is a function with adjustable numbers
 
@@ -29,10 +31,13 @@ plt.xlabel("hours revised"); plt.ylabel("exam score")
 plt.tight_layout()
 ```
 
-We generated this, so we know the truth: `score = 12 + 7.5 * hours + noise`. The
-model's job is to recover `12` and `7.5` having seen only the dots.
+We made this data up, which means — unusually, and rather usefully — we know the
+truth. It's `score = 12 + 7.5 * hours + noise`.
 
-<M id="linear-model">A linear model</M> is one line of code.
+The model's job is to recover the `12` and the `7.5`, having seen only the dots.
+It doesn't get to see the formula. Neither would you, in real life.
+
+<M id="linear-model">A linear model</M> is one line of code. Here it is:
 
 ```python run title="the model"
 def predict(x, w, b):
@@ -42,22 +47,31 @@ def predict(x, w, b):
 predict(np.array([1.0, 5.0]), w=7.5, b=12.0)
 ```
 
-`w` and `b` are the **parameters** — the numbers we are looking for. `x` is the
-input, which is given. That distinction is the whole of the subject: training
-means holding the data fixed and moving the parameters.
+That's a model. I know it doesn't look like much.
+
+`w` and `b` are the **parameters** — the numbers we're hunting for. `x` is the
+input, which is given to us and which we don't get to change.
+
+That distinction is the entire subject, so let me put it plainly: **training
+means holding the data fixed and moving the parameters.** Everything else is
+detail.
 
 <Aside type="rust">
 `predict` is a pure function of `(x, w, b)`. What makes it a *model* rather than
-a function is that `w` and `b` are going to be searched for rather than written
-down. The signature you actually want is
-`fn predict(x: &Array1<f64>, p: &Params) -> Array1<f64>`, with `Params` the thing
-an optimiser owns and mutates.
+just a function is that `w` and `b` are going to be **searched for** rather than
+written down.
+
+The signature you actually want is
+`fn predict(x: &Array1<f64>, p: &Params) -> Array1<f64>`, where `Params` is the
+thing an optimiser owns and mutates. Splitting the arguments that way — data
+borrowed, parameters owned by the optimiser — is exactly the split every deep
+learning framework makes.
 </Aside>
 
 ## A loss says what "wrong" means
 
-Guessing parameters requires a way to compare guesses, and that is a **loss
-function**: one number, lower is better.
+To guess parameters you need a way to compare guesses. That's a **loss
+function**: one number, and lower is better.
 
 ```python run title="mean squared error"
 def mse(y_true, y_pred):
@@ -68,23 +82,33 @@ for w, b in [(7.5, 12.0), (5.0, 12.0), (7.5, 40.0), (0.0, 0.0)]:
     print(f"w={w:5.1f}  b={b:5.1f}   loss = {loss:9.2f}")
 ```
 
-<M id="mse">Mean squared error</M> squares each miss and averages. Squaring
-removes the sign, so errors cannot cancel, and it punishes large errors
-disproportionately — being wrong by 10 is a hundred times worse than being wrong
+The true parameters get the lowest loss. Good — that's the property we needed,
+and it's the only property we needed.
+
+<M id="mse">Mean squared error</M> squares each miss and averages. The squaring
+does two jobs: it removes the sign, so a miss of +5 and a miss of −5 can't cancel
+each other out and pretend everything's fine, and it punishes large errors
+disproportionately. Being wrong by 10 is *a hundred times* worse than being wrong
 by 1, not ten times.
 
 <Aside type="key">
-Choosing the loss is choosing what "wrong" means, and it is a modelling decision
-with consequences, not a formality. Squared error is a statement that outliers
-matter *enormously*. If yours are measurement noise rather than signal, mean
-absolute error will serve you better.
+Choosing the loss is choosing what "wrong" means. That's a modelling decision
+with real consequences, not a formality you inherit from a tutorial.
+
+Squared error is a statement that outliers matter *enormously*. If your outliers
+are genuine signal — actual fraud, actual failures — that's the right statement.
+If they're measurement noise, you've just told your model to chase the noise, and
+mean absolute error will serve you far better.
 </Aside>
 
 ## Fitting, the stupid way
 
-Before anything clever: just try lots of parameters and keep the best. This is a
-real technique for tiny parameter counts, and more importantly it makes the next
-chapter obvious.
+Before anything clever, let's do the obviously dumb thing: try lots of
+parameters, keep the best one.
+
+I'm not being facetious. This is a real technique for tiny parameter counts, and
+more importantly, doing it once makes the next chapter *inevitable* rather than
+magical.
 
 ```python run title="grid search"
 ws = np.linspace(0, 15, 120)
@@ -100,11 +124,14 @@ print(f"best on grid:  w={ws[j]:.3f}  b={bs[i]:.3f}   loss={losses[i, j]:.2f}")
 print(f"truth:         w=7.500  b=12.000")
 ```
 
-Close. Notice what made that one expression rather than a nested loop:
-<Py id="broadcasting">broadcasting</Py> against a new trailing axis, then
-<Py id="axis">collapsing</Py> the example axis with `axis=-1`.
+Close! Not exact — the grid only has 120 rungs — but close.
 
-Now look at the thing we just searched.
+And notice what turned a nested loop into one expression:
+<Py id="broadcasting">broadcasting</Py> against a new trailing axis, then
+<Py id="axis">collapsing</Py> the example axis with `axis=-1`. Yesterday's
+chapter, doing real work today.
+
+Now — and this is the important bit — let's *look* at the thing we just searched.
 
 ```python run title="the loss surface"
 plt.figure(figsize=(5.2, 3.4))
@@ -115,24 +142,35 @@ plt.title("log loss surface"); plt.colorbar(label="log MSE")
 plt.tight_layout()
 ```
 
-That is the **loss landscape**, and it is the single most useful mental image in
-machine learning. Parameters are coordinates. Loss is altitude. Training is
-finding the bottom of the valley.
+There it is. That's the **loss landscape**, and it is the single most useful
+mental image in all of machine learning. Please sit with it for a moment.
+
+**Parameters are coordinates. Loss is altitude. Training is finding the bottom of
+the valley.**
+
+Every model you will ever train — a two-parameter line, a 400-billion-parameter
+language model — is doing that. The valley is in a higher-dimensional space and
+you can't draw it, but the picture stays honest. Keep this image; we'll be using
+it constantly.
 
 <Aside type="warn">
-And here is why grid search dies immediately. Two parameters at 120 values each
-is 14,400 evaluations — instant. Ten parameters is $120^{10}$, about
-$6 \times 10^{20}$, which is longer than the age of the universe. A small neural
-network has ten thousand parameters.
+And here's why grid search dies, immediately and forever.
 
-The curse of dimensionality is not a subtlety. It is the wall that makes every
-brute-force approach useless, and the reason the rest of this tutorial exists.
+Two parameters at 120 values each is 14,400 evaluations. Instant. Ten parameters
+is $120^{10}$ — about $6 \times 10^{20}$ evaluations, which is comfortably longer
+than the age of the universe.
+
+A *small* neural network has ten thousand parameters.
+
+The curse of dimensionality isn't a subtlety or a footnote. It's the wall that
+makes every brute-force approach useless, and it is the reason the rest of this
+book has to exist.
 </Aside>
 
 ## Fitting, the algebraic way
 
-For this *particular* loss and this *particular* model family, calculus gives the
-answer outright.
+For this *particular* loss and this *particular* model family, it turns out
+calculus just hands you the answer.
 
 ```python run title="the normal equation"
 X = np.column_stack([np.ones(n), hours])     # bias folded in as a column of 1s
@@ -141,9 +179,12 @@ print(f"closed form:   b={theta[0]:.3f}  w={theta[1]:.3f}")
 print(f"loss:          {mse(score, X @ theta):.3f}")
 ```
 
-Two lines, exact, no iteration. The column of ones is the trick from yesterday's
-exercise: it turns $wx + b$ into a single <Py id="matmul">matrix multiply</Py>,
-so the bias needs no special handling.
+Two lines. Exact. No iteration, no learning rate, no waiting. Better than the
+grid, instantly.
+
+That column of ones is the trick from yesterday's exercise — it folds $b$ into
+the same <Py id="matmul">matrix multiply</Py> as $w$, so the bias needs no
+special handling anywhere.
 
 <Reveal title="Where the normal equation comes from" kind="math">
 
@@ -161,28 +202,55 @@ $$
 X^{\top}X\,\theta = X^{\top}y \qquad\Longrightarrow\qquad \theta = (X^{\top}X)^{-1}X^{\top}y
 $$
 
-Two notes for practice. First, use `np.linalg.solve(A, b)` rather than
-`np.linalg.inv(A) @ b` — solving is faster and numerically far better behaved
-than forming an explicit inverse. This is true in every language and it is worth
-making a habit.
+Two notes for practice.
 
-Second, $X^{\top}X$ is $d \times d$ for $d$ features, and inverting it costs
-about $O(d^3)$. At ten features that is nothing; at fifty thousand it is
-hopeless, and if two features are perfectly correlated the matrix is singular and
-there is no unique answer at all.
+First: use `np.linalg.solve(A, b)` rather than `np.linalg.inv(A) @ b`. Solving is
+faster *and* numerically far better behaved than forming an explicit inverse.
+That's true in every language and it's worth making a lifelong habit.
 
-But the real limitation is not cost. It is that this derivation only works
-because the model is linear in $\theta$ and the loss is squared error. Change
-either — a sigmoid on the output, a hidden layer, cross-entropy — and there is no
-closed form. That is the whole reason gradient descent exists, and gradient
-descent works for all of them.
+Second: $X^{\top}X$ is $d \times d$ for $d$ features, and inverting it costs about
+$O(d^3)$. At ten features that's free; at fifty thousand it's hopeless. And if
+two of your features happen to be perfectly correlated, the matrix is singular
+and there is no unique answer at all.
+
+But the real limitation isn't cost — it's *scope*. This derivation works only
+because the model is linear in $\theta$ and the loss is squared error. Put a
+sigmoid on the output, add a hidden layer, switch to cross-entropy, and there is
+no closed form. None. The algebra runs out.
+
+That is precisely why gradient descent exists, and gradient descent works for all
+of them. Tomorrow.
 </Reveal>
+
+<Stuck>
+**"Why is the closed-form answer still not exactly 12 and 7.5?"** Because we added
+noise, and the noise is genuinely in the data. The best possible line through
+*these* dots is not the line that generated them. No method can fix that — it's
+irreducible, and recognising it saves you weeks. More on this at the bottom of
+the page.
+
+**"`np.meshgrid` confused me."** It takes two 1-D arrays and gives back two 2-D
+arrays holding every combination — so `W[i,j], B[i,j]` is one (w, b) pair. It's
+how you turn "all pairs" into arrays you can do arithmetic on. Print `W.shape`
+and `W[:2,:3]` and it'll click.
+
+**"What does `W[..., None]` do?"** `None` in an index adds a new axis of size 1.
+So `(120,120)` becomes `(120,120,1)`, which then broadcasts against `hours` of
+shape `(60,)` to give `(120,120,60)` — every parameter pair evaluated on every
+data point. It's the most compact way to say "all combinations."
+
+**"I don't see why the loss surface is a bowl and not something lumpy."** For a
+linear model with squared error it is *provably* a bowl — one minimum, no local
+traps. That's a special property of this combination, and it's why the algebra
+works. Neural networks are lumpy, and chapter 5 explains why we get away with it
+anyway.
+</Stuck>
 
 ## From regression to classification
 
 Same machinery, different output shape. Instead of predicting a number, predict a
-probability — and for that the unbounded score $wx + b$ has to be squashed into
-$(0, 1)$.
+*probability* — and for that, the unbounded score $wx + b$ has to be squashed
+into $(0, 1)$ somehow.
 
 ```python run setup title="binary labels"
 passed = (score > 50).astype(int)      # did they pass?
@@ -205,12 +273,19 @@ plt.title("sigmoid: any real number -> (0, 1)")
 plt.tight_layout()
 ```
 
-<M id="sigmoid">The sigmoid</M> takes the raw score — called a **logit** — and
-returns something you can read as a probability. A linear model with a sigmoid on
-the end is **logistic regression**, which despite the name is a classifier, and
-which remains the correct first thing to try on any binary problem.
+<M id="sigmoid">The sigmoid</M> takes the raw score — which has a name, **logit** —
+and returns something you're allowed to read as a probability. Feed it −1000 and
+you get essentially 0; feed it +1000 and you get essentially 1; feed it 0 and you
+get exactly a half.
 
-The loss changes too, and for a good reason.
+A linear model with a sigmoid on the end is **logistic regression**. Which,
+despite the name containing the word "regression," is a *classifier*. Sorry. It's
+a historical accident and everyone has just decided to live with it.
+
+It also remains the correct first thing to try on any binary problem, and it will
+embarrass a surprising number of neural networks.
+
+The loss has to change too, and for a rather good reason.
 
 ```python run title="why not squared error for probabilities"
 def bce(y, p):                       # binary cross-entropy
@@ -222,34 +297,45 @@ for p in [0.99, 0.9, 0.5, 0.1, 0.01]:
           f"squared error {(1-p)**2:6.3f}   cross-entropy {bce(np.array([1]), np.array([p])):7.3f}")
 ```
 
-Look at the last row. Squared error charges `0.98` for being confidently wrong;
-<M id="cross-entropy">cross-entropy</M> charges `4.6`, and the penalty grows
-without bound as your probability approaches zero. That is the right incentive: a
-model that is *confidently* wrong deserves far worse than one that was merely
-unsure.
+Look at the last row, and specifically at the two numbers on it.
 
-<Reveal title="Both losses come from the same place" kind="math">
+The true answer is 1, and the model said 0.01. It is not merely wrong — it is
+*confidently* wrong, which is much worse. Squared error shrugs and charges 0.98.
+<M id="cross-entropy">Cross-entropy</M> charges 4.6, and that penalty grows
+without bound as the predicted probability creeps toward zero.
 
-Neither loss was invented. Both drop out of
-<M id="log-likelihood">maximum likelihood</M> — the principle that you should
-choose the parameters making your observed data most probable.
+That's the right incentive, and it's the whole reason cross-entropy is the loss
+for classification. A model that says "definitely!" and is wrong should hurt far
+more than one that said "maybe?" and was wrong.
 
-Assume the target is normally distributed around the prediction. The likelihood
-of one observation is
+<Reveal title="Neither loss was invented — both fall out of the same idea" kind="math">
+
+Here's something I find genuinely satisfying. MSE and cross-entropy look like two
+unrelated formulas somebody chose. They aren't. They're the same principle,
+applied to two different assumptions.
+
+The principle is <M id="log-likelihood">maximum likelihood</M>: *choose the
+parameters that make your observed data most probable.*
+
+**Assume the target is normally distributed around the prediction.** The
+likelihood of one observation is
 $p(y \mid x) \propto \exp\!\big(-(y - \hat{y})^2 / 2\sigma^2\big)$. Take the log,
-drop the constants, flip the sign to turn maximisation into minimisation, and
-what remains is $\sum (y - \hat{y})^2$ — squared error.
+drop the constants, flip the sign to turn maximisation into minimisation — and
+what's left is $\sum (y - \hat{y})^2$. Squared error.
 
-Assume instead that the target is a coin flip with probability $\hat{p}$. The
+**Assume instead the target is a coin flip with probability $\hat{p}$.** The
 likelihood of one observation is $\hat{p}^{\,y}(1-\hat{p})^{1-y}$. Take the log
-and you have $y\log\hat{p} + (1-y)\log(1-\hat{p})$, which negated is exactly the
-`bce` above.
+and you get $y\log\hat{p} + (1-y)\log(1-\hat{p})$, which negated is *exactly* the
+`bce` function in the cell above. Character for character.
 
-This is why papers slide between "minimising the loss" and "maximising the
-log-likelihood" without comment. They are the same activity with opposite signs.
+Same principle. Different assumption about the noise. Two famous losses.
+
+This is also why papers slide between "minimising the loss" and "maximising the
+log-likelihood" mid-paragraph without explaining themselves. They're the same
+activity with opposite signs, and everybody in the room already knows.
 </Reveal>
 
-Fitting it, for now, with the library:
+Now let's fit it, using the library for the moment:
 
 ```python run title="logistic regression, fitted"
 from sklearn.linear_model import LogisticRegression
@@ -268,20 +354,23 @@ plt.title(f"P(pass) = sigmoid({w:.2f}·hours {b:+.2f})")
 plt.tight_layout()
 ```
 
-Note `reshape(-1, 1)`. <Py id="fit-predict">scikit-learn</Py> always wants `X` as
-`(n_samples, n_features)`, and a bare 1-D array is the most common shape error in
-the library.
+Note the `reshape(-1, 1)`. <Py id="fit-predict">scikit-learn</Py> always wants
+`X` as `(n_samples, n_features)`, and handing it a bare 1-D array is the single
+most common shape error in the entire library. Now you've met it once, on
+purpose, in a safe place.
 
 <Aside type="key">
-The model outputs a *probability*, not a class. Turning 0.63 into "pass" requires
-a **threshold**, and 0.5 is a default, not a law. Where you put it trades false
-positives against false negatives, and the right place depends on what each costs
-you — which is a business decision that has been quietly handed to you.
+The model outputs a **probability**, not a class.
+
+Turning 0.63 into "pass" requires a **threshold**, and 0.5 is a default, not a
+law of nature. Where you put it trades false positives against false negatives,
+and the right place depends entirely on what each one costs you.
+
+Which means: a business decision has just been quietly handed to you, disguised
+as a default argument. Notice when that happens.
 </Aside>
 
-## Exercise
-
-Fit a two-feature linear model by hand, with no scikit-learn.
+<TryThis title="Fit a two-feature model with no scikit-learn" reveal="Show the solutions">
 
 ```python run title="your turn"
 rng = np.random.default_rng(7)
@@ -299,7 +388,14 @@ price     = 40 + 3.2 * sqm + 18 * bedrooms + rng.normal(0, 25, m)
 print("replace me")
 ```
 
-<Reveal title="Solutions" kind="deep">
+<Fragment slot="hint">
+Everything you need is in the "normal equation" cell above — the only change is
+that `np.column_stack` now takes three things instead of two.
+
+For part 4, "by what factor" means divide one MSE by the other.
+</Fragment>
+
+<Fragment slot="answer">
 
 ```python run
 X = np.column_stack([np.ones(m), sqm, bedrooms])
@@ -312,21 +408,27 @@ print(f"model    MSE {model_mse:8.1f}")
 print(f"baseline MSE {baseline_mse:8.1f}   ({baseline_mse / model_mse:.0f}x worse)")
 ```
 
-Two things worth taking from this.
+Two things worth carrying away from this.
 
-The recovered coefficients are close but not exact, and they cannot be — we added
-noise with a standard deviation of 25, and no estimator can see through it. This
-is the *irreducible error* term from
-<M id="variance-bias">the bias–variance decomposition</M>. Knowing roughly how
-big it is for your problem is what stops you spending a fortnight chasing an
-accuracy that was never on offer.
+**The coefficients are close but not exact, and they can't be.** We added noise
+with a standard deviation of 25, and no estimator on Earth can see through it.
+That gap is the *irreducible error* term from
+<M id="variance-bias">the bias–variance decomposition</M>.
 
-The baseline comparison is the habit to keep. "MSE 640" means nothing on its own.
-"Forty times better than predicting the mean" is a claim. Every result in this
-tutorial and in your work should be quoted against a baseline, and
-`always predict the mean` — or `always predict the majority class` — is the one
-that costs nothing to compute.
-</Reveal>
+Having a rough sense of how big that term is for your problem is what stops you
+spending a fortnight chasing an accuracy that was never on offer in the first
+place. It's one of the most valuable and least taught intuitions in the field.
 
-Tomorrow: what to do when there is no closed form — which is to say, what to do
-in every case that is not this one.
+**The baseline comparison is the habit to keep.** "MSE 640" means nothing on its
+own — it's not big or small, it's just a number in whatever units you happen to
+be in.
+
+"Forty times better than predicting the mean" is a *claim*. Every result in this
+book, and every result in your work, should be quoted against a baseline. And
+`always predict the mean` — or `always predict the majority class` — is the
+baseline that costs you nothing to compute.
+</Fragment>
+</TryThis>
+
+Tomorrow: what to do when there's no closed form — which is to say, what to do in
+every single case that isn't this one.

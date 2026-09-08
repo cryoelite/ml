@@ -47,7 +47,9 @@ export default defineConfig({
     }),
   },
   vite: {
-    // Pyodide is fetched from a CDN at runtime, never bundled.
+    // Pyodide is loaded at runtime by public/pyodide-worker.js — from the
+    // vendored copy in public/pyodide/, with a CDN fallback. Either way it is
+    // never bundled, so keep it out of dependency optimisation.
     optimizeDeps: { exclude: ["pyodide"] },
   },
 });

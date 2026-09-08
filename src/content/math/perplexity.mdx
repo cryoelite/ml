@@ -1,0 +1,32 @@
+---
+title: 'Perplexity'
+summary: 'Cross-entropy, exponentiated. Reads as "how many options is the model effectively choosing between?"'
+formula: '\text{PPL} = \exp\!\left(-\frac{1}{N}\sum_{i=1}^{N} \log p(x_i \mid x_{<i})\right)'
+docs: 'https://en.wikipedia.org/wiki/Perplexity'
+docsLabel: 'Wikipedia ↗'
+prereqs: ['cross-entropy', 'entropy']
+symbols:
+  - sym: '\text{PPL}'
+    means: 'perplexity — lower is better, and 1 would be perfect prediction'
+  - sym: 'N'
+    means: 'the number of tokens being scored'
+  - sym: 'x_{<i}'
+    means: 'every token before position i — the context'
+---
+
+Language model papers report perplexity rather than loss, because exponentiating
+turns an abstract number into an intuitive one.
+
+**Perplexity is the effective number of equally-likely options the model is
+choosing between at each step.** A model with a 50,000-token vocabulary and a
+perplexity of 50,000 has learned nothing at all. A perplexity of 20 means it is
+about as uncertain as picking among twenty words — which is a good model.
+
+The practical value of the exponential is that it makes improvements legible. A
+loss going from 3.00 to 2.89 sounds negligible; the same change in perplexity is
+20.1 to 18.0, which is visibly a tenth of the remaining uncertainty removed.
+
+Two cautions when comparing numbers across papers. Perplexity depends on the
+**tokeniser** — a model with a larger vocabulary sees fewer, harder tokens and
+its perplexity is not comparable. And it depends on the evaluation corpus, so a
+number quoted without one means nothing.

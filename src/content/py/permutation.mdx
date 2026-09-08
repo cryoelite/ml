@@ -1,0 +1,28 @@
+---
+title: 'shuffling and permutation'
+lib: 'numpy'
+summary: 'Reorder indices at random. How a training loop reshuffles the data between epochs without copying it.'
+signature: 'rng.permutation(n)  ->  a shuffled 0..n-1'
+example: |-
+  rng = np.random.default_rng(0)
+  order = rng.permutation(5)
+  order
+output: 'array([3, 4, 1, 0, 2])'
+rust: '`(0..n).collect::<Vec<_>>()` then `shuffle(&mut rng)` — and, like there, you shuffle indices so every parallel array can be reordered identically.'
+docs: 'https://numpy.org/doc/stable/reference/random/generated/numpy.random.Generator.permutation.html'
+docsLabel: 'Generator.permutation ↗'
+---
+
+Shuffle the *indices*, then index with them. That way `X[order]` and `y[order]`
+stay aligned, which they would not if you shuffled each independently — an
+alignment bug that produces a model training on randomly paired inputs and labels
+and no error message at all.
+
+Reshuffling between epochs matters more than it sounds. Without it, mini-batches
+are the same every pass, so the gradient noise repeats and stops being the
+useful exploration described in
+[chapter 5](/learn/05-how-learning-happens/). It becomes a fixed bias instead.
+
+`shuffle` mutates in place; `permutation` returns a new array. Prefer
+`permutation` on indices — it composes better and never surprises you by
+modifying data you still needed.

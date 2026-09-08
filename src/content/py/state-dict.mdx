@@ -1,0 +1,30 @@
+---
+title: 'saving and loading a model'
+lib: 'torch'
+summary: 'A state dict is an ordinary dictionary of tensors. Save that, not the model object.'
+signature: 'torch.save(model.state_dict(), path)'
+example: |-
+  torch.save(model.state_dict(), "model.pt")
+  fresh = Net()                                   # same architecture, new weights
+  fresh.load_state_dict(torch.load("model.pt"))
+output: '<All keys matched successfully>'
+rust: 'Serialise the data, not the type. You would write out the `Vec<f32>` of weights plus a version tag, and reconstruct the struct from code — never expect a pickled object to load in six months.'
+docs: 'https://pytorch.org/tutorials/beginner/saving_loading_models.html'
+docsLabel: 'Saving and loading ↗'
+---
+
+`model.state_dict()` returns an ordinary dict mapping parameter names to tensors.
+It contains no code, no class definitions and no import paths — which is exactly
+why it is the thing to save.
+
+You *can* pickle the whole model object with `torch.save(model, path)`. Don't. It
+records the module path of your class, so renaming a file or reorganising a
+package breaks every checkpoint you ever wrote. Loading it also executes arbitrary
+code, which makes an untrusted checkpoint a genuine security problem — pass
+`weights_only=True` when loading anything you did not produce.
+
+Two practical additions. Save the optimiser's state dict alongside the model if
+you want to resume training, because Adam's moment estimates are state you would
+otherwise lose. And save a version string and the hyperparameters in the same
+file — the checkpoint that cannot tell you what produced it is the one you find
+in eight months.

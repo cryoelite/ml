@@ -3,9 +3,13 @@ import { glob } from "astro/loaders";
 import { z } from "astro/zod";
 
 /**
- * Three collections, three jobs.
+ * Four collections, four jobs.
  *
- *  chapters — the linear spine. Read in order, one "day" at a time.
+ *  chapters — the linear spine. Read in order, one "day" at a time. This is the
+ *             fortnight, and it is the one thing that must not grow.
+ *  extras   — full-length pieces that are genuinely worth reading and genuinely
+ *             not needed in a fortnight. Nothing in the spine ever depends on
+ *             one, which is exactly what makes them safe to write.
  *  py       — Python-feature appendix. Hover targets, not a reading path.
  *  math     — mathematical appendix. Same: reached from the spine, never required.
  *
@@ -27,6 +31,30 @@ const chapters = defineCollection({
     minutes: z.number(),
     // Concept-map node ids introduced by this chapter.
     introduces: z.array(z.string()).default([]),
+    draft: z.boolean().default(false),
+  }),
+});
+
+const extras = defineCollection({
+  loader: glob({ pattern: "**/*.mdx", base: "./src/content/extras" }),
+  schema: z.object({
+    title: z.string(),
+    blurb: z.string(),
+    order: z.number(),
+    minutes: z.number(),
+    /**
+     * Why this exists, which is also how the index groups them:
+     *  history  — how we got here, and the roads not taken
+     *  theory   — the deeper why behind something the spine states plainly
+     *  craft    — things you only learn by shipping
+     *  sibling  — the neighbouring method the spine had to skip
+     *  culture  — the field as a human activity: papers, people, ethics
+     */
+    kind: z.enum(["history", "theory", "craft", "sibling", "culture"]),
+    /** The chapter this hangs off, so the spine can link to it in context. */
+    after: z.string().optional(),
+    /** Concept-map node ids this covers. */
+    covers: z.array(z.string()).default([]),
     draft: z.boolean().default(false),
   }),
 });
@@ -71,4 +99,4 @@ const math = defineCollection({
   }),
 });
 
-export const collections = { chapters, py, math };
+export const collections = { chapters, extras, py, math };

@@ -1,0 +1,315 @@
+---
+title: "How sequences worked before attention"
+blurb: "N-grams, RNNs, LSTMs and seq2seq. Twenty years of ideas that the transformer replaced — and which you still need to recognise, because half the vocabulary came from here."
+order: 20
+minutes: 13
+kind: "sibling"
+after: "13-attention-and-transformers"
+covers: ["rnn", "lstm"]
+---
+
+Chapter 13 gave recurrence about four paragraphs before moving on to the thing
+that beat it. That was the right call for a fortnight, and it does leave a gap —
+because twenty years of ideas lived here, and a lot of today's vocabulary was
+minted in them.
+
+This is the tour. Not because you'll build an LSTM, but because *encoder*,
+*decoder*, *hidden state*, *context vector* and *teacher forcing* all come from
+this era, and papers still assume you know them.
+
+## N-grams: counting, and why it stops
+
+Before any neural anything, language models were **counts**.
+
+```python run setup title="an n-gram language model"
+import numpy as np
+from collections import Counter, defaultdict
+
+text = """the cat sat on the mat the cat sat on the floor the dog sat on the mat
+the dog ran to the park the cat ran to the mat the cat slept on the floor"""
+words = text.split()
+
+def ngram_model(words, n):
+    counts = defaultdict(Counter)
+    for i in range(len(words) - n + 1):
+        context, nxt = tuple(words[i:i + n - 1]), words[i + n - 1]
+        counts[context][nxt] += 1
+    return counts
+
+for n in [2, 3]:
+    m = ngram_model(words, n)
+    ctx = ("the",) if n == 2 else ("the", "cat")
+    total = sum(m[ctx].values())
+    print(f"{n}-gram, after {' '.join(ctx)!r}:",
+          {w: round(c / total, 2) for w, c in m[ctx].most_common(3)})
+```
+
+That's a language model. It has the same objective as GPT — a distribution over
+the next token — implemented as a lookup table.
+
+And it works surprisingly well, right up until it doesn't. The wall is
+combinatorial:
+
+```python run title="why n-grams stop at about n=5"
+vocab = 50_000
+print(f"{'n':>3s} {'possible contexts':>22s}")
+for n in [2, 3, 4, 5, 6]:
+    print(f"{n:3d} {vocab ** (n - 1):22,d}")
+print("\nEnglish has maybe 10^12 words ever written. At n=5 there are 10^18")
+print("possible contexts, so essentially every context you meet is unseen.")
+```
+
+This is the **curse of dimensionality** again, wearing different clothes. Most
+contexts have a count of zero, and a zero count means probability zero, which
+means the model refuses a perfectly ordinary sentence because it hasn't seen those
+exact four words before.
+
+An entire subfield existed to patch this — *smoothing*, of which Kneser–Ney is
+the famous one — by stealing probability mass from seen events and redistributing
+it to unseen ones. Genuinely clever, thoroughly obsolete.
+
+<Aside type="key">
+The deep problem isn't sparsity, it's that **counting has no notion of
+similarity**.
+
+An n-gram model that has seen "the cat sat" a thousand times has learned exactly
+nothing about "the dog sat". They're different keys in a dictionary. No amount of
+data fixes that, because the representation makes generalisation impossible.
+
+Which is precisely the problem chapter 12 solved with embeddings, and it's why
+the first neural language models were such a big deal: not because they were more
+accurate, but because *similar words could finally share evidence*.
+</Aside>
+
+## RNNs: a loop with memory
+
+The recurrent idea: keep a hidden state, update it with each token, carry it
+forward.
+
+```python run title="an RNN cell, and what it does to a signal"
+def rnn_forward(inputs, W_x, W_h, b, h0):
+    h, states = h0, []
+    for x in inputs:
+        h = np.tanh(x @ W_x + h @ W_h + b)
+        states.append(h.copy())
+    return np.array(states)
+
+rng = np.random.default_rng(0)
+T, d_in, d_h = 20, 4, 6
+seq = rng.normal(size=(T, d_in))
+W_x, W_h, b = rng.normal(size=(d_in, d_h)) * .5, rng.normal(size=(d_h, d_h)) * .5, np.zeros(d_h)
+
+states = rnn_forward(seq, W_x, W_h, b, np.zeros(d_h))
+print("hidden state at t=0 :", states[0].round(2))
+print("hidden state at t=19:", states[-1].round(2))
+print("\nevery output depends on every previous input, through h")
+```
+
+The appeal is real: the parameter count doesn't grow with sequence length, and it
+handles variable-length input naturally. It was the obvious right answer for
+twenty years.
+
+Now the problem. Not asserted — measured:
+
+```python run title="the gradient to early timesteps, measured"
+def gradient_reaching_step_zero(T, radius, dim=8, seed=0):
+    """Chain the per-step Jacobians and measure what survives.
+
+    This is exactly what backpropagation-through-time computes: the gradient
+    arriving at step 0 is a product of T Jacobians, one per timestep.
+    """
+    r = np.random.default_rng(seed)
+    Wh = r.normal(size=(dim, dim))
+    Wh *= radius / max(abs(np.linalg.eigvals(Wh)))     # set the spectral radius
+    xs = r.normal(size=(T, dim)) * 0.1
+    h, J = np.zeros(dim), np.eye(dim)
+    for x in xs:
+        h = np.tanh(x + h @ Wh)
+        J = (np.diag(1 - h ** 2) @ Wh.T) @ J           # one more Jacobian in the chain
+    return np.linalg.norm(J, 2)
+
+print(f"{'steps back':>11s} {'radius 0.5':>13s} {'radius 0.9':>13s}")
+for T in [1, 5, 10, 20, 40, 80]:
+    print(f"{T:11d} {gradient_reaching_step_zero(T, 0.5):13.2e} "
+          f"{gradient_reaching_step_zero(T, 0.9):13.2e}")
+```
+
+Read down those columns. The gradient decays **geometrically** in the number of
+steps, and the base of the exponent is the recurrent matrix's spectral radius.
+
+At radius 0.5, the gradient reaching forty steps back is around $10^{-12}$. At
+eighty steps it's $10^{-25}$ — not "reduced", but gone past any relevance a
+float32 could represent. Even at radius 0.9, a much gentler setting, it's still
+falling off a cliff.
+
+So the model cannot learn a dependency spanning forty tokens. Not "learns it
+slowly" — the update signal for that connection is numerically zero, however much
+data you supply.
+
+That's the same vanishing-gradient story from chapter 9, except it's now over
+*time* rather than over layers. An RNN unrolled across 40 steps **is** a 40-layer
+network with tied weights, and it fails for exactly the reason a 40-layer sigmoid
+stack does.
+
+That's the same vanishing-gradient story from chapter 9, except it's now over
+*time* rather than over layers — an RNN unrolled across 40 steps is a 40-layer
+network with tied weights.
+
+## LSTMs: gates, and a road for the gradient
+
+The 1997 fix (Hochreiter and Schmidhuber): add an explicit **cell state** that
+flows along mostly untouched, plus learned gates deciding what to write, what to
+erase, and what to read.
+
+```python run title="an LSTM cell, all four gates"
+def sigmoid(z): return 1 / (1 + np.exp(-z))
+
+def lstm_step(x, h, c, P):
+    z = np.concatenate([x, h])
+    f = sigmoid(z @ P["Wf"] + P["bf"])      # forget: what to erase from c
+    i = sigmoid(z @ P["Wi"] + P["bi"])      # input:  how much new to write
+    g = np.tanh(z @ P["Wg"] + P["bg"])      # candidate content
+    o = sigmoid(z @ P["Wo"] + P["bo"])      # output: what to expose as h
+    c = f * c + i * g                       # <- the highway
+    h = o * np.tanh(c)
+    return h, c
+
+d = 8
+r = np.random.default_rng(0)
+P = {k: (r.normal(size=(d + d, d)) * .3 if k.startswith("W") else np.zeros(d))
+     for k in ["Wf", "bf", "Wi", "bi", "Wg", "bg", "Wo", "bo"]}
+P["bf"] = np.ones(d)      # the classic trick: bias the forget gate OPEN at init
+
+h, c = np.zeros(d), np.zeros(d)
+for t in range(30):
+    h, c = lstm_step(r.normal(size=d) * 0.1, h, c, P)
+print("cell state magnitude after 30 steps:", round(float(np.abs(c).mean()), 3))
+print("(a plain RNN's state would have collapsed toward zero by now)")
+```
+
+Look at the line marked *the highway*:
+
+$$c_t = f_t \odot c_{t-1} + i_t \odot g_t$$
+
+When the forget gate $f$ is near 1, the cell state is *added to* rather than
+transformed. And addition passes gradients through unchanged.
+
+<Wonder title="You have already met this idea">
+That structure should look familiar, because it's the same trick as a **residual
+connection**.
+
+An LSTM's cell state is a path along which information — and gradient — travels
+by addition rather than repeated multiplication. ResNet's `x + f(x)` is a path
+along which gradient travels by addition rather than repeated multiplication.
+
+One was invented in 1997 for sequences, the other in 2015 for depth, and as far
+as the gradient is concerned they are the same idea: **give it a road that
+doesn't multiply.**
+
+Repeated multiplication destroys signal; addition preserves it. Almost every
+architecture that made something deep or long trainable is a version of that one
+observation.
+
+Once you have it, you'll spot it in GRUs, in highway networks, in the skip
+connections of a U-Net, and in the residual stream of the transformer you built
+in chapter 13. Same road, different traffic.
+</Wonder>
+
+The `P["bf"] = np.ones(d)` line is worth noting too — initialising the forget gate
+bias *positive* means the gate starts open, so the cell state persists by default
+and the model has to learn to forget rather than learn to remember. A one-line
+trick that measurably helps, discovered empirically, still used.
+
+## Seq2seq: encoder, decoder, and the bottleneck
+
+For translation you need variable-length in *and* variable-length out. The 2014
+answer: two RNNs.
+
+The **encoder** reads the source and compresses it into a final hidden state. The
+**decoder** starts from that state and generates the target, one token at a time.
+
+That middle vector had a name — the **context vector** — and it was the whole
+problem.
+
+```python run title="the bottleneck, sized"
+for length, d_h in [(5, 256), (20, 256), (50, 256), (100, 256)]:
+    print(f"source of {length:3d} tokens -> one vector of {d_h} numbers"
+          f"   ({d_h / length:6.1f} numbers per token)")
+print("\nEvery word of a 100-token sentence has to survive in 256 numbers,")
+print("and the first word passed through 100 updates to get there.")
+```
+
+Translation quality fell off sharply with sentence length, for an entirely
+structural reason: everything had to fit through one fixed-size hole.
+
+## And then: attention, as a patch
+
+Bahdanau, Cho and Bengio (2014) proposed something modest. Instead of forcing the
+decoder to work from one final vector, **let it look back at all the encoder's
+hidden states**, and learn which to weight at each output step.
+
+That's attention. Invented as a *patch on the bottleneck*, bolted onto an RNN.
+
+```python run title="attention as it was first used"
+def softmax(z):
+    z = z - z.max(); e = np.exp(z); return e / e.sum()
+
+encoder_states = rng.normal(size=(6, 8))     # one per source token
+decoder_state  = rng.normal(size=8)          # where the decoder is now
+
+scores = encoder_states @ decoder_state      # relevance of each source position
+weights = softmax(scores)
+context = weights @ encoder_states           # a DIFFERENT context vector each step
+
+print("attention over 6 source tokens:", weights.round(3))
+print("sums to", round(float(weights.sum()), 6))
+print("\nno fixed bottleneck: the context is rebuilt for every output token")
+```
+
+It worked immediately and well. Translation quality stopped degrading with
+length.
+
+For three years, this is what attention was: a helpful attachment to a recurrent
+model. Everyone kept the RNN, because obviously you needed the RNN — the RNN was
+the model.
+
+Then the 2017 paper asked the question nobody had: *what if we deleted it?*
+
+<Aside type="key">
+That's the move worth remembering from this whole page.
+
+Attention was invented as an auxiliary mechanism. The insight three years later
+wasn't a new component — it was noticing that **the auxiliary part was carrying
+the load** and the main part was mostly costing you parallelism.
+
+The title *Attention Is All You Need* is precisely that claim, and the reason it
+reads as cheeky is that it's an argument about deletion rather than addition.
+
+Removing something is a harder paper to write than adding something. It's also,
+fairly often, the better one.
+</Aside>
+
+## What survived
+
+Even though the architecture lost, plenty came with it:
+
+**The vocabulary.** Encoder, decoder, hidden state, context vector, teacher
+forcing, beam search — all from here, all still in use.
+
+**Teacher forcing.** During training, feed the decoder the *correct* previous
+token rather than its own prediction. Faster and more stable — and it creates a
+train/serve mismatch, since at inference the model must consume its own output.
+That mismatch (*exposure bias*) is still a live issue for any autoregressive
+model, including today's.
+
+**Beam search.** Keep the k best partial sequences rather than committing greedily
+to one. Still standard in translation and speech.
+
+**The comeback.** State-space models — S4, and **Mamba** — are recurrent
+architectures designed to be parallelisable during training while staying $O(n)$
+at inference, rather than attention's $O(n^2)$. Recurrence lost on hardware
+grounds; recurrence redesigned *for* the hardware is a genuinely live research
+direction.
+
+Which is chapter 1's pattern, one more time. The idea wasn't wrong. It didn't fit
+the machine. Change the machine, or change the idea to fit it, and it comes back.

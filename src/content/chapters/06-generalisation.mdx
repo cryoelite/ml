@@ -1,6 +1,6 @@
 ---
 title: "Generalisation, or: the only number that matters"
-blurb: "Training accuracy is a lie you tell yourself. How to build a validation set that does not lie back, and what to do when the gap opens up."
+blurb: "Training accuracy is a lie you tell yourself. How to build a validation set that doesn't lie back, and what to do when the gap opens up."
 order: 6
 day: 6
 part: foundations
@@ -8,12 +8,21 @@ minutes: 95
 introduces: ["generalise", "regular", "regularised"]
 ---
 
-A model that scores 100% on its training data has told you nothing, because a
-lookup table scores 100% on its training data. The only question that matters is
-how it does on data it has never seen.
+Here's a model that gets 100% on its training data:
 
-This chapter is where most real projects fail, and the failures are boring and
-avoidable.
+```
+def predict(x):
+    return lookup_table[x]
+```
+
+It's a dictionary. It has learned nothing, it will fail on the first new input it
+sees, and it is *perfect* by the measure we've been using so far.
+
+So we need a better measure. That's today.
+
+I'll say up front: this is where most real projects fail, and the failures are
+boring, repetitive, and completely avoidable once you've seen them once. Which is
+what we're about to do.
 
 ## Overfitting, demonstrated
 
@@ -36,8 +45,11 @@ plt.scatter(x, y, s=22, label="observed (noisy)")
 plt.legend(); plt.tight_layout()
 ```
 
-Now fit polynomials of increasing degree. Degree 1 is a straight line; degree 18
-can wiggle through almost anything.
+Twenty-two noisy dots, and a dashed line showing the truth they were generated
+from. In real life you'd only have the dots.
+
+Now let's fit polynomials of increasing degree. Degree 1 is a straight line.
+Degree 18 can wiggle through very nearly anything you like.
 
 ```python run title="three degrees of freedom"
 fig, axes = plt.subplots(1, 3, figsize=(9.5, 2.9), sharey=True)
@@ -51,14 +63,19 @@ for ax, deg in zip(axes, [1, 4, 18]):
 plt.tight_layout()
 ```
 
-Degree 1 **underfits**: it is too rigid to represent a sine wave, and it is wrong
-in the same way everywhere. Degree 18 **overfits**: it passes through nearly every
-point, including the noise, and between the points it does something insane.
-Degree 4 is roughly right.
+Look at the three of them side by side.
 
-The crucial observation: **the degree-18 model has the lowest training error of
-the three.** If training error were your criterion, you would pick the worst
-model.
+Degree 1 **underfits**. It's too rigid to be a sine wave, and it's wrong in
+roughly the same way everywhere. It has a firm opinion and the opinion is bad.
+
+Degree 18 **overfits**. It threads through nearly every single point — including
+the noise — and then between the points it does something completely unhinged.
+
+Degree 4 is about right.
+
+Now here's the uncomfortable part, and I want to state it plainly: **the degree-18
+model has the lowest training error of the three.** If you picked your model by
+training error, you'd pick the worst one. Every time.
 
 ```python run title="training error is not the criterion"
 for deg in [1, 4, 9, 18]:
@@ -68,19 +85,29 @@ for deg in [1, 4, 9, 18]:
     print(f"degree {deg:2d}   train MSE {train:8.4f}   true MSE {true:10.4f}")
 ```
 
-Training error falls monotonically. Error against the underlying truth falls,
-then explodes.
+Two columns, two completely different stories.
+
+Training error falls, and keeps falling, monotonically. Error against the actual
+underlying truth falls for a while — and then *explodes*.
 
 <Aside type="key">
-Overfitting is memorising the noise. The model cannot tell which parts of your
-data are signal and which are accident, so given enough flexibility it will fit
-both — and the noise, by definition, will not repeat.
+Overfitting is memorising the noise.
+
+The model has no way to tell which parts of your data are signal and which parts
+are accident. Given enough flexibility it will fit both with equal enthusiasm —
+and the noise, by definition, is not going to repeat.
 </Aside>
 
 ## The validation set
 
-You do not have access to the truth. What you have is the ability to *hide some
-data from yourself*.
+In the cell above we cheated: we compared against `y_true`, which we only have
+because we invented the data. In real life there is no `y_true` to check against.
+
+So what *can* you do?
+
+Something rather elegant, and once you see it you'll wonder why it took the field
+until the 1930s to formalise. You can't get access to the truth — but you can
+**hide some of your data from yourself**.
 
 ```python run title="the split"
 from sklearn.model_selection import train_test_split
@@ -96,34 +123,43 @@ for deg in [1, 4, 9, 18]:
     print(f"degree {deg:2d}   train {tr:7.4f}   valid {va:10.4f}")
 ```
 
-The validation error reproduces the shape of the true error without ever needing
-to know the truth. That is the whole trick, and it is the most important
-methodological idea in the field.
+Compare that validation column to the "true MSE" column two cells up. Same shape.
+Same story. Same warning at degree 18.
+
+And we never once looked at the truth.
+
+That's the whole trick, and I'd argue it's the most important methodological idea
+in the entire field. Data you didn't train on is a stand-in for the future.
 
 <div class="table-scroll">
 
-| Split | Who touches it | What it is for |
+| Split | Who touches it | What it's for |
 |---|---|---|
 | **Training** | the optimiser | fitting the parameters |
 | **Validation** | you | choosing the model, the hyperparameters, when to stop |
-| **Test** | nobody, until the end | one honest estimate, once |
+| **Test** | nobody, until the very end | one honest estimate, once |
 
 </div>
 
 <Aside type="warn">
-The test set exists because *you* overfit too. Every time you look at a
-validation score and change something, you leak a little information from that
-set into your model. Do it two hundred times — which is a normal week — and your
-validation score is optimistic by a few percent.
+The test set exists because **you overfit too**.
 
-The test set is the defence, and it only works if you use it once. A test set you
-have consulted five times is a second validation set with a misleading name.
+Every time you look at a validation score and change something in response, you
+leak a little information out of that set and into your model. Do it two hundred
+times — which is a completely normal week — and your validation score has quietly
+become optimistic by a few percent. You didn't do anything wrong. You just
+looked, repeatedly, which is what looking does.
+
+The test set is the defence, and it only works if you use it *once*.
+
+A test set you've consulted five times isn't a test set. It's a second validation
+set with a misleading name and an inflated sense of its own honesty.
 </Aside>
 
 ## Splitting randomly is often wrong
 
-`train_test_split` shuffles. That is correct only when your rows are independent,
-and frequently they are not.
+`train_test_split` shuffles. That's correct when your rows are independent — and
+they very frequently are not.
 
 ```python run title="random splits lie about time series"
 from sklearn.linear_model import Ridge
@@ -145,28 +181,63 @@ print(f"random split  R^2 = {a:.3f}   <- flattering")
 print(f"time-based    R^2 = {b:.3f}   <- what you would actually get")
 ```
 
-The random split lets the model train on Tuesday and Thursday and predict
-Wednesday, which it will never be able to do in production. **Your split has to
-reproduce the structure of the real prediction task.**
+The random split let the model train on Tuesday and Thursday, and then asked it
+to predict Wednesday.
 
-The rule generalises. Group your split by whatever unit generalisation must cross:
+It will never, ever get to do that in production. Wednesday comes before
+Thursday. You do not get to see Thursday first.
 
-- **Time series** → split at a date. Always.
+**Your split has to reproduce the structure of the real prediction task.** That
+sentence is worth writing on something.
+
+The rule generalises. Group your split by whatever unit generalisation has to
+cross:
+
+- **Time series** → split at a date. Always. No exceptions.
 - **Multiple rows per patient / user / customer** → split by *person*, never by row.
-- **Photographs from the same session** → split by session.
-- **A Kaggle competition** → look at how *they* split it. It is a hint about the real task.
+  Otherwise the same person appears on both sides and the model recognises them.
+- **Photographs from the same session** → split by session, for the same reason.
+- **A Kaggle competition** → go and look at how *they* split it. It's a hint about
+  what the real task is, and it's free.
 
 <Aside type="key">
-Building the validation set is the most consequential decision in a project, and
-it is made in the first hour by someone who thinks it is boilerplate. If the
-validation set does not resemble the deployment condition, every number you
-produce afterwards is fiction — and a well-constructed one, which makes it worse.
+Building the validation set is the most consequential decision in a project.
+
+And it's made in the first hour, by someone who thinks it's boilerplate, while
+they're still setting up. That mismatch — highest stakes, lowest attention — is
+why this fails so often.
+
+If your validation set doesn't resemble the deployment condition, every number
+you produce afterwards is fiction. Well-constructed, precisely-formatted,
+confidently-reported fiction, which is considerably worse than no number at all.
 </Aside>
+
+<Stuck>
+**"How big should the validation set be?"** Big enough that the score is stable.
+With 200 validation examples, a single flipped prediction moves your accuracy by
+0.5% — so don't chase 0.3% improvements. A rough rule: 20–30% for small datasets,
+and a fixed few thousand for large ones.
+
+**"What's `random_state=0` doing and do I need it?"** It fixes the shuffle so you
+get the same split every run. Yes, use it. Without it you can't tell whether your
+change helped or the split just moved.
+
+**"Why does `train_test_split` return four things in that order?"** `X_train,
+X_test, y_train, y_test` — features first, then targets. It catches everyone once.
+If your accuracy is bizarrely near 50%, check you didn't swap them.
+
+**"My validation score is better than my training score."** Something is wrong,
+and it's worth chasing. Usual causes: your split is broken, you have augmentation
+or dropout on during training and off during validation (which is normal and
+explains a small gap), or your validation set happens to be much easier. It is
+never good news.
+</Stuck>
 
 ## Cross-validation
 
-With little data, a single split is noisy: you may have got a lucky 30%. K-fold
-cross-validation splits the data $k$ ways, trains $k$ times, and averages.
+With little data, a single split is noisy — you might just have drawn a lucky
+35%. K-fold cross-validation splits the data $k$ ways, trains $k$ times, and
+averages the results.
 
 ```python run title="5-fold"
 from sklearn.model_selection import cross_val_score
@@ -177,25 +248,30 @@ for deg in [1, 4, 9, 18]:
     print(f"degree {deg:2d}   MSE {scores.mean():9.4f}  ± {scores.std():7.4f}")
 ```
 
-Note the standard deviation. It is telling you how much of the difference between
-two models is real and how much is which rows landed where. Two models whose
-error bars overlap are not distinguishable by this dataset, and choosing between
-them on the mean alone is superstition.
+Now look at that ± column, because it's the part people skip and it's the part
+that matters.
+
+It's telling you how much of the difference between two models is **real**, and
+how much is just which rows happened to land where. Two models whose error bars
+overlap are not distinguishable by this dataset. Choosing between them on the
+mean alone isn't analysis — it's superstition with a decimal point.
 
 Use cross-validation when data is small and training is cheap. Skip it when
-training costs four GPU-hours — nobody cross-validates a language model.
+training costs four GPU-hours. Nobody cross-validates a language model, and
+nobody expects you to.
 
 ## Fighting overfitting
 
-Five tools, roughly in order of how often you will reach for them.
+Five tools, roughly in the order you'll reach for them.
 
-**1. More data.** Always the best answer when available. Noise averages out;
-signal does not.
+**1. More data.** Always the best answer when you can get it. Noise averages out;
+signal doesn't. Boring, expensive, undefeated.
 
 **2. A simpler model.** Fewer parameters, fewer features, a lower polynomial
-degree, a shallower tree. Free, and consistently underrated.
+degree, a shallower tree. Free, instant, and consistently underrated by people
+who'd rather tune something.
 
-**3. Regularisation.** Keep the flexible model but penalise it for using its
+**3. Regularisation.** Keep the flexible model, but charge it rent for using its
 flexibility.
 
 ```python run title="what a penalty does to a wild model"
@@ -212,34 +288,47 @@ for name, reg in [("none  ", LinearRegression()),
           f"nonzero {int((np.abs(coefs) > 1e-6).sum()):2d}/19")
 ```
 
-The unregularised degree-18 fit has enormous coefficients — huge positive and
-negative numbers cancelling each other to thread the points. That is what
-overfitting looks like numerically, and <M id="norm">a norm penalty</M> makes it
-expensive.
+Look at that "largest |coef|" column for the unregularised fit. Enormous numbers.
 
-Ridge (L2) shrinks every coefficient smoothly. Lasso (L1) drives many to exactly
-zero, so it selects features as well as shrinking. The difference comes from the
-geometry of the two constraint regions — L1's diamond has corners on the axes, and
-corners are where solutions land.
+That's what overfitting looks like *numerically*, and I find it a genuinely
+useful thing to have seen. To thread a wiggly curve through every point, the
+polynomial needs huge positive and negative coefficients that very nearly cancel
+each other out — a violently unstable balancing act that happens to pass through
+your dots.
+
+<M id="norm">A norm penalty</M> simply makes that balancing act expensive, and
+the model stops attempting it.
+
+Ridge (L2) shrinks every coefficient smoothly toward zero. Lasso (L1) drives many
+of them to *exactly* zero, so it selects features as well as shrinking them —
+look at the "nonzero" column.
+
+The difference comes from geometry: L1's constraint region is a diamond, and a
+diamond has corners sitting on the axes. Solutions land on corners. A corner on
+an axis means that coefficient is exactly zero. It's a lovely little piece of
+reasoning, and it's in the maths appendix if you'd like it drawn out.
 
 **4. Early stopping.** Watch validation loss during training and stop when it
-turns upward. It is regularisation that costs nothing and it is why every
-training loop prints two numbers per epoch.
+turns upward. It's regularisation that costs you nothing at all, and it's why
+every training loop you'll ever see prints two numbers per epoch instead of one.
 
-**5. Data augmentation.** Manufacture plausible variants: flip the image, crop
+**5. Data augmentation.** Manufacture plausible variants — flip the image, crop
 it, shift the colours. Ten thousand photos become effectively a hundred thousand,
-and you have taught the model that a cat rotated five degrees is still a cat. See
-[Chapter 11](/learn/11-vision-and-transfer/).
+and along the way you've taught the model something true: that a cat rotated five
+degrees is still a cat. That's [Chapter 11](/learn/11-vision-and-transfer/).
 
 <Aside type="rust">
-Every one of these is a deliberate handicap — you make the model *worse* at the
-training data on purpose, in exchange for it being better at everything else.
+Notice that every one of these is a deliberate **handicap**. You make the model
+worse at the training data on purpose, in exchange for it being better at
+everything else.
 
-The closest instinct you already have is the one that says a type signature
+The instinct you already have for this is the one that says a type signature
 should be as narrow as the job requires. A function generic over `T: Display`
-where you only ever pass `&str` is not more powerful in any useful sense; it is
-harder to reason about. Regularisation is that argument applied to a fitted
-function.
+where you only ever pass `&str` isn't more powerful in any useful sense — it's
+just harder to reason about, and it lets in things you never wanted.
+
+Regularisation is exactly that argument, applied to a fitted function instead of
+a written one.
 </Aside>
 
 ## The gap, and what it tells you
@@ -263,42 +352,58 @@ for deg in [1, 4, 18]:
     print(f"degree {deg:2d}  train {tr:7.4f}  valid {va:11.4f}  {diagnose(tr, va, baseline)}")
 ```
 
-The two numbers together are a diagnosis; either alone is not.
+The two numbers *together* are a diagnosis. Either one alone is not.
 
 - **Both bad** → underfitting. More capacity, more features, train longer.
-- **Train good, valid bad** → overfitting. The list above.
-- **Both good** → ship it, then go and check for [leakage](/learn/03-the-shape-of-problems/), because both-good is also what leakage looks like.
-- **Valid better than train** → your split is broken, or you have augmentation on in training and off in validation. Investigate; this is never good news.
+- **Train good, valid bad** → overfitting. Use the list above.
+- **Both good** → ship it. Then go and check for
+  [leakage](/learn/03-the-shape-of-problems/), because "both good" is also
+  exactly what leakage looks like from here.
+- **Valid better than train** → your split is broken. Investigate. This is never
+  good news, however nice it looks.
 
-<Reveal title="Where the classical story stops being true" kind="deep">
+Four outcomes, four responses. Print both numbers every epoch and you'll know
+which world you're in at all times.
 
-Everything above is the textbook bias–variance picture, and it is genuinely how
-small and medium models behave. It also does not survive contact with modern deep
-learning, and it is worth knowing why before you read a paper that assumes you do.
+<SideQuest title="Where the classical story stops being true" time="7 min" why="Modern networks break the textbook overfitting curve, and you'll meet this in papers.">
 
-**Double descent.** Increase model capacity and test error goes down, then up
-(the classical overfitting curve) — and then, past the point where the model can
-interpolate the training set exactly, *down again*, often to a better minimum
-than the classical sweet spot. This was documented systematically by Belkin and
-colleagues in 2019, and it means "the model has more parameters than data points"
-is not by itself the alarm it was taught as for forty years.
+Everything above is the textbook bias–variance picture. It is genuinely how small
+and medium models behave, and it was the settled wisdom for about forty years.
+
+It also does not survive contact with modern deep learning, and it's worth
+knowing why before you read a paper that assumes you already do.
+
+**Double descent.** Increase model capacity, and test error goes down, then up —
+the classical overfitting curve you just plotted. But keep going. Past the point
+where the model can interpolate the training set *exactly*, test error comes
+**down again**, often to a better minimum than the classical sweet spot ever
+reached.
+
+This was documented systematically by Belkin and colleagues in 2019, and it means
+"the model has more parameters than data points" is not, by itself, the alarm bell
+it was taught as for four decades.
 
 **The lottery-ticket view.** A large randomly-initialised network appears to
-contain small subnetworks that train well, and training is partly a search over
-them. Under this view, over-parameterisation is not waste — it is what makes the
-search feasible.
+contain small subnetworks that happen to be well-positioned to train, and
+training is partly a *search* over them. Under this view, over-parameterisation
+isn't waste — it's what makes the search feasible. You buy a lot of tickets
+because you only need one to win.
 
-**Implicit regularisation.** SGD does not find *any* minimum of the training
-loss; it preferentially finds flat ones, and flat minima generalise better. The
-optimiser is doing regularisation nobody wrote down.
+**Implicit regularisation.** Remember from chapter 5 that SGD doesn't find *any*
+minimum of the training loss — it preferentially finds flat ones, and flat minima
+generalise better. So the optimiser has been quietly doing regularisation that
+nobody wrote down and nobody asked for.
 
-None of this means the validation set stops mattering — it matters more, because
-the theory is a less reliable guide. It means that if you read "this model has 8
-billion parameters and 2 trillion training tokens, isn't that overfitting", the
-answer is more interesting than yes.
-</Reveal>
+None of this means the validation set stops mattering. It matters **more**,
+precisely because the theory is now a less reliable guide and measurement is all
+you've got.
 
-## Exercise
+What it does mean: when you read "this model has 8 billion parameters and 2
+trillion training tokens, isn't that just overfitting?", the honest answer is more
+interesting than yes.
+</SideQuest>
+
+<TryThis title="A real dataset, a real gap" reveal="Show solutions">
 
 ```python run title="your turn"
 from sklearn.datasets import load_breast_cancer
@@ -322,7 +427,15 @@ Xc_tr, Xc_va, yc_tr, yc_va = train_test_split(
 print("replace me")
 ```
 
-<Reveal title="Solutions" kind="deep">
+<Fragment slot="hint">
+For 2, `yc.mean()` gives you the fraction that are class 1 — the majority class
+baseline is whichever of that and its complement is bigger.
+
+For 3, the question is really: *if the fold-to-fold wobble is as big as the
+difference between two models, have you actually learned which model is better?*
+</Fragment>
+
+<Fragment slot="answer">
 
 ```python run
 for depth in [1, 3, 5, None]:
@@ -338,21 +451,28 @@ print(f"5-fold at depth 3: {s.mean():.3f} ± {s.std():.3f}")
 print("folds:", s.round(3))
 ```
 
-Three things to take away.
+Three things to carry away.
 
-An unconstrained tree reaches 1.000 training accuracy — it has memorised every
-row, which a tree can always do — while validation stalls. That is the gap in its
-purest form.
+**The unconstrained tree hits 1.000 training accuracy.** It has memorised every
+single row, which a tree can always do if you let it — while validation just
+stalls. That's the gap in its purest, most undeniable form. It is our
+`lookup_table` from the top of the page, wearing a nicer outfit.
 
-The baseline is 63%, so a model at 88% is real but rather less impressive than
-88% sounds. Always quote against the baseline.
+**The baseline is 63%.** So a model sitting at 88% is genuinely doing something —
+but it's rather less impressive than "88%" sounds when you say it in a meeting.
+Always, always quote against the baseline.
 
-And the fold standard deviation is usually comparable to the gap between depth 3
-and depth 5, which means those two are *not distinguishable* on this dataset.
-Picking one over the other on a single split is reading tea leaves. This is the
-most common statistical error in applied machine learning, and it is committed
-daily in production and on leaderboards.
-</Reveal>
+**And the fold standard deviation is comparable to the gap between depth 3 and
+depth 5.** Which means those two models are *not distinguishable* on this
+dataset. Picking one over the other based on a single split is reading tea
+leaves.
 
-Tomorrow: the models you should actually reach for, most of which are not neural
-networks.
+That last one is, I think, the most commonly committed statistical error in
+applied machine learning. It happens daily, in production, and on every
+leaderboard you've ever looked at. You now know how to not do it, which puts you
+ahead of a startling number of people with the job title.
+</Fragment>
+</TryThis>
+
+Tomorrow: the models you should actually reach for — most of which, you may be
+relieved to hear, are not neural networks.

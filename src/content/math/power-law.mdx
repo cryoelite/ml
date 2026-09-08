@@ -1,0 +1,38 @@
+---
+title: 'Power law'
+summary: 'A relationship that is a straight line on log-log axes. Loss falls as a power law in compute, which is what made frontier training predictable.'
+formula: 'L(C) = L_\infty + \left(\frac{C_0}{C}\right)^{\alpha}'
+docs: 'https://arxiv.org/abs/2001.08361'
+docsLabel: 'Kaplan et al., 2020 ↗'
+symbols:
+  - sym: 'L'
+    means: 'the loss you achieve'
+  - sym: 'C'
+    means: 'compute, parameters, or data — the same shape holds for all three'
+  - sym: '\alpha'
+    means: '"alpha", the exponent — a small number, typically 0.05 to 0.1'
+  - sym: 'L_\infty'
+    means: 'the floor: the loss you would reach with unlimited resources'
+---
+
+Take logs of both sides and a power law becomes a straight line. That is why
+scaling plots are always drawn on log-log axes, and why a straight line on such a
+plot is the signature you are looking for.
+
+The empirical finding — and it genuinely was not obvious in advance — is that
+language model loss follows one over roughly **nine orders of magnitude** of
+compute. Most engineering relationships hit a knee, a wall, or a regime change.
+This one did not.
+
+The practical consequence reshaped an industry: **you can run small experiments
+and predict the loss of a model a thousand times larger**, before committing the
+money. That turned frontier training from a gamble into a capital allocation
+decision somebody could defend in a spreadsheet.
+
+Two cautions. The small exponent is the sting: $\alpha \approx 0.07$ means a
+**tenfold** increase in compute buys only about a 15% reduction in the reducible
+loss. Progress is real, predictable, and extremely expensive.
+
+And loss is not capability. The loss curve is smooth; the behaviours people care
+about sometimes appear abruptly, and how much of that abruptness is real versus
+an artefact of discontinuous metrics is an active and unresolved argument.

@@ -1,0 +1,32 @@
+---
+title: 'torch.no_grad'
+lib: 'torch'
+summary: 'Stop recording operations on the autograd tape. Used for every evaluation and inference pass.'
+signature: 'with torch.no_grad(): ...'
+example: |-
+  with torch.no_grad():
+      preds = model(X_valid)
+  preds.requires_grad
+output: 'False'
+rust: 'Closest to a scoped flag that switches off an instrumentation layer — the same code runs, but nothing is written to the journal that would let you replay it backwards.'
+docs: 'https://pytorch.org/docs/stable/generated/torch.no_grad.html'
+docsLabel: 'torch.no_grad ↗'
+---
+
+Every operation on a tensor with `requires_grad=True` records itself, so that
+`.backward()` can walk the record in reverse. That record costs memory
+proportional to the number of intermediate activations — which, during training,
+is most of your memory budget.
+
+At evaluation time you are not going to call `.backward()`, so the record is pure
+waste. Wrapping the forward pass in `no_grad` typically cuts memory use
+substantially and speeds things up.
+
+Two related things worth knowing. `torch.inference_mode()` is a stricter, slightly
+faster version for when you are certain the results will never need gradients.
+And `.detach()` cuts a single tensor out of the graph rather than a whole block —
+useful when you want to use a value as a constant, such as a target computed by a
+frozen network.
+
+It is orthogonal to `model.eval()`, which changes dropout and batch-norm
+behaviour and does nothing to the tape. You almost always want both.

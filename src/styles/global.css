@@ -1,57 +1,86 @@
 /* ============================================================================
    Gradient — design system
-   Light only, by request. One accent, one warm secondary, one violet for maths.
-   Everything is ink on paper; colour is used to classify, never to decorate.
+
+   Light only, by request. The rule that keeps it calm while it is also colourful:
+   colour always *means* something. Every hue below is bound to one kind of
+   content, so a reader learns the palette in one chapter and then reads it at a
+   glance forever after. Nothing is coloured to be pretty; it is pretty because
+   it is consistent.
+
+   The drawings are the other half. They live in src/lib/doodles.ts and are
+   roughened by a single SVG filter, so the whole site is drawn by one hand.
    ========================================================================== */
 
 @import "@fontsource-variable/source-serif-4";
 @import "@fontsource-variable/inter";
 @import "@fontsource-variable/jetbrains-mono";
+@import "@fontsource-variable/nunito";
 
 :root {
   /* --- surfaces ------------------------------------------------------- */
-  --paper:      #fdfcfa;   /* page */
-  --paper-2:    #f7f6f2;   /* inset: code, cards */
-  --paper-3:    #f1efe9;   /* raised: chrome, hover */
+  --paper:      #fdfbf6;   /* page — warm cream, not white */
+  --paper-2:    #f7f4ec;   /* inset: code, cards */
+  --paper-3:    #f0ece1;   /* raised: chrome, hover */
 
   /* --- ink ------------------------------------------------------------ */
-  --ink:        #1a1917;   /* body text */
-  --ink-2:      #46443e;   /* secondary */
-  --ink-3:      #7b786e;   /* muted, captions */
-  --ink-4:      #a5a299;   /* faintest */
+  --ink:        #211f1b;   /* body text */
+  --ink-2:      #4a473f;   /* secondary */
+  --ink-3:      #7d796e;   /* muted, captions */
+  --ink-4:      #a8a498;   /* faintest */
 
   /* --- rules ---------------------------------------------------------- */
-  --rule:       #e3e0d6;
-  --rule-soft:  #eeece4;
+  --rule:       #e2ddcd;
+  --rule-soft:  #ede9dc;
 
-  /* --- semantic accents ----------------------------------------------- */
-  --accent:      #1c6b58;  /* the one accent: links, active nav, run buttons */
-  --accent-deep: #12503f;
-  --accent-soft: #e6f0ec;
+  /* --- the meaning of each colour ------------------------------------- */
+  /* teal — the spine. Links, navigation, Run buttons, "this is the path". */
+  --accent:      #0f7a63;
+  --accent-deep: #0a5748;
+  --accent-soft: #e2f1ec;
 
-  --amber:       #8a6414;  /* "nice to know" — the sidetracks */
-  --amber-soft:  #faf2df;
+  /* amber — sidetracks. "Nice to know", history, siblings, dead ends. */
+  --amber:       #92650d;
+  --amber-soft:  #fbf1da;
 
-  --rust:        #9c4526;  /* the Rust bridge */
-  --rust-soft:   #fbeee8;
+  /* rust — the bridge back to Rust. */
+  --rust:        #a24522;
+  --rust-soft:   #fbeae2;
 
-  --violet:      #55467f;  /* maths */
-  --violet-soft: #f0edf7;
+  /* violet — mathematics. Formulas, derivations, notation. */
+  --violet:      #5c4a91;
+  --violet-soft: #f0ecfa;
 
-  --red:         #9c2f2f;  /* errors, gotchas */
-  --red-soft:    #fbeceb;
+  /* berry — you, doing something. Exercises, "try this", play. */
+  --berry:       #b23a68;
+  --berry-soft:  #fdebf1;
+
+  /* sky — the moments of wonder, the zoom-out, the lovely bit. */
+  --sky:         #2a6fa8;
+  --sky-soft:    #e6f1f9;
+
+  /* leaf — it worked. */
+  --leaf:        #4c7a1f;
+  --leaf-soft:   #eef5e2;
+
+  /* red — where people get hurt. Errors, traps, gotchas. */
+  --red:         #a83232;
+  --red-soft:    #fbeae8;
 
   /* --- type ----------------------------------------------------------- */
   --serif: "Source Serif 4 Variable", Charter, "Bitstream Charter", Georgia, serif;
   --sans:  "Inter Variable", ui-sans-serif, -apple-system, "Segoe UI", sans-serif;
+  --hand:  "Nunito Variable", ui-rounded, "SF Pro Rounded", var(--sans);
   --mono:  "JetBrains Mono Variable", ui-monospace, "SF Mono", Menlo, monospace;
 
   --measure: 34rem;   /* ~68 characters at the body size */
-  --radius: 7px;
-  --radius-sm: 4px;
+  --radius: 9px;
+  --radius-sm: 5px;
+  --radius-lg: 16px;
 
-  --shadow-card: 0 1px 2px rgba(26, 25, 23, 0.05),
-                 0 8px 24px -8px rgba(26, 25, 23, 0.14);
+  --shadow-card: 0 1px 2px rgba(33, 31, 27, 0.05),
+                 0 8px 24px -8px rgba(33, 31, 27, 0.14);
+  --shadow-soft: 0 1px 0 rgba(33, 31, 27, 0.04),
+                 0 2px 10px -6px rgba(33, 31, 27, 0.12);
 
   color-scheme: light;
 }
@@ -959,4 +988,387 @@ h3:hover .heading-anchor, h4:hover .heading-anchor { opacity: 1; }
   .article { padding: 0; max-width: none; }
   .reveal[open] > summary { display: none; }
   .reveal { border: 0; }
+}
+
+/* ============================================================================
+   Drawings
+   Every SVG on the site shares one filter and one stroke language. The defs
+   block has to be in the document but must never take up space or get read
+   out, hence the clip below rather than display:none (Safari drops filters
+   defined inside a display:none subtree).
+   ========================================================================== */
+
+.svg-defs {
+  position: absolute;
+  width: 0; height: 0;
+  overflow: hidden;
+  clip-path: inset(50%);
+}
+
+.doodle {
+  display: block;
+  max-width: 100%;
+  height: auto;
+  overflow: visible;
+}
+
+/* ============================================================================
+   Warmer chrome
+   Headings and every piece of UI move to the rounded sans. Body text stays a
+   serif, because 39,000 words is a lot of words and a serif is kinder to the
+   eye over that distance.
+   ========================================================================== */
+
+.article h1, .article h2, .article h3, .article h4,
+.home h1, .home h2, .home h3,
+.masthead, .sidebar, .rail, .btn, .pager {
+  font-family: var(--hand);
+}
+.article h1, .home__title { letter-spacing: -0.021em; font-weight: 800; }
+.article h2 { letter-spacing: -0.014em; font-weight: 780; }
+.article h3 { letter-spacing: -0.008em; font-weight: 750; }
+
+.masthead__mark {
+  width: 26px; height: 26px;
+  display: inline-flex; align-items: center;
+  background: none; border-radius: 0;
+  flex: none;
+}
+.masthead__mark .doodle { width: 26px; height: auto; }
+.masthead__name { font-weight: 800; letter-spacing: -0.015em; font-size: 1.02rem; }
+.masthead__brand { align-items: center; gap: 0.44rem; }
+
+/* ============================================================================
+   The chapter opener
+   Drawing on the left, title on the right; stacked once there is no room.
+   The drawing is not decoration — it is the chapter in one picture, and a
+   reader who looks at it before reading has somewhere to hang the words.
+   ========================================================================== */
+
+.opener {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) 190px;
+  gap: 1.6rem;
+  align-items: center;
+  margin: 0.4rem 0 1.6rem;
+  padding-bottom: 1.4rem;
+  border-bottom: 2px dashed var(--rule);
+}
+.opener h1 { margin: 0 0 0.35rem; }
+.opener .lede { margin: 0; }
+.opener__art {
+  grid-column: 2;
+  display: flex; justify-content: center;
+}
+.opener__art .doodle { width: 100%; max-width: 190px; }
+@media (max-width: 720px) {
+  .opener { grid-template-columns: 1fr; gap: 1rem; }
+  .opener__art { grid-column: 1; grid-row: 1; justify-content: flex-start; }
+  .opener__art .doodle { max-width: 150px; }
+}
+
+/* ============================================================================
+   Side quests — real content, deliberately off the fortnight
+   ========================================================================== */
+
+.quest {
+  margin: 1.6rem 0;
+  border: 2px solid var(--amber-soft);
+  border-radius: var(--radius-lg);
+  background:
+    linear-gradient(var(--paper), var(--paper)) padding-box,
+    var(--amber-soft) border-box;
+  overflow: hidden;
+}
+.quest > summary {
+  display: flex;
+  align-items: center;
+  gap: 0.75rem;
+  padding: 0.8rem 0.95rem;
+  cursor: pointer;
+  list-style: none;
+  background: var(--amber-soft);
+  font-family: var(--hand);
+  transition: background 0.15s ease;
+}
+.quest > summary::-webkit-details-marker { display: none; }
+.quest > summary:hover { background: #f7e9c9; }
+.quest__icon { flex: none; width: 26px; }
+.quest__icon .doodle { width: 26px; }
+.quest__text { display: flex; flex-direction: column; gap: 0.1rem; min-width: 0; flex: 1; }
+.quest__title { font-weight: 780; font-size: 0.95rem; color: #6d4b06; }
+.quest__why { font-size: 0.83rem; color: var(--amber); line-height: 1.4; }
+.quest__meta { display: flex; align-items: center; gap: 0.6rem; flex: none; }
+.quest__time {
+  font-size: 0.74rem; font-weight: 700; letter-spacing: 0.02em;
+  color: var(--amber); background: rgba(255,255,255,0.7);
+  padding: 0.14rem 0.44rem; border-radius: 999px;
+  white-space: nowrap;
+}
+.quest__chev {
+  width: 9px; height: 9px; flex: none;
+  border-right: 2.2px solid var(--amber);
+  border-bottom: 2.2px solid var(--amber);
+  transform: rotate(45deg) translate(-2px, -2px);
+  transition: transform 0.18s ease;
+}
+.quest[open] .quest__chev { transform: rotate(225deg) translate(-1px, -1px); }
+.quest__body { padding: 1rem 1.1rem 0.35rem; font-size: 0.965rem; }
+.quest__body > :last-child { margin-bottom: 0.85rem; }
+@media (max-width: 560px) {
+  .quest__why { display: none; }
+}
+
+/* ============================================================================
+   Stuck — the hard parts, named out loud
+   ========================================================================== */
+
+.stuck {
+  margin: 1.6rem 0;
+  border: 2px solid var(--rule);
+  border-radius: var(--radius-lg);
+  background: var(--paper);
+  overflow: hidden;
+}
+.stuck > summary {
+  display: flex; align-items: center; gap: 0.7rem;
+  padding: 0.72rem 0.95rem;
+  cursor: pointer; list-style: none;
+  font-family: var(--hand); font-weight: 750; font-size: 0.93rem;
+  color: var(--ink-2);
+  background: var(--paper-2);
+}
+.stuck > summary::-webkit-details-marker { display: none; }
+.stuck > summary:hover { background: var(--paper-3); color: var(--ink); }
+.stuck__icon { flex: none; width: 30px; }
+.stuck__icon .doodle { width: 30px; }
+.stuck__title { flex: 1; }
+.stuck__chev {
+  width: 9px; height: 9px; flex: none;
+  border-right: 2.2px solid var(--ink-4);
+  border-bottom: 2.2px solid var(--ink-4);
+  transform: rotate(45deg) translate(-2px, -2px);
+  transition: transform 0.18s ease;
+}
+.stuck[open] .stuck__chev { transform: rotate(225deg) translate(-1px, -1px); }
+.stuck__body { padding: 0.95rem 1.05rem 0.3rem; font-size: 0.96rem; }
+.stuck__body > :last-child { margin-bottom: 0.8rem; }
+/* Each confusion is a <p><strong>…</strong></p> quoting the reader back. */
+.stuck__body strong:first-child { color: var(--ink); }
+
+/* ============================================================================
+   Your turn
+   ========================================================================== */
+
+.try {
+  margin: 1.7rem 0;
+  padding: 1rem 1.1rem 0.85rem;
+  border: 2px solid var(--berry-soft);
+  border-left: 5px solid var(--berry);
+  border-radius: var(--radius-lg);
+  background: var(--berry-soft);
+}
+.try__label {
+  font-family: var(--hand); font-weight: 800;
+  font-size: 0.76rem; letter-spacing: 0.055em; text-transform: uppercase;
+  color: var(--berry);
+  margin: 0 0 0.4rem;
+}
+.try__prompt > :first-child { margin-top: 0; }
+.try__prompt > :last-child { margin-bottom: 0.7rem; }
+.try__fold {
+  border-top: 1px dashed rgba(178, 58, 104, 0.3);
+  padding-top: 0.5rem;
+  margin-top: 0.5rem;
+}
+.try__fold > summary {
+  cursor: pointer; list-style: none;
+  font-family: var(--hand); font-weight: 720; font-size: 0.85rem;
+  color: var(--berry);
+  display: inline-flex; align-items: center; gap: 0.4rem;
+  padding: 0.1rem 0;
+}
+.try__fold > summary::-webkit-details-marker { display: none; }
+.try__fold > summary::before {
+  content: ""; width: 7px; height: 7px;
+  border-right: 2px solid var(--berry); border-bottom: 2px solid var(--berry);
+  transform: rotate(-45deg); transition: transform 0.18s ease;
+}
+.try__fold[open] > summary::before { transform: rotate(45deg); }
+.try__fold > div { padding-top: 0.4rem; font-size: 0.95rem; }
+.try__fold > div > :last-child { margin-bottom: 0.4rem; }
+.try__fold--hint > summary { color: var(--ink-3); }
+.try__fold--hint > summary::before {
+  border-right-color: var(--ink-3); border-bottom-color: var(--ink-3);
+}
+.try .cell { margin: 0.7rem 0; }
+
+/* ============================================================================
+   Wonder — the zoom-out
+   ========================================================================== */
+
+.wonder {
+  position: relative;
+  margin: 1.9rem 0;
+  padding: 1.05rem 1.2rem 0.9rem 1.2rem;
+  background: var(--sky-soft);
+  border-radius: var(--radius-lg);
+  border: 0;
+  font-size: 0.985rem;
+}
+.wonder::before {
+  content: "";
+  position: absolute; inset: 0;
+  border-radius: var(--radius-lg);
+  border: 2px dashed rgba(42, 111, 168, 0.35);
+  pointer-events: none;
+}
+.wonder__spark {
+  position: absolute; top: -11px; left: 18px;
+  width: 22px; height: 22px;
+  background: var(--paper);
+  border-radius: 50%;
+  display: grid; place-items: center;
+}
+.wonder__spark .doodle { width: 15px; }
+.wonder__label {
+  font-family: var(--hand); font-weight: 800;
+  font-size: 0.76rem; letter-spacing: 0.055em; text-transform: uppercase;
+  color: var(--sky);
+  margin: 0.2rem 0 0.45rem;
+}
+.wonder__body > :first-child { margin-top: 0; }
+.wonder__body > :last-child { margin-bottom: 0; }
+
+/* ============================================================================
+   Rounder, friendlier versions of the older boxes
+   ========================================================================== */
+
+.aside {
+  border-radius: var(--radius-lg);
+  border-left-width: 4px;
+}
+.aside__label {
+  font-family: var(--hand);
+  font-weight: 800;
+  letter-spacing: 0.045em;
+}
+.reveal { border-radius: var(--radius-lg); overflow: hidden; }
+.reveal > summary { font-family: var(--hand); font-weight: 720; }
+.reveal__kind { font-family: var(--hand); font-weight: 800; }
+
+/* A soft marker highlight, for the one phrase in a section that matters most.
+   Drawn as a background gradient sitting behind the baseline so it reads as
+   highlighter over text rather than a coloured box. */
+.article mark, .quest__body mark, .wonder mark {
+  background: linear-gradient(transparent 58%, var(--amber-soft) 58%, var(--amber-soft) 94%, transparent 94%);
+  color: inherit;
+  padding: 0 0.1em;
+}
+
+/* Pip, dropped into the margin of running prose. */
+.pip-note {
+  display: flex;
+  align-items: flex-start;
+  gap: 0.85rem;
+  margin: 1.5rem 0;
+  font-size: 0.95rem;
+  color: var(--ink-2);
+  font-style: italic;
+}
+.pip-note .doodle { width: 46px; flex: none; margin-top: -0.15rem; }
+.pip-note p { margin: 0; }
+
+/* ============================================================================
+   Extras index
+   ========================================================================== */
+
+.extras-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(min(100%, 15.5rem), 1fr));
+  gap: 0.9rem;
+  margin: 1.5rem 0 2rem;
+  padding: 0;
+  list-style: none;
+}
+.extra-card {
+  display: flex; flex-direction: column; gap: 0.3rem;
+  padding: 0.95rem 1rem;
+  border: 2px solid var(--rule-soft);
+  border-radius: var(--radius-lg);
+  background: var(--paper);
+  text-decoration: none;
+  color: inherit;
+  transition: border-color 0.15s ease, transform 0.15s ease, box-shadow 0.15s ease;
+}
+.extra-card:hover {
+  border-color: var(--amber);
+  transform: translateY(-2px);
+  box-shadow: var(--shadow-soft);
+}
+.extra-card__title {
+  font-family: var(--hand); font-weight: 780; font-size: 0.98rem;
+  color: var(--ink);
+}
+.extra-card__blurb { font-size: 0.88rem; color: var(--ink-2); line-height: 1.5; }
+.extra-card__meta {
+  font-family: var(--hand); font-size: 0.75rem; font-weight: 700;
+  color: var(--ink-3); letter-spacing: 0.03em;
+  display: flex; gap: 0.55rem; flex-wrap: wrap;
+  margin-top: 0.2rem;
+}
+.extra-card__tag {
+  background: var(--paper-3); border-radius: 999px; padding: 0.1rem 0.45rem;
+}
+
+/* ============================================================================
+   Print — the folds all open, so a printed copy is complete
+   ========================================================================== */
+
+@media print {
+  .quest, .stuck, .try__fold { border: 0; background: none; }
+  .quest[open] > summary, .stuck[open] > summary { display: none; }
+  .svg-defs { display: none; }
+}
+
+/* Extras: crumbs, and the "pull on a thread" block at the foot of a chapter. */
+.extra-crumb, .extra-back {
+  font-family: var(--hand); font-size: 0.85rem; font-weight: 700;
+}
+.extra-crumb { margin-bottom: 0.4rem; }
+.extra-back { margin-top: 2.5rem; }
+.pill--extra { background: var(--amber-soft) !important; color: var(--amber) !important; }
+.related {
+  margin-top: 2.8rem;
+  padding-top: 1.4rem;
+  border-top: 2px dashed var(--rule);
+}
+.related h2 { margin-top: 0; }
+
+/* ============================================================================
+   Home page hero and part cards
+   ========================================================================== */
+
+.hero {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) 210px;
+  gap: 2rem;
+  align-items: center;
+  margin-bottom: 1.5rem;
+}
+.hero__art { display: flex; justify-content: center; }
+.hero__art .doodle { width: 100%; max-width: 210px; }
+@media (max-width: 720px) {
+  .hero { grid-template-columns: 1fr; gap: 1rem; }
+  .hero__art { justify-content: flex-start; }
+  .hero__art .doodle { max-width: 150px; }
+}
+
+.part__head { display: flex; align-items: center; gap: 0.6rem; }
+.part__head h3 { margin: 0; }
+.part__art { width: 40px; flex: none; }
+.part__art .doodle { width: 40px; }
+.home__meta {
+  font-family: var(--hand); font-size: 0.82rem; font-weight: 600;
+  color: var(--ink-3); margin-top: 1rem;
 }
