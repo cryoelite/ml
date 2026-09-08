@@ -26,6 +26,7 @@ Two properties make it unusual and constrain nearly every decision:
 
 | | |
 |---|---|
+| Version | **1.0.0** — single source of truth is `package.json` |
 | Chapters | 16, five parts, ~50k words — the two-week spine |
 | Extras | 15, ~28k words — optional, and **nothing in the spine depends on them** |
 | Python appendix | 46 entries, each with a Rust *analogy* |
@@ -230,6 +231,111 @@ filter is what makes exact geometry look hand-drawn and, more usefully, makes al
 **Pip**, the mascot, is not decoration: Pip rolls downhill, which is literally the
 algorithm the subject is built on, so Pip on a slope in chapter 5 is the joke and
 the lesson in one picture.
+
+---
+
+## 7b. Running it in Docker
+
+**Two independent stacks, owned by different people.** This is the single most
+important thing to understand before changing any of it.
+
+| Stack | File | Who runs it | Contains |
+|---|---|---|---|
+| Site | `compose.yaml`, `Dockerfile` | whoever deploys | nginx + prerendered HTML + vendored Pyodide |
+| Kernel | `kernel/compose.yaml`, `kernel/Dockerfile` | **each reader, locally** | uv + Jupyter + CPU torch |
+
+```bash
+docker compose up --build        # the site  → http://localhost:4321
+cd kernel && docker compose up   # the kernel → 127.0.0.1:8899
+```
+
+### Why they are separate
+
+A Jupyter kernel executes arbitrary Python. It therefore **cannot be shared
+between visitors to a hosted site** — not as a hardening measure, but because
+the concept does not work: one shared interpreter, many strangers, mutable
+global state.
+
+So when the site is deployed publicly, the reader clones the repo and runs the
+kernel on their own machine, and the page in *their* browser talks to *their*
+localhost. The site's server is never in the path. Everything needed for that
+lives in `kernel/`, which is self-contained on purpose.
+
+### The three settings that connect them
+
+Set in `kernel/.env` (copy from `.env.example`) or inline.
+
+| Variable | Default | Needed when |
+|---|---|---|
+| `GRADIENT_KERNEL_PORT` | `8899` | the port is taken |
+| `GRADIENT_KERNEL_TOKEN` | `gradient` | you want a non-default token |
+| `GRADIENT_SITE_ORIGIN` | *(none)* | **the site is not on your machine** |
+
+`GRADIENT_SITE_ORIGIN` is the one that bites. `scripts/kernel.sh` builds
+Jupyter's `allow_origin_pat` from it, always allowing localhost and appending
+the named origin with regex metacharacters escaped — an unescaped
+`ml.example.com` would also match `mlXexample.com`.
+
+The reader sets the URL/token in the site's runtime panel and presses **Test
+connection**.
+
+### How the probe works, and why it is not a one-liner
+
+`probeJupyter()` in `src/scripts/runtime.ts` makes **two** requests, and the
+reason is worth knowing before anyone "simplifies" it:
+
+Jupyter does **not** attach `Access-Control-Allow-Origin` to a 403. So when it
+rejects a bad token or a disallowed origin, the browser refuses to show the
+response to JavaScript and `fetch` throws the *same* `TypeError` it throws when
+nothing is listening at all. One request cannot tell those apart.
+
+So the probe first issues a `mode: "no-cors"` request, which cannot read the
+reply but *does* resolve rather than throw when a server answered. That one bit
+separates "nothing is listening" from "something is there and refused you".
+
+Verified states: `ok`, `bad-token` (running but refused), `unreachable` (nothing
+there), `mixed-content` (HTTPS page, plain-HTTP non-loopback target).
+
+### Traps specific to the images
+
+- **Pyodide is vendored at image build time**, so the running site container
+  needs no network. The *build* does.
+- **`.wasm` must be served as `application/wasm`** or the browser refuses to
+  stream-compile it and every Run button fails opaquely. Stated explicitly in
+  `docker/nginx.conf` rather than trusting the base image's mime map.
+- **The site publishes on all interfaces; the kernel publishes on loopback
+  only.** Deliberate asymmetry — one is documents, the other is an interpreter.
+- **`scripts/kernel.sh` binds `127.0.0.1` by default**; the image overrides it
+  with `GRADIENT_KERNEL_BIND=0.0.0.0`, because a published port cannot reach a
+  process bound to loopback *inside* the container.
+- **The kernel image installs torch from PyTorch's CPU index**, not PyPI.
+  The default wheels bundle 3.3 GB of nvidia CUDA libraries plus 817 MB of
+  Triton that a GPU-less container can never use. This is done in the Dockerfile
+  and deliberately *not* in `lab/pyproject.toml`, because on macOS the host build
+  is CPU/MPS-only already and pinning a CPU index there would take MPS away from
+  anyone running `bash kernel/run.sh` natively.
+- **No GPU in any container.** Docker on macOS cannot reach Metal. Chapter 10's
+  `best_device()` correctly reports `cpu`. Use `bash kernel/run.sh` for MPS.
+- **Jupyter refuses to start as root and exits.** In a container that presents
+  as a restart loop with no obvious cause — the logs end on a `[C]` line about
+  `--allow-root` and nothing else looks wrong. The image therefore creates a
+  `gradient` user (uid 1000) and runs as it, which is right anyway for a process
+  that executes arbitrary Python. `scripts/kernel.sh` also passes `--allow-root`
+  when it detects uid 0, as a safety net.
+- **Healthchecks must use `127.0.0.1`, not `localhost`.** Inside the container
+  `localhost` resolves to `::1` as well, busybox wget tries IPv6 first, and
+  nginx listens only on `0.0.0.0` — so the check reports "connection refused"
+  against a server that is serving fine. Cost an unhealthy container that was
+  answering 200 the whole time.
+- **A liveness healthcheck must accept 403.** Unauthenticated `/api/status`
+  returns 403, `urlopen` raises on that, and the naive check marks a perfectly
+  healthy kernel unhealthy. See `kernel/healthcheck.py`: anything that answers
+  counts as up.
+- **Rebuilding an image with the same tag does not always recreate the
+  container.** After `docker compose build`, use `up -d --force-recreate`, or you
+  will spend a while debugging a container still running the previous image.
+  `docker inspect <name> --format '{{.Image}}'` against `docker images` settles
+  it immediately.
 
 ---
 

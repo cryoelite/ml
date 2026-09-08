@@ -3,6 +3,7 @@ import "../styles/global.css";
 import "katex/dist/katex.min.css";
 import RuntimeWidget from "../components/RuntimeWidget.astro";
 import Doodle from "../components/Doodle.astro";
+import { VERSION, VERSION_LABEL } from "../lib/version";
 
 interface Props {
   title: string;
@@ -24,6 +25,7 @@ const full = title === "Gradient" ? title : `${title} · Gradient`;
     <title>{full}</title>
     <meta name="description" content={description} />
     <meta name="color-scheme" content="light" />
+    <meta name="generator" content={`Gradient ${VERSION}`} />
     <link rel="canonical" href={new URL(Astro.url.pathname, Astro.site)} />
     <link rel="icon" href="/favicon.svg" type="image/svg+xml" />
     <meta property="og:title" content={full} />
@@ -59,6 +61,7 @@ const full = title === "Gradient" ? title : `${title} · Gradient`;
       <a class="masthead__brand" href="/">
         <span class="masthead__mark"><Doodle name="pip" decorative /></span>
         <span class="masthead__name">Gradient</span>
+        <span class="masthead__version" title={`Version ${VERSION}`}>{VERSION_LABEL}</span>
         <span class="masthead__tag">machine learning, from the ground up</span>
       </a>
       <span class="masthead__spacer"></span>

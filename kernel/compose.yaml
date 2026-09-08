@@ -1,0 +1,43 @@
+# =============================================================================
+# Gradient — the Python kernel, on YOUR machine.
+#
+#   cd kernel && docker compose up --build
+#
+# Why this is separate from the site's compose file: a Jupyter kernel executes
+# arbitrary Python, so it can never be shared between visitors to a hosted site.
+# Whoever is *reading* runs this, on their own machine, and the page in their
+# browser talks to their own localhost. The site's server is never involved.
+#
+# Configure by copying .env.example to .env, or inline:
+#
+#   GRADIENT_SITE_ORIGIN=https://ml.example.com docker compose up
+# =============================================================================
+
+name: gradient-kernel
+
+services:
+  kernel:
+    build:
+      # The repository root: the image needs lab/ and scripts/kernel.sh.
+      context: ..
+      dockerfile: kernel/Dockerfile
+    image: gradient-kernel:1.0.0
+    container_name: gradient-kernel
+    ports:
+      # Loopback ONLY. This endpoint runs whatever Python it is sent, so it must
+      # never be reachable from the network. Change the left-hand port if 8899
+      # is taken, then tell the site the new one in its runtime panel.
+      - "127.0.0.1:${GRADIENT_KERNEL_PORT:-8899}:8899"
+    environment:
+      # Must match the token you type into the site's runtime panel.
+      GRADIENT_KERNEL_TOKEN: ${GRADIENT_KERNEL_TOKEN:-gradient}
+      # The origin of the page allowed to drive this kernel. Leave unset when
+      # you are running the site locally; set it to the deployed site otherwise,
+      # or the kernel will reject the browser's requests on CORS.
+      GRADIENT_SITE_ORIGIN: ${GRADIENT_SITE_ORIGIN:-}
+      # A published port cannot reach a process bound to loopback in-container.
+      GRADIENT_KERNEL_BIND: 0.0.0.0
+    volumes:
+      # Your notebook edits survive `docker compose down`.
+      - ../lab/notebooks:/app/lab/notebooks
+    restart: unless-stopped

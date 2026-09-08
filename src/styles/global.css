@@ -235,8 +235,9 @@ body {
   :root { --measure: 100%; }
 }
 
-/* Narrow screens: shed the chrome in order of importance — tagline first,
-   then the section links. The brand and the runtime pill always survive. */
+/* Narrow screens: shed the chrome in order of importance — tagline first
+   (1000px), then the version chip (900px, defined further down), then the
+   section links (700px). The brand and the runtime pill always survive. */
 @media (max-width: 1000px) {
   .masthead__tag { display: none; }
 }
@@ -1372,3 +1373,44 @@ h3:hover .heading-anchor, h4:hover .heading-anchor { opacity: 1; }
   font-family: var(--hand); font-size: 0.82rem; font-weight: 600;
   color: var(--ink-3); margin-top: 1rem;
 }
+
+/* The version chip beside the wordmark. Small, quiet, and the first thing to
+   shed when the masthead runs out of room on a narrow screen. */
+.masthead__version {
+  font-family: var(--hand);
+  font-size: 0.66rem;
+  font-weight: 800;
+  letter-spacing: 0.02em;
+  color: var(--accent-deep);
+  background: var(--accent-soft);
+  border-radius: 999px;
+  padding: 0.1rem 0.4rem;
+  align-self: center;
+  flex: none;
+}
+@media (max-width: 900px) {
+  .masthead__version { display: none; }
+}
+
+/* --- Runtime: test-connection control ------------------------------------- */
+.runtime__test {
+  display: flex;
+  align-items: center;
+  gap: 0.55rem;
+  flex-wrap: wrap;
+  margin-top: 0.45rem;
+}
+.runtime__result {
+  font-family: var(--sans);
+  font-size: 0.74rem;
+  line-height: 1.45;
+  color: var(--ink-3);
+}
+.runtime__result[data-kind="ok"]            { color: var(--leaf); font-weight: 600; }
+.runtime__result[data-kind="bad-token"],
+.runtime__result[data-kind="http-error"]    { color: var(--amber); }
+.runtime__result[data-kind="mixed-content"],
+.runtime__result[data-kind="unreachable"]   { color: var(--red); }
+.runtime__result[data-kind="testing"]       { color: var(--ink-3); font-style: italic; }
+/* The hint is the actionable half; give it its own line so it is readable. */
+.runtime__result b { display: block; font-weight: 500; color: var(--ink-3); margin-top: 0.15rem; }

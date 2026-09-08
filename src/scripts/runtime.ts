@@ -52,6 +52,112 @@ export const DEFAULT_JUPYTER_URL = "http://127.0.0.1:8899";
 export const DEFAULT_JUPYTER_TOKEN = "gradient";
 
 /* -------------------------------------------------------------------------- */
+/* Connection probe                                                            */
+/* -------------------------------------------------------------------------- */
+
+export type ProbeResult = {
+  ok: boolean;
+  /** Machine-readable so the UI can style it; the message is for the human. */
+  kind: "ok" | "bad-token" | "mixed-content" | "unreachable" | "http-error";
+  message: string;
+  hint?: string;
+};
+
+/**
+ * Ask a Jupyter server whether it is there, and say precisely what went wrong
+ * when it is not.
+ *
+ * This matters more than it looks. `fetch` collapses every interesting failure
+ * — no server, wrong port, CORS rejection, mixed-content block — into the same
+ * opaque TypeError, so a naive "connection failed" leaves the reader with four
+ * possibilities and no way to tell them apart. Everything below exists to turn
+ * that one TypeError back into an actionable sentence.
+ */
+export async function probeJupyter(url: string, token: string): Promise<ProbeResult> {
+  let target: URL;
+  try {
+    target = new URL(url);
+  } catch {
+    return { ok: false, kind: "unreachable", message: `"${url}" is not a valid URL`,
+             hint: "It should look like http://127.0.0.1:8899" };
+  }
+
+  const base = url.replace(/\/+$/, "");
+  const pageIsHttps = location.protocol === "https:";
+  const targetIsHttp = target.protocol === "http:";
+  const loopback = ["localhost", "127.0.0.1", "[::1]", "::1"].includes(target.hostname);
+
+  // A page served over HTTPS may not talk to a plaintext non-loopback address:
+  // the browser blocks it before a request is ever made, so there is no point
+  // trying and no useful error to report afterwards.
+  if (pageIsHttps && targetIsHttp && !loopback) {
+    return {
+      ok: false,
+      kind: "mixed-content",
+      message: "Blocked: this page is HTTPS and that address is plain HTTP",
+      hint: "Browsers only allow an insecure exception for localhost and 127.0.0.1. "
+          + "Point this at 127.0.0.1, or serve your kernel over HTTPS.",
+    };
+  }
+
+  // Step 1 — is anything listening at all?
+  //
+  // This has to be a separate no-cors request, and the reason is subtle enough
+  // to be worth writing down. Jupyter does NOT attach Access-Control-Allow-Origin
+  // to a 403, so when it rejects a token or an origin the browser refuses to
+  // show the response to JavaScript and fetch throws the *same* TypeError it
+  // throws when nothing is listening. A no-cors request cannot read the reply,
+  // but it does resolve rather than throw when a server answered — which is
+  // exactly the one bit we cannot otherwise obtain.
+  let somethingIsListening = false;
+  try {
+    await fetch(`${base}/api/status`, { mode: "no-cors", cache: "no-store" });
+    somethingIsListening = true;
+  } catch {
+    somethingIsListening = false;
+  }
+
+  // Step 2 — a real request we are allowed to read.
+  try {
+    const res = await fetch(
+      `${base}/api/status?token=${encodeURIComponent(token)}`,
+      { method: "GET", cache: "no-store" },
+    );
+    if (res.status === 403 || res.status === 401) {
+      return { ok: false, kind: "bad-token",
+               message: `Reached the server, but it rejected the token (${res.status})`,
+               hint: "Copy the token the kernel printed on startup into the field above." };
+    }
+    if (!res.ok) {
+      return { ok: false, kind: "http-error",
+               message: `Reached the server, but it answered ${res.status} ${res.statusText}` };
+    }
+    const info = (await res.json().catch(() => ({}))) as { version?: string };
+    return { ok: true, kind: "ok",
+             message: `Connected${info.version ? ` — Jupyter ${info.version}` : ""}` };
+  } catch {
+    if (somethingIsListening) {
+      // A server answered but would not let us read the answer. Jupyter hides
+      // the status code here, so name both causes rather than guessing one.
+      return {
+        ok: false,
+        kind: "bad-token",
+        message: `Something is running on ${base}, but it refused this page`,
+        hint: `Either the token is wrong, or the kernel was not told to accept `
+            + `requests from ${location.origin}. Restart it with `
+            + `GRADIENT_SITE_ORIGIN=${location.origin} — see the Setup page.`,
+      };
+    }
+    const hint = pageIsHttps && targetIsHttp && loopback
+      ? "Chrome and Firefox allow HTTPS pages to reach 127.0.0.1; Safari does not. "
+        + "If you are on Safari, try another browser or run the site locally."
+      : "Start one with `bash kernel/run.sh`, or `cd kernel && docker compose up`. "
+        + "If it is already running, check the port matches.";
+    return { ok: false, kind: "unreachable", message: `Nothing is listening on ${base}`, hint };
+  }
+}
+
+/* -------------------------------------------------------------------------- */
 /* Pyodide                                                                     */
 /* -------------------------------------------------------------------------- */
 

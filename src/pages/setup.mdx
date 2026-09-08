@@ -60,25 +60,90 @@ to re-download everything.
 ## The local kernel
 
 For [Chapter 10](/learn/10-pytorch/) onwards you need PyTorch, which has no
-WebAssembly build. Install [uv](https://docs.astral.sh/uv/), then:
+WebAssembly build. So those cells run in a real Python process — **on your own
+machine, always**.
+
+<Aside type="key">
+That "always" matters if you are reading this on someone else's server.
+
+A Jupyter kernel executes arbitrary Python, so it can never be shared between
+visitors to a website — not as a hardening measure, but because the idea does
+not work: one interpreter, many strangers, shared mutable state.
+
+So you run your own, and the page in your browser talks to your own
+`localhost`. Whoever hosts this site is never in the path, and nothing you run
+leaves your computer.
+</Aside>
+
+### Three ways to start one
+
+**With Docker**, which needs nothing else installed:
+
+```bash
+cd kernel
+docker compose up --build
+```
+
+**With a script**, if you have or want [uv](https://docs.astral.sh/uv/). This is
+the one to use on an Apple Silicon Mac, because a container cannot reach the
+Metal GPU and this can:
+
+```bash
+bash kernel/run.sh
+```
+
+It checks for uv, installs the environment including PyTorch, tells you whether
+MPS is available, and starts the kernel.
+
+**By hand**, if you would rather see each step:
 
 ```bash
 uv sync --project lab --extra deep
-```
-
-That creates `lab/.venv` with numpy, pandas, scikit-learn, matplotlib, Jupyter,
-PyTorch and torchvision. The `--extra deep` flag is what pulls in torch; leave it
-off for a much faster install if you are only on the first week.
-
-Then, in a second terminal:
-
-```bash
 bun run kernel
 ```
 
-Click the runtime pill in the header, choose **On this machine**, and the defaults
-(`http://127.0.0.1:8899`, token `gradient`) already match. Cells now execute in
-that process.
+### Connecting the site to it
+
+Click the runtime pill in the header, choose **On this machine**, and press
+**Test connection**.
+
+The defaults (`http://127.0.0.1:8899`, token `gradient`) already match, so if
+you are running the site locally it should just say **Connected**. If it does
+not, the message tells you which of the three things is wrong rather than making
+you guess.
+
+<div class="table-scroll">
+
+| Setting | Default | Change it when |
+|---|---|---|
+| Port | `8899` | something else already uses it |
+| Token | `gradient` | you set a different one |
+| `GRADIENT_SITE_ORIGIN` | *(unset)* | **the site is not on your machine** |
+
+</div>
+
+That last one is the one people miss. The kernel only accepts browser requests
+from origins it has been told about. Localhost is always allowed; a deployed
+site is not, and without it the connection fails on CORS with no obvious cause.
+
+```bash
+GRADIENT_SITE_ORIGIN=https://the-site-you-are-reading.example \
+  bash kernel/run.sh
+```
+
+Or put it in `kernel/.env` — copy `kernel/.env.example` and edit. The same file
+takes `GRADIENT_KERNEL_PORT` and `GRADIENT_KERNEL_TOKEN` if you need to move off
+the defaults.
+
+<Aside type="warn">
+**If the site is served over HTTPS**, your browser will only let it reach a
+*loopback* address over plain HTTP. Chrome and Firefox allow `127.0.0.1`;
+Safari is stricter and may refuse.
+
+**Test connection** names this case explicitly if it happens, so you are not
+left staring at a silent failure. If you hit it on Safari, use another browser
+or run the site locally.
+</Aside>
 
 <Reveal title="How the browser talks to the kernel" kind="deep">
 
@@ -97,8 +162,16 @@ The whole client is about 150 lines in
 
 `scripts/kernel.sh` sets three flags that make this work from a page served on a
 different port: a fixed token, `disable_check_xsrf` so the POST is accepted, and
-`allow_origin_pat` restricted to localhost. The server binds to `127.0.0.1` only,
+`allow_origin_pat` listing the origins allowed to drive it — localhost always,
+plus whatever you put in `GRADIENT_SITE_ORIGIN`. The server binds to `127.0.0.1`,
 so nothing outside your machine can reach it.
+
+**Test connection** makes two requests rather than one, for a reason worth
+knowing. Jupyter does not attach CORS headers to a `403`, so when it rejects a
+token the browser hides the response and `fetch` throws exactly the same error it
+throws when nothing is listening at all. A second, header-less request can tell
+"something answered" from "nothing is there" — which is the difference between
+*your token is wrong* and *you forgot to start the kernel*.
 </Reveal>
 
 ## macOS: the two things that will bite you

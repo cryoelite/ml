@@ -1,0 +1,35 @@
+# =============================================================================
+# Gradient — local stack.
+#
+#   docker compose up --build     serve the site on http://localhost:4321
+#   docker compose down           stop it
+#
+# This file builds and serves the SITE only, and that is the whole deployment.
+# Python executes in the reader's browser via Pyodide, which is vendored into
+# the image, so the container needs no network and runs about 70% of the course
+# on its own.
+#
+# The remaining cells (chapter 10 and anything tagged `local`) need real
+# PyTorch, which means a Jupyter kernel on the READER's machine — never on this
+# server, since a kernel executes arbitrary Python and cannot be shared between
+# visitors. That is a separate, self-contained stack:
+#
+#     cd kernel && docker compose up --build
+#
+# See kernel/compose.yaml and the README.
+# =============================================================================
+
+name: gradient
+
+services:
+  site:
+    build:
+      context: .
+      dockerfile: Dockerfile
+    image: gradient-site:1.0.0
+    container_name: gradient-site
+    ports:
+      # Static, prerendered documents — nothing here executes on the server,
+      # so it is safe to reach from another device on your network.
+      - "4321:80"
+    restart: unless-stopped

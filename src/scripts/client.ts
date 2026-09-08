@@ -7,7 +7,7 @@
    If it fails to load, the tutorial still works — you just cannot press Run.
    ========================================================================== */
 
-import { runtime, DEFAULT_JUPYTER_URL, DEFAULT_JUPYTER_TOKEN, type Sink } from "./runtime";
+import { runtime, DEFAULT_JUPYTER_URL, DEFAULT_JUPYTER_TOKEN, type Sink, probeJupyter } from "./runtime";
 
 /* -------------------------------------------------------------------------- */
 /* Code cells                                                                  */
@@ -182,6 +182,33 @@ function wireRuntimeWidget() {
   }
 
   restartBtn.addEventListener("click", () => void runtime.restart());
+
+  // Test connection. Deliberately separate from switching runtime: a reader
+  // whose kernel is not up should find that out here, with a sentence telling
+  // them why, rather than by pressing Run on a cell and watching it fail.
+  const probeBtn = panel.querySelector<HTMLButtonElement>(".runtime__probe");
+  const resultEl = panel.querySelector<HTMLElement>(".runtime__result");
+  if (probeBtn && resultEl) {
+    probeBtn.addEventListener("click", async () => {
+      // Persist whatever is in the fields first, so testing and running agree.
+      runtime.configure(runtime.mode, urlInput.value, tokenInput.value);
+      probeBtn.disabled = true;
+      resultEl.dataset.kind = "testing";
+      resultEl.textContent = "Testing…";
+      const r = await probeJupyter(
+        urlInput.value || DEFAULT_JUPYTER_URL,
+        tokenInput.value || DEFAULT_JUPYTER_TOKEN,
+      );
+      resultEl.dataset.kind = r.kind;
+      resultEl.textContent = (r.ok ? "\u2713 " : "\u2717 ") + r.message;
+      if (r.hint) {
+        const b = document.createElement("b");
+        b.textContent = r.hint;
+        resultEl.appendChild(b);
+      }
+      probeBtn.disabled = false;
+    });
+  }
 
   runtime.onStatus((state, detail, mode) => {
     dot.dataset.state = state;

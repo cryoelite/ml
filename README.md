@@ -6,12 +6,92 @@ cells, two Python runtimes, and an appendix that explains every Python construct
 in terms of the Rust you already know.
 
 ```bash
-bun run setup          # everything except PyTorch
-bun run setup --deep   # everything, including PyTorch (needed from chapter 10)
-bun run dev            # http://localhost:4321
+docker compose up --build     # http://localhost:4321
 ```
 
-Start at `/learn/01-where-this-fits/`.
+Start at `/learn/01-where-this-fits/`. Every code block on the page runs.
+
+## Running it
+
+There are two independent pieces, and the split matters:
+
+| | Runs where | Needed for |
+|---|---|---|
+| **The site** | a server, or your laptop | everything — it is a static site |
+| **The Python kernel** | **always your own machine** | chapter 10 and cells tagged `local` (PyTorch) |
+
+About **70% of the course needs nothing but the site**: Python executes inside
+your browser via Pyodide, which is vendored in, so it works offline. The kernel
+is only for the PyTorch cells.
+
+> A Jupyter kernel executes arbitrary Python, so it can never be shared between
+> visitors to a hosted site. If you are reading this on someone else's server,
+> you run the kernel yourself and your browser talks to your own `localhost`.
+> The site's server is never involved.
+
+### The site
+
+```bash
+docker compose up --build        # http://localhost:4321
+docker compose down
+```
+
+Or without Docker:
+
+```bash
+bun run setup && bun run dev
+```
+
+### The kernel — only if you want the PyTorch chapters
+
+Self-contained; run it from its own directory.
+
+```bash
+cd kernel
+docker compose up --build        # http://127.0.0.1:8899
+```
+
+Or without Docker, if you have `uv`:
+
+```bash
+bash kernel/run.sh               # checks uv, installs torch, starts the kernel
+```
+
+Then in the site header: click the **runtime pill** → **On this machine** →
+**Test connection**. It will tell you exactly what is wrong if anything is.
+
+### Connecting them
+
+| Setting | Default | Change it when |
+|---|---|---|
+| `GRADIENT_KERNEL_PORT` | `8899` | 8899 is already taken on your machine |
+| `GRADIENT_KERNEL_TOKEN` | `gradient` | you want a non-default token |
+| `GRADIENT_SITE_ORIGIN` | *(none)* | the site is **not** on your own machine |
+
+Copy `kernel/.env.example` to `kernel/.env` and edit, or set them inline:
+
+```bash
+GRADIENT_SITE_ORIGIN=https://ml.example.com GRADIENT_KERNEL_PORT=9000 \
+  docker compose up --build
+```
+
+Whatever port you choose, type `http://127.0.0.1:<port>` and the matching token
+into the site's runtime panel and press **Test connection**.
+
+`GRADIENT_SITE_ORIGIN` is the one people miss. The kernel only accepts browser
+requests from origins it has been told about; localhost is always allowed, but a
+deployed site is not, and without it the connection fails on CORS.
+
+### Two caveats worth knowing
+
+**No GPU in a container.** Docker on macOS cannot reach the Metal GPU, so
+chapter 10's `best_device()` correctly reports `cpu` inside the kernel image.
+Every cell still runs. For MPS, use `bash kernel/run.sh` on the host instead.
+
+**HTTPS sites and plain-HTTP kernels.** If the site is served over HTTPS, the
+browser will only let it reach a *loopback* address over plain HTTP. Chrome and
+Firefox allow `127.0.0.1`; Safari is stricter. **Test connection** names this
+case explicitly if it happens.
 
 ## What it is
 
