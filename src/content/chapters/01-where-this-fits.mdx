@@ -38,28 +38,14 @@ Here is a shape worth having in front of you:
 
 </div>
 
-Read the second row again. You hand over the questions *and* the answers, and
-what comes back is the method.
+In an ordinary program, a person writes the rules. In machine learning, a person
+provides examples and a way to measure errors. Training adjusts the model's
+parameters to reduce those errors.
 
-That is an odd sort of trade, and it is only worth making for a particular kind
-of problem: the kind where you cannot say what the rule is.
-
-Here is the difference, and you can test it on yourself right now. Think of how
-you sort your post into "keep" and "bin". You could probably write that down —
-these envelopes, from these senders, in these months. It would be tedious, but
-you could do it.
-
-Now think about how you know a photograph has a cat in it. Not *whether* it does
-— you can tell in about a twentieth of a second without trying. Try to write down
-the steps. What exactly do you look for first? How do you handle a cat that's
-mostly behind a chair? A black cat in a dark room? A cat from behind?
-
-You can't write it down. Not because you don't know a cat when you see one, but
-because the knowing isn't in a form you can spell out. It's in there and it won't
-come out in words.
-
-Machine learning is, mostly, a set of tools for getting knowledge out of that
-locked room by showing examples through the window.
+This helps with tasks where the rules are hard to write down. People can spot a
+cat in many kinds of photos, but listing every useful feature and exception is
+difficult. A model can learn patterns from labelled examples. It can still make
+mistakes, especially on examples unlike the ones it saw during training.
 
 <Aside type="rust">
 The closest thing you already write is the gap between a function and a
