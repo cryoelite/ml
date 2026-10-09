@@ -2,21 +2,17 @@
 title: 'f-string'
 lib: 'stdlib'
 since: 'Python 3.6'
-summary: 'String interpolation. Any expression inside `{}` is evaluated and formatted.'
+summary: "Insert and format values in a string."
 signature: 'f"text {expression} text {value:.3f}"'
 example: |-
   loss = 0.03719
   print(f"epoch {3}: loss={loss:.3f}")
 output: 'epoch 3: loss=0.037'
-rust: 'It is `format!`, with the expression allowed inline instead of only positional or named arguments. The `:.3f` after the colon is the same idea as Rust''s `{:.3}`.'
+rust: "An f-string inserts and formats values, similar to Rust’s format macros."
 rustCode: 'println!("epoch {}: loss={:.3}", 3, loss);'
 docs: 'https://docs.python.org/3.14/reference/lexical_analysis.html#f-strings'
 docsLabel: 'Python reference ↗'
 ---
+An f-string inserts values into a string. Formatting options can control alignment and the number of decimal places.
 
-You will see these in every training loop, because printing a metric to three
-decimal places is 80% of what people do while a model trains.
-
-Two forms worth knowing: `f"{x=}"` prints `x=3` — name and value — which is the
-fastest debug print in the language. And `f"{x:>8.3f}"` right-aligns in a field
-of eight, which is how you get columns that line up while epochs scroll past.
+F-strings are useful for printing losses, metrics, and tensor shapes while a model trains.

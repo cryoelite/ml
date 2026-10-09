@@ -7,29 +7,17 @@ kind: "theory"
 after: "06-generalisation"
 covers: ["generalise"]
 ---
-Training and validation scores show whether a model is overfitting, but they do not explain every source of error. The bias–variance decomposition separates error caused by a model’s limitations, noise in the data, and changes across training samples.
+A model can make errors for different reasons. It may be too simple to capture a pattern, too sensitive to the particular training sample, or limited by noise in the data. The bias–variance decomposition gives names to these sources for squared-error regression.
+
 ## The setup
 
-Suppose there's some true function $f(x)$, and what you observe is that function
-plus noise:
+Assume the observed target is a true function plus zero-mean noise:
 
 $$
 y = f(x) + \varepsilon, \qquad \mathbb{E}[\varepsilon] = 0, \quad \mathrm{Var}(\varepsilon) = \sigma^2
 $$
 
-You fit a model $\hat{f}$ on a training set. But here's the move that makes the
-whole thing work: **imagine fitting it on many different training sets**, drawn
-from the same source, and ask about the average behaviour of your *procedure*
-rather than of one particular fit.
-
-That shift — from "this model" to "this method, across the datasets it might have
-seen" — is the point, and it is why the result is about method choice rather
-than about one run.
-
-## The decomposition
-
-For a fixed input $x_0$, the expected squared error splits into exactly three
-pieces:
+Imagine fitting the same learning procedure on many training sets drawn from the same process. At a fixed input, expected squared error can be split into three terms:
 
 $$
 \mathbb{E}\big[(y - \hat{f}(x_0))^2\big] =
@@ -38,50 +26,30 @@ $$
 \underbrace{\sigma^2}_{\text{irreducible}}
 $$
 
-In words, which is how to actually hold it:
+- **Bias squared:** how far the average fitted model is from the true function.
+- **Variance:** how much fitted predictions change across training sets.
+- **Noise:** variation in the targets that the inputs cannot explain under these assumptions.
 
-- **Bias²** — on average across training sets, how far is my method from the
-  truth? *Am I systematically wrong?*
-- **Variance** — how much does my answer bounce around as the training set
-  changes? *Am I unstable?*
-- **Irreducible error** — the noise. *No method can touch this, ever.*
+## Where the terms come from
 
-<Reveal title="Where the three terms come from" kind="math">
+<Reveal title="A short derivation" kind="math">
 
-It's one add-and-subtract and then everything cancels. Write
-$\bar{f} = \mathbb{E}[\hat{f}(x_0)]$ for the average prediction across training
-sets.
+Let $\bar f = \mathbb{E}[\hat f(x_0)]$. Add and subtract $\bar f$ inside the error:
 
 $$
-\mathbb{E}\big[(y - \hat{f})^2\big] = \mathbb{E}\big[(f + \varepsilon - \hat{f})^2\big]
+\mathbb{E}\big[(f + \varepsilon - \hat f)^2\big]
+=
+\mathbb{E}\big[((f-\bar f)+ (\bar f-\hat f)+\varepsilon)^2\big]
 $$
 
-Insert $\bar{f}$ twice, once with each sign, and group:
+After expanding, the cross-terms have expectation zero when the noise is independent, has mean zero, and the model estimates are averaged over training sets. What remains is bias squared, variance, and noise.
 
-$$
-= \mathbb{E}\Big[\big((f - \bar{f}) + (\bar{f} - \hat{f}) + \varepsilon\big)^2\Big]
-$$
-
-Expanding gives three squares and three cross-terms. Every cross-term vanishes:
-
-- $\varepsilon$ is independent of the model and has mean zero, so anything
-  multiplied by it has expectation zero.
-- $\mathbb{E}[\bar{f} - \hat{f}] = 0$ by the definition of $\bar{f}$, and
-  $(f - \bar{f})$ is a constant with respect to the expectation, so that
-  cross-term is zero too.
-
-What survives is $(f - \bar{f})^2 + \mathbb{E}[(\bar{f} - \hat{f})^2] + \sigma^2$
-— bias², variance, noise.
-
-The reason it's *exactly* three terms, with nothing left over, is squared error's
-doing. Other losses don't decompose this cleanly, which is worth knowing before
-you go looking for the same tidiness elsewhere.
+This exact decomposition is for squared error under the stated assumptions. Other losses need different analyses.
 </Reveal>
 
-## Measuring all three
+## Measure them in a small experiment
 
-Since we get to invent the data, we know $f$ and $\sigma^2$ — so we can measure
-each term instead of taking my word for it.
+Here we know the data-generating function, so we can fit the same procedure on many samples and estimate the terms.
 
 ```python run setup title="fit the same method 200 times"
 import numpy as np, matplotlib.pyplot as plt
@@ -119,16 +87,7 @@ for deg in [1, 2, 3, 5, 8, 12]:
     print(f"{deg:7d} {b:9.4f} {v:10.4f} {s:8.4f} {b + v + s:9.4f}")
 ```
 
-Read the columns rather than the rows, because that's where the story is.
-
-**Bias² falls** as degree rises — a more flexible model can get closer to a sine
-wave on average. **Variance climbs**, and eventually climbs fast — a flexible
-model fitted to 25 noisy points lands somewhere different every time. **Noise
-never moves**, because nothing you do to the model can touch it.
-
-And the total has a minimum somewhere in the middle. That's the sweet spot
-chapter 6 found empirically with a validation set, arrived at here by
-decomposition instead.
+As polynomial degree increases, bias can fall because the model can represent more patterns. Variance can rise because the fit responds more to the specific sample. Noise stays fixed. The balance can produce a middle range with lower total error.
 
 ```python run title="the classic picture"
 degs = range(1, 14)
@@ -147,9 +106,7 @@ plt.legend(fontsize=8); plt.tight_layout()
 print(f"minimum total error at degree {degs[int(np.argmin(tot))]}")
 ```
 
-## Seeing it rather than reading it
-
-Numbers are fine. Pictures are better.
+The next plot shows three examples. A simple model can miss the shape in a consistent way. A flexible model can vary a lot across samples. A middle-sized model may balance those errors for this setup.
 
 ```python run title="high bias and high variance, drawn"
 fig, ax = plt.subplots(1, 3, figsize=(10, 3))
@@ -165,49 +122,13 @@ ax[0].legend(fontsize=7)
 plt.tight_layout()
 ```
 
-Three panels, three failure modes made visible.
+## Averaging and ensembles
 
-**Degree 1.** All the blue lines sit almost on top of each other — that's low
-variance, the method is stable. And the red average is nowhere near the dashed
-truth — that's high bias. It's *consistently* wrong, which is a specific and
-recognisable kind of wrong.
+When several models make different errors, averaging can reduce variance. Bagging uses this idea to improve unstable learners such as decision trees. Boosting instead adds models in sequence, often correcting errors the current ensemble still makes. These descriptions are useful intuition; the exact effects depend on the data and training choices.
 
-**Degree 12.** The blue lines spray everywhere — high variance. But look at the
-red average: it tracks the truth rather well. On average the method is nearly
-right; it's just that no individual fit is.
+## There is a noise floor
 
-**Degree 4** does the sensible thing in both respects.
-
-<Wonder title="High variance is a failure of averaging, not of aiming">
-That middle observation is the one I'd most like you to keep, because it reframes
-overfitting entirely.
-
-The degree-12 model isn't aiming at the wrong target. Its *average* prediction is
-close to the truth. Each individual fit is thrown off by whichever noise it
-happened to see, and the errors point in different directions each time.
-
-Which suggests an obvious fix: **if the errors are random and the average is
-right, then average them.**
-
-And that is precisely what a random forest is. Fit many high-variance
-overfitters — deliberately, on purpose, each on a different bootstrap sample —
-and average. Bias stays where it was; variance falls by roughly the number of
-trees.
-
-Chapter 7 told you bagging works. This is *why* it works, and it's why bagging
-helps trees enormously and does essentially nothing for a linear model. There's
-no variance in a linear model to average away.
-
-Boosting attacks the other term. Each new tree fits the previous ensemble's
-residuals, which reduces **bias** — and that's why boosting can overfit while
-forests essentially can't. It's spending down the term that has a floor.
-
-Two famous algorithms, one equation, opposite halves.
-</Wonder>
-
-## The floor you can't cross
-
-Here's the practically useful part.
+The true function cannot predict random noise added after the input is observed.
 
 ```python run title="how good could any model possibly be?"
 rng = np.random.default_rng(7)
@@ -223,78 +144,20 @@ for deg in [3, 5, 8]:
           f"({(b + v) / s:.1f}x the floor)")
 ```
 
-Look at the first line. The **true function itself** — the one that generated the
-data, with no estimation error whatsoever — scores 0.12 on this data.
+In real work, the true function and noise level are unknown. Human disagreement on labels, conflicting labels for duplicate inputs, and careful error analysis can help estimate how much uncertainty comes from the data itself.
 
-Not zero. There is no model, no architecture, no amount of compute that scores
-better than 0.12 here, because the remaining error is noise that was added after
-the function ran.
+Do not treat one estimate of a “Bayes error” as a guaranteed ceiling. It depends on the target definition, available inputs, and assumptions about the data.
 
-<Aside type="key">
-That number has a name in applied work: the **Bayes error**, or the irreducible
-error, or the noise floor.
+## A useful caveat
 
-Having even a rough estimate of it for your problem is one of the most valuable
-and least practised habits in the field.
+The familiar bias–variance picture is often drawn as a U-shaped curve as model capacity grows. Modern over-parameterised models can show double descent, where error rises and then falls again. The decomposition still applies in its setting; a simple monotonic relationship between model size and variance does not always apply.
 
-Without it, "our model gets 88% and we want 95%" sounds like a work item. With
-it, you might know that 90% is the ceiling — because two expert annotators only
-agree with each other 91% of the time — and the correct answer is to stop
-modelling and go improve the labels.
-</Aside>
+## What to do with the idea
 
-## How to estimate it on a real problem
-
-You won't have `TRUE_SIGMA` in real life. Three practical proxies:
-
-**Human agreement.** Have two competent people label the same 200 examples
-independently. Their disagreement rate is a decent upper bound on achievable
-accuracy — if experts can't agree, the label isn't a function of the input.
-
-**Duplicate inputs with different labels.** Look for identical or near-identical
-rows in your data with different targets. Their disagreement is noise you cannot
-predict away, by definition, since the model can't distinguish the inputs at all.
-
-**A deliberately huge model on a small subset.** Train something with vastly more
-capacity than needed and let it approach zero *training* error. Its validation
-error at that point is roughly variance plus noise, which brackets the floor from
-above.
-
-None are exact. All three are far better than the usual practice, which is
-assuming the floor is zero and being quietly disappointed for a quarter.
-
-<Aside type="warn">
-The honest caveat, and chapter 6's side quest already flagged it: this whole
-picture is the *classical* one.
-
-Modern over-parameterised networks show **double descent** — variance rises,
-peaks around the interpolation threshold, and then falls again as capacity keeps
-growing. The tidy U-curve you just plotted is real for small models and not the
-whole story for large ones.
-
-The bias–variance decomposition is still true as algebra — it's a theorem, it
-can't stop being true. What changed is the assumption that variance rises
-monotonically with capacity. It doesn't.
-
-Which means: use this to build intuition and to reason about ensembles. Don't use
-it to predict where a 70-billion-parameter model will land. And keep measuring.
-</Aside>
-
-## What to take away
-
-Three terms, three responses:
-
-<div class="table-scroll">
-
-| Symptom | Dominant term | What actually helps |
+| Symptom | Possible cause | Things to try |
 |---|---|---|
-| Wrong in the same direction everywhere; train and validation both poor | bias | more capacity, better features, train longer |
-| Answer changes a lot with the data; big train/validation gap | variance | more data, regularisation, **averaging** (bagging) |
-| Everything plateaus well short of perfect | noise | better labels, better inputs — or accept it and stop |
+| Training and validation scores are both poor | Model or features may be too limited | Improve features, choose a more suitable model, or train longer |
+| Training is strong but validation is much worse | Model may be sensitive to the sample | Gather more data, regularise, or average models |
+| Results plateau despite model changes | Labels or inputs may limit performance | Review labels, improve measurement, or reconsider the target |
 
-</div>
-
-And the one-sentence version, which is the thing to actually carry:
-
-**Before you try to improve a model, find out how good a model could possibly
-be.**
+Use the decomposition to form hypotheses about error, then test them on held-out data. It is an intuition tool, not a substitute for evaluation.

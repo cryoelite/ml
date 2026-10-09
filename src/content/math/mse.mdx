@@ -1,6 +1,6 @@
 ---
 title: 'Mean squared error'
-summary: 'Average squared distance between prediction and truth. The default loss for predicting a number.'
+summary: "Average the squared differences between predictions and targets."
 formula: '\mathrm{MSE} = \frac{1}{n}\sum_{i=1}^{n}\left(\hat{y}_i - y_i\right)^2'
 docs: 'https://en.wikipedia.org/wiki/Mean_squared_error'
 docsLabel: 'Wikipedia ↗'
@@ -12,15 +12,10 @@ symbols:
   - sym: '(\ )^2'
     means: 'squared, so sign does not matter and big misses dominate'
 ---
+Mean squared error (MSE) is the average squared difference between predictions and targets:
 
-Squaring does two jobs. It removes the sign, so errors cannot cancel out. And
-it punishes large errors disproportionately — being wrong by 10 is a hundred
-times worse than being wrong by 1, not ten times.
+$$\mathrm{MSE} = \frac{1}{n}\sum_i (\hat{y}_i-y_i)^2$$
 
-That second property is a modelling decision, not a mathematical necessity. If
-your data has outliers you may not want the model to contort itself to
-accommodate them, in which case mean absolute error or Huber loss is the
-better choice. Choosing the loss *is* choosing what "wrong" means.
+Squaring prevents positive and negative errors from cancelling. It also gives large errors more weight: an error of 10 contributes 100 times as much as an error of 1.
 
-Squaring also happens to make the derivative pleasant, which mattered a great
-deal before automatic differentiation and matters much less now.
+MSE is useful for many regression tasks, but it is sensitive to outliers. Mean absolute error or Huber loss may be more suitable when large deviations should have less influence.

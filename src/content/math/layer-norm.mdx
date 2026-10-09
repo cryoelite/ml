@@ -1,6 +1,6 @@
 ---
 title: 'Layer normalisation'
-summary: 'Rescale each example''s feature vector to zero mean and unit variance. Unlike batch norm, it never looks at other examples.'
+summary: "Normalise each example using its own feature statistics."
 formula: '\text{LN}(x) = \gamma \odot \frac{x - \mu}{\sqrt{\sigma^2 + \epsilon}} + \beta'
 docs: 'https://arxiv.org/abs/1607.06450'
 docsLabel: 'Ba, Kiros & Hinton, 2016 ↗'
@@ -15,24 +15,8 @@ symbols:
   - sym: '\odot'
     means: 'elementwise multiplication'
 ---
+Layer normalisation rescales the features within one example. It uses that example’s mean and variance, then applies learned scale and shift parameters.
 
-Normalise each example's vector using statistics from that vector alone.
+Batch normalisation instead computes statistics across examples in a batch. Layer normalisation therefore does not make one example’s output depend on which other examples share its batch. This is useful for variable-length sequences and batch sizes that change between training and prediction.
 
-The contrast with **batch normalisation** is the whole point. Batch norm computes
-its statistics across the batch, one figure per feature — which makes every
-example's output depend on which other examples happened to be in the batch with
-it. That is fine for a fixed-size image batch and a genuine problem for variable
-length sequences, small batches, and inference on a single item.
-
-Layer norm has no such coupling, which is why every transformer uses it.
-
-The $\gamma$ and $\beta$ matter more than they look: without them, normalisation
-would be a constraint the model could not escape. With them, the model can learn
-to scale or shift the normalised values back — so normalisation becomes a helpful
-default rather than a straitjacket.
-
-**Pre-norm versus post-norm** is worth recognising in papers. The original
-transformer normalised *after* the residual addition; modern practice normalises
-*before* the sublayer, which leaves the residual path completely clean and makes
-very deep stacks trainable without a learning-rate warmup. Chapter 13's block is
-pre-norm.
+The parameters $\gamma$ and $\beta$ let the model adjust the normalised values. Transformers commonly use layer normalisation or a related variant.

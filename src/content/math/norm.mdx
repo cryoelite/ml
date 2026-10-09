@@ -1,6 +1,6 @@
 ---
 title: 'Norm'
-summary: 'The length of a vector. L2 is ordinary Euclidean distance; L1 is the sum of absolute values.'
+summary: "Measure the length or magnitude of a vector."
 formula: '\|v\|_2 = \sqrt{\sum_i v_i^2} \qquad \|v\|_1 = \sum_i |v_i|'
 docs: 'https://en.wikipedia.org/wiki/Norm_(mathematics)'
 docsLabel: 'Wikipedia ↗'
@@ -12,16 +12,8 @@ symbols:
   - sym: '|v_i|'
     means: 'absolute value'
 ---
+A norm gives the length of a vector. The L2 norm is Euclidean length; the L1 norm sums the absolute values of its components.
 
-Norms turn a whole vector into one number, which is what you need whenever
-something must be compared or penalised.
+Norms also appear in regularisation. L2 penalties tend to shrink weights, while L1 penalties can set some weights to zero.
 
-Added to a loss as a penalty on the weights, they become regularisation. L2
-(weight decay, ridge) shrinks all weights smoothly toward zero. L1 (lasso)
-drives many of them to exactly zero, which makes it a feature selector as well
-as a regulariser — a difference that comes from the shape of the constraint
-region, and one worth seeing drawn once.
-
-Gradient clipping is the same tool used defensively: if $\|\nabla\|_2$ exceeds
-a threshold, scale the whole gradient down. It is what stops one pathological
-batch from destroying an hour of training.
+Gradient clipping uses the L2 norm to limit the size of an update. If the gradient exceeds a chosen threshold, it is scaled down.

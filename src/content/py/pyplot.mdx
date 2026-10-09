@@ -1,7 +1,7 @@
 ---
 title: 'matplotlib.pyplot'
 lib: 'matplotlib'
-summary: 'Stateful plotting. `plt.plot(...)` draws onto a current figure that later calls keep modifying.'
+summary: "Create plots with Matplotlib."
 signature: 'plt.plot(x, y)   |   plt.scatter(x, y)   |   plt.show()'
 example: |-
   import numpy as np, matplotlib.pyplot as plt
@@ -9,14 +9,10 @@ example: |-
   plt.plot(x, 1 / (1 + np.exp(-x)))
   plt.title('sigmoid')
   plt.show()
-rust: 'An immediate-mode drawing API with hidden global state — closest to a retained `plotters` chart, except that the chart is implicit and every call mutates it.'
+rust: "Pyplot keeps a current figure and updates it with each plotting call."
 docs: 'https://matplotlib.org/stable/api/pyplot_summary.html'
 docsLabel: 'pyplot API ↗'
 ---
+Matplotlib’s pyplot interface creates figures and plots with a small number of commands. In notebooks, the current figure is often displayed automatically.
 
-The implicit "current figure" is confusing but convenient, and in a notebook
-it is exactly what you want: three lines produce a picture.
-
-On this site `plt.show()` is unnecessary — the runtime harvests any open
-figure after each cell and renders it — but it is harmless, and leaving it in
-means the same code works unchanged in a real notebook or a script.
+Call show when running a script or when the environment does not display figures automatically.

@@ -7,225 +7,63 @@ kind: "history"
 after: "01-where-this-fits"
 covers: ["ml"]
 ---
-Machine learning has drawn on statistics, computer science, neuroscience, and advances in computing. This overview connects a few key developments to the methods used in the main course. Use it as context, not a list of dates to memorize.
-## 1943–1958: the first neurons
+Machine learning draws on statistics, computer science, neuroscience, and advances in computing. This timeline highlights a few developments behind methods covered in the course. It is context, not a list of dates to memorize.
 
-**1943.** McCulloch and Pitts publish a mathematical model of a neuron: inputs,
-weights, a threshold, an output. No learning — the weights were set by hand — but
-the shape of every artificial neuron since.
+## 1943–1958: early neural models
 
-**1949.** Hebb proposes that connections strengthen when two neurons fire
-together. "Cells that fire together wire together" is the compressed version, and
-it's the first serious proposal for *how* weights might change on their own.
+In 1943, Warren McCulloch and Walter Pitts described a mathematical model of a neuron. It had inputs, weights, a threshold, and an output, but the weights were set by hand.
 
-**1958.** Rosenblatt builds the **perceptron** — and note *builds*, not
-describes. It was physical hardware, with motor-driven potentiometers as weights,
-and it learned to classify shapes by adjusting them.
+In 1949, psychologist Donald Hebb proposed that connections between neurons could strengthen through repeated co-activation. His idea helped inspire later learning rules.
 
-The New York Times reported that the Navy expected it to walk, talk, see, write
-and reproduce itself. This turned out to be the first instance of a genre.
+In 1958, Frank Rosenblatt published work on the perceptron, a trainable system for classifying patterns. The perceptron learned by adjusting its weights after errors. The original description included a physical implementation.
 
-<Aside type="nice">
-The perceptron learning rule is one line: when you get an example wrong, nudge
-the weights toward the right answer, in proportion to the input.
+The perceptron update is closely related to the gradient updates in this course: an error determines how the weights change, and the input scales that change.
 
-$$w \leftarrow w + \eta(y - \hat{y})x$$
+## 1960s–1980s: limits and backpropagation
 
-Look at it next to chapter 5's gradient. `(prediction − target) × input`. Same
-expression, opposite sign convention.
+In 1969, Marvin Minsky and Seymour Papert analyzed limitations of single-layer perceptrons, including their inability to represent XOR. Their mathematical result was about that model class. Interest and funding for neural-network research declined for several reasons, including limited computing power and unrealistic expectations.
 
-Sixty-seven years, and the update rule survived essentially unchanged. What
-changed is everything around it.
-</Aside>
+Researchers had considered multilayer networks, but efficient training methods were still developing. Paul Werbos described backpropagation in a 1974 thesis. David Rumelhart, Geoffrey Hinton, and Ronald Williams helped bring the method wider attention with a 1986 paper showing how multilayer networks could learn internal representations.
 
-## 1969: the first winter
+In 1989, Yann LeCun and colleagues demonstrated convolutional networks for handwritten digit recognition. Related systems were later used for practical document-reading tasks.
 
-Minsky and Papert publish *Perceptrons*, proving carefully that a single-layer
-perceptron cannot learn XOR — or any function that isn't linearly separable.
+## 1990s–2000s: other methods lead
 
-The proof is correct. You met it in chapter 8, when logistic regression couldn't
-learn two crescents.
+Training deep networks remained difficult. Gradients could become too small in early layers, and data and computing resources were limited.
 
-What the book is often blamed for — and this is worth getting right, because the
-usual retelling is unfair — is not a mathematical error. Minsky and Papert
-explicitly discussed multi-layer networks. They simply observed that nobody knew
-how to train them, which was true.
+Other approaches performed well on the datasets of the time. Support vector machines offered strong results and useful theory. Random forests and gradient boosting became effective methods for tabular data. Long short-term memory networks, introduced in 1997, helped recurrent networks learn longer sequence relationships.
 
-But the effect was decisive. Funding moved to symbolic AI, and neural network
-research went quiet for over a decade. The first **AI winter**.
+These methods were important advances, not detours. Several remain useful today, especially for small and medium-sized tabular datasets.
 
-<Aside type="key">
-The transferable lesson: a correct negative result about a *specific* method got
-read as a general verdict on an *approach*.
+## 2006–2012: larger datasets and faster hardware
 
-The limitation was real and had a solution — hidden layers — that was known to
-exist and merely unusable. The gap between "we can't do this yet" and "this
-can't be done" swallowed fifteen years.
+In 2006, work on layer-wise pretraining helped renew interest in deep networks. Researchers also began using graphics processing units for neural-network training.
 
-Watch for that gap. It is still where most bad predictions in this field come
-from.
-</Aside>
+ImageNet provided a large labelled image collection and a shared benchmark. In 2012, AlexNet combined convolutional networks, GPU training, and large-scale labelled data to achieve a major improvement in the ImageNet competition. The architecture used earlier ideas, but the result showed how much data and computing power could change their practical value.
 
-## 1974–1986: backpropagation, invented repeatedly
+## 2012–2017: deep learning spreads
 
-**1974.** Paul Werbos describes backpropagation in his Harvard PhD thesis. Almost
-nobody notices.
+Convolutional networks became common for image tasks. VGG explored deeper networks. Residual networks introduced skip connections that made much deeper models easier to train. Generative adversarial networks introduced a way to train generators by comparing their outputs with real examples.
 
-**1982.** Hopfield networks bring some attention back to neural approaches.
+Deep reinforcement learning also drew attention when systems learned to play games from images and actions.
 
-**1986.** Rumelhart, Hinton and Williams publish backpropagation in *Nature*, and
-*this* time it lands. The paper showed a multi-layer network learning internal
-representations — solving exactly the problem *Perceptrons* had left open.
+## 2017 onward: attention and large models
 
-**1989.** LeCun applies convolutional networks to handwritten digits. By the
-early 1990s they're in production, reading cheques for the US Postal Service.
+The 2017 paper *Attention Is All You Need* introduced the Transformer architecture for sequence modeling. Transformers process sequence positions in parallel during training, which made large-scale training more practical.
 
-So by 1990 the field had: multi-layer networks, backpropagation, convolutions,
-and a real deployed application.
+The following years brought large language models, pretrained vision transformers, diffusion-based image generation, protein-structure prediction systems, and multimodal models. Instruction tuning and preference training made some language models easier to use as assistants.
 
-And then it stalled again.
+The field continues to change. Newer systems also use tools, retrieval, and additional computation at inference time.
 
-## 1990s–2000s: the second winter, and what filled it
+## A pattern to remember
 
-Networks deeper than a few layers wouldn't train. The gradients vanished — the
-problem you measured yourself in chapter 9, thirty layers of sigmoid shrinking a
-gradient into nothing. Nobody had ReLU, batch normalisation, or residual
-connections, and nobody had the data or compute to brute-force past the issue.
+Many important results combined an existing idea with something that made it practical: more data, faster hardware, a better training method, or a clearer way to evaluate it.
 
-Meanwhile, other methods worked *beautifully*.
+This does not mean every proposed method will become useful if we wait long enough. It does mean that “impossible” and “too expensive with current resources” are different claims. When you encounter a new method, ask what problem it solves and what changed to make it work.
 
-**Support vector machines** (Cortes and Vapnik, 1995) had elegant theory,
-convex optimisation with guaranteed convergence, and excellent results on the
-dataset sizes of the day. **Random forests** (Breiman, 2001) were robust, fast,
-and needed almost no tuning. **Gradient boosting** (Friedman, 2001) is still, as
-chapter 7 admitted, the thing to reach for on tabular data.
+## Read the original papers
 
-<Aside type="nice">
-It's worth saying plainly: this was not a stupid period, and the people who
-preferred SVMs were not being obtuse.
-
-They had convex objectives, provable convergence, strong theory, and better
-results on the problems anyone could actually run. Neural networks had none of
-those things and a track record of overpromising.
-
-Betting against them in 1998 was the *reasonable* call. It was also wrong, for
-reasons that had nothing to do with the mathematics and everything to do with
-what a graphics card would cost in 2012.
-</Aside>
-
-**1997.** LSTMs appear (Hochreiter and Schmidhuber), solving the vanishing
-gradient for sequences with explicit gates. They'd dominate sequence modelling
-for twenty years — right up until parallelism mattered more than memory, which
-is chapter 13's story.
-
-## 2006–2012: the thaw
-
-**2006.** Hinton and colleagues show deep networks can be trained by pre-training
-layers one at a time. Technically superseded within a few years — but it
-re-legitimised the whole area, and the rebranding from "neural networks" to
-**"deep learning"** dates from roughly here. Names matter for funding.
-
-**2009.** Fei-Fei Li's group releases **ImageNet**: 14 million labelled images,
-assembled largely through Mechanical Turk.
-
-That dataset is arguably as important as any algorithm on this page. It made a
-hard problem *measurable*, and measurable problems attract competition.
-
-**2009–2011.** People start running networks on GPUs. Same experiment, roughly
-fifty times faster.
-
-**September 2012. AlexNet.** Krizhevsky, Sutskever and Hinton win ImageNet with
-15.3% error against the runner-up's 26.2%.
-
-Nothing in AlexNet was conceptually new. Convolutions from 1989, backprop from
-1986, ReLU and dropout as unglamorous fixes. What was new was **two GPUs, a
-million labelled images, and the tricks that let it train at all**.
-
-A ten-point gap on a mature benchmark is not a result. It's a field changing
-direction, in public, in one afternoon.
-
-## 2012–2017: everything is a CNN
-
-Five years of rapid, mostly architectural progress. VGG went deeper. **ResNet**
-(2015) added residual connections and reached 152 layers — the `1 +` in the
-gradient from chapter 13's last exercise. Batch normalisation made training
-stable. GANs (2014) made generation plausible. AlphaGo (2016) did the thing
-everyone said was decades away.
-
-## 2017–present: attention
-
-**2017.** *Attention Is All You Need*. The transformer removes recurrence
-entirely.
-
-The title is a joke that landed: attention had existed since 2014 as an *addition
-to* recurrent models. The paper's claim was that you could delete the recurrence
-and keep only the attention — and get something better and, crucially,
-**parallelisable**.
-
-Then the transformer ate everything else:
-
-- **2018.** BERT (encoder) and GPT (decoder) — the mask, and nothing else,
-  separating them.
-- **2020.** GPT-3, and scaling laws made the returns predictable.
-- **2020.** Vision Transformers beat CNNs at image classification, given enough
-  data.
-- **2021–2022.** Diffusion models take over generation. AlphaFold does protein
-  structure.
-- **2022.** ChatGPT — no new architecture, but RLHF and a chat interface make the
-  capability legible to everybody at once.
-- **2022 onward.** Chinchilla corrects the scaling recipe; multimodal models;
-  small overtrained models; reasoning models that spend inference compute.
-
-<Wonder title="The pattern, which is the actual point of this page">
-Step back and the same shape appears over and over:
-
-**The idea comes first. Something else has to arrive.**
-
-- Perceptron 1958 → needed multi-layer training (1986)
-- Backprop 1974 → needed a readable paper and a receptive field (1986)
-- CNNs 1989 → needed data and GPUs (2012)
-- LSTMs 1997 → superseded when *parallelism* mattered more than memory (2017)
-- Attention 2014 → needed someone to remove the recurrence around it (2017)
-- Diffusion 2015 → needed better training recipes (2021)
-
-In almost every case the mathematics was sitting there, sometimes for decades,
-waiting for compute, or data, or one framing change, or simply for enough people
-to be looking.
-
-Which gives you a useful question to carry, and it's the one chapter 1
-ended on: **is this impossible, or merely currently expensive?**
-
-The two have completely different futures. And the field's history is very
-largely a list of people who got that distinction wrong in one direction or the
-other — either declaring a limitation permanent, or promising that a scaling
-trend would continue past the point where it did.
-
-Both mistakes are still being made, this week, in public.
-</Wonder>
-
-## What isn't in this story
-
-Two honest omissions.
-
-**It's a story about what won.** The probabilistic tradition, statistical
-learning theory, and symbolic methods all had rich histories that this narrative
-flattens. Bayesian methods didn't fail — they went where they work.
-
-**The compute-and-data pattern has costs.** "Just scale it" concentrates the
-field in the small number of organisations that can afford to, which changes who
-gets to ask questions and which questions get asked. That's a real structural
-consequence of the history above, and it's the subject of a different extra.
-
-## If you want to read the originals
-
-The readable landmarks, in order of how much you'll get from them
-right now:
-
-- **AlexNet** (2012) — short, concrete, and you'll understand nearly all of it.
-- **ResNet** (2015) — one idea, cleanly argued, and you already know the idea.
-- **Attention Is All You Need** (2017) — you implemented most of it in chapter 13.
-- **Scaling Laws** (Kaplan et al., 2020) — mostly plots, and the plots are the
-  argument.
-
-Each is a few pages. Read Figure 1 first — chapter 16's advice applies to
-historic papers too.
+- Rosenblatt’s perceptron paper (1958): [The Perceptron: A Probabilistic Model for Information Storage and Organization in the Brain](https://doi.org/10.1037/h0042519).
+- Rumelhart, Hinton, and Williams on backpropagation (1986): [Learning representations by back-propagating errors](https://doi.org/10.1038/323533a0).
+- Krizhevsky, Sutskever, and Hinton on AlexNet (2012): [ImageNet Classification with Deep Convolutional Neural Networks](https://proceedings.neurips.cc/paper/2012/hash/c399862d3b9d6b76c8436e924a68c45b-Abstract.html).
+- Vaswani and colleagues on transformers (2017): [Attention Is All You Need](https://arxiv.org/abs/1706.03762).

@@ -2,18 +2,17 @@
 title: 'pathlib.Path'
 lib: 'stdlib'
 since: 'Python 3.4'
-summary: 'Object-oriented filesystem paths. `/` joins, and the object knows how to read itself.'
+summary: "Work with filesystem paths using Python objects."
 signature: 'Path(''data'') / ''train'' / ''cat.jpg'''
 example: |-
   from pathlib import Path
   files = sorted(Path('data').glob('**/*.jpg'))
   len(files)
-rust: '`PathBuf` and `Path`, with `/` overloaded to mean `join`, plus the convenience methods you would otherwise reach into `std::fs` for.'
+rust: "Path objects join and inspect filesystem paths, similar to Rust’s Path and PathBuf."
 rustCode: 'let p = Path::new("data").join("train").join("cat.jpg");'
 docs: 'https://docs.python.org/3.14/library/pathlib.html'
 docsLabel: 'pathlib docs ↗'
 ---
+pathlib.Path represents a filesystem path and provides methods for joining paths, listing files, and reading or writing content.
 
-fastai's data blocks are built around `Path` and its `glob`, because the most
-common way to hand a computer-vision dataset over is a directory tree whose
-folder names are the labels.
+Path objects are useful when datasets are arranged in directories. They also avoid many platform-specific path-string issues.

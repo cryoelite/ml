@@ -1,6 +1,6 @@
 ---
 title: 'Maximum likelihood'
-summary: 'Choose the parameters that make the data you actually observed as probable as possible.'
+summary: "Choose parameters that give high probability to observed data."
 formula: '\hat{\theta} = \arg\max_{\theta} \sum_{i=1}^{n} \log p_\theta(y_i \mid x_i)'
 docs: 'https://en.wikipedia.org/wiki/Maximum_likelihood_estimation'
 docsLabel: 'Wikipedia ↗'
@@ -12,18 +12,10 @@ symbols:
   - sym: '\log'
     means: 'logs, so a product of probabilities becomes a sum'
 ---
+Maximum likelihood chooses parameters that assign high probability to the observed data:
 
-This is where the loss functions come from, rather than being invented. Assume
-your targets are normally distributed around the model's prediction, write
-down the likelihood, take the log — and
-[mean squared error](/appendix/math/#mse) falls out. Assume they are
-categorical and you get
-[cross-entropy](/appendix/math/#cross-entropy) instead.
+$$\hat{\theta} = \arg\max_\theta \sum_{i=1}^n \log p_\theta(y_i \mid x_i)$$
 
-Maximising a log-likelihood and minimising a loss are the same activity with
-opposite signs. Papers switch between the two framings without comment, which
-is worth knowing before it confuses you.
+Taking the logarithm turns a product of probabilities into a sum and avoids numerical underflow. Maximising log-likelihood is equivalent to minimising its negative, called the negative log-likelihood.
 
-The log is there for two practical reasons: multiplying ten thousand
-probabilities underflows to zero in floating point, and sums differentiate more
-pleasantly than products.
+Different assumptions about the target distribution produce different losses. A Gaussian model gives squared error; a categorical model gives cross-entropy. See [how the losses are derived](/extras/maximum-likelihood/).

@@ -1,20 +1,19 @@
 ---
 title: 'dict'
 lib: 'stdlib'
-summary: 'Hash map with guaranteed insertion order. The default container for anything keyed.'
+summary: "Store and retrieve values by key."
 signature: '{''key'': value}   |   d.get(k, default)   |   d.items()'
 example: |-
   cfg = {'lr': 1e-3, 'epochs': 5}
   cfg.get('batch_size', 32)
 output: '32'
-rust: '`HashMap<K, V>`, except that iteration order is insertion order (guaranteed since 3.7), and `d[k]` panics — raises `KeyError` — rather than returning an `Option`. `d.get(k, default)` is `map.get(k).unwrap_or(default)`.'
+rust: "A Python dictionary maps keys to values and keeps insertion order. A Rust HashMap has different lookup and iteration behavior."
 rustCode: |-
   let mut cfg = HashMap::from([("lr", 1e-3)]);
   cfg.get("batch_size").copied().unwrap_or(32.0);
 docs: 'https://docs.python.org/3.14/library/stdtypes.html#dict'
 docsLabel: 'Python docs ↗'
 ---
+A dictionary maps keys to values. Dictionaries are often used for configuration, counters, and results indexed by a name.
 
-Model configuration, hyperparameter grids and the state of a training run are
-all dicts by convention. PyTorch's `state_dict()` — the serialised weights of a
-model — is literally a dict from parameter name to tensor.
+PyTorch’s state_dict is also a dictionary, mapping model parameter names to tensors. See [Saving and loading a model](/appendix/python/#state-dict).

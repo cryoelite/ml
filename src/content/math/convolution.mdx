@@ -1,6 +1,6 @@
 ---
 title: 'Convolution'
-summary: 'Slide a small window of weights across an input and record the dot product at every position.'
+summary: "Apply the same learned kernel at each position in an input."
 formula: '(f * g)[n] = \sum_{m} f[m]\, g[n - m]'
 docs: 'https://en.wikipedia.org/wiki/Convolution'
 docsLabel: 'Wikipedia ↗'
@@ -14,15 +14,8 @@ symbols:
   - sym: 'n'
     means: 'the output position'
 ---
+A convolution applies the same small set of weights, called a kernel, at each position in an input. For an image, a 3-by-3 kernel combines a patch of nine pixels into one output value, then moves to the next patch.
 
-The formula is less useful than the picture: a 3x3 grid of weights slides over
-an image, and at each position you multiply the nine weights by the nine
-pixels underneath and sum. The same nine weights are used at every position.
+Reusing the weights is called weight sharing. It lets the model detect a pattern, such as an edge, in different parts of an image with fewer parameters.
 
-That reuse is the entire idea. A vertical-edge detector is a vertical-edge
-detector wherever it is applied, so the network learns nine numbers instead of
-nine per pixel. This is *weight sharing*, and it encodes a genuine assumption
-about images — that what a thing looks like does not depend on where it is.
-
-When that assumption is false, convolutions are the wrong tool, which is
-precisely why they never worked well on tabular data.
+Many deep-learning libraries implement cross-correlation under the name convolution; the learned kernel is not flipped as it is in the mathematical definition. Convolutions work well when local patterns and their locations matter.

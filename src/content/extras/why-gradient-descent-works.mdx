@@ -7,8 +7,13 @@ kind: "theory"
 after: "05-how-learning-happens"
 covers: ["gd"]
 ---
-A bowl-shaped loss is a helpful picture for a simple linear model, but a neural network has a much more complex loss surface. This article looks at what researchers know about optimization in deep learning and where simple explanations stop.
-## First, why the bowl was special
+A bowl-shaped loss is a useful picture for a simple linear model. Neural-network loss surfaces are more complicated. This article explains why gradient methods can still work well in practice, and where our explanations remain incomplete.
+
+## Convex and non-convex losses
+
+A convex function has no separate, worse local minimum: any local minimum is also a global minimum. Squared-error linear regression and logistic regression with standard formulations have convex objectives.
+
+Neural networks are generally non-convex. Their loss can have many critical points, where the gradient is zero.
 
 ```python run setup title="convex and not"
 import numpy as np, matplotlib.pyplot as plt
@@ -24,18 +29,7 @@ for a in ax: a.set_xticks([]); a.set_yticks([])
 plt.tight_layout()
 ```
 
-A function is **convex** if the straight line between any two points on it stays
-above the function. The practical consequence is the whole reason anybody cares:
-*a convex function has exactly one minimum, and any downhill method finds it.*
-
-Squared error with a linear model is convex. So is logistic regression's loss. So
-is a support vector machine's. For most of the 1990s and 2000s this was
-considered close to non-negotiable — convexity meant you could *prove* your
-method converged, and that proof was a large part of what made a method
-publishable.
-
-Neural networks are wildly non-convex, and this was, for years, a serious and
-respectable objection to them.
+Different starting points can lead to different outcomes on a non-convex function.
 
 ```python run title="where you land depends on where you start"
 def descend(f, df, x0, lr=0.01, steps=600):
@@ -52,23 +46,11 @@ for start in [-2.5, -0.5, 0.4, 2.5]:
     print(f"start {start:+.1f}  ->  end {end:+.3f}   loss {f(end):.3f}")
 ```
 
-Four starting points, two different destinations, two different final losses.
+This example shows that possibility in one dimension. It does not show what happens in every neural network, but it explains why convex optimisation results do not directly settle deep-network training.
 
-That's the objection, made concrete. Your answer depends on where you happened to
-start, and nothing tells you whether you found the good minimum or the mediocre
-one.
+## Saddles in high dimensions
 
-So how does anybody train a 70-billion-parameter model?
-
-## Surprise 1: local minima are not the problem. Saddles are.
-
-Here's the first thing that upends the intuition, and it comes from thinking
-about *dimension*.
-
-A critical point — where the gradient is zero — is a local minimum only if the
-surface curves upward in **every** direction. In two dimensions, that's a
-coin flip's worth of ways to fail. In a million dimensions, you need a million
-independent things to go the same way.
+A critical point is a local minimum only if the loss curves upward in every direction. It is a saddle if some directions curve up and others curve down.
 
 ```python run title="the probability of a minimum, by dimension"
 rng = np.random.default_rng(0)
@@ -91,38 +73,9 @@ for dim in [1, 2, 5, 10, 20]:
     print(f"{dim:11d} {mn:9.3f} {sd:9.3f} {mx:8.3f}")
 ```
 
-Look at that table fall off a cliff.
+For the random matrices in this demonstration, saddle-shaped critical points become more common as dimension grows. A neural-network loss surface is not a random symmetric matrix, so this is an illustration of high-dimensional geometry, not proof that neural-network minima are rare.
 
-At 20 dimensions, essentially every critical point is a **saddle** — a place
-that's a minimum along some directions and a maximum along others. Genuine local
-minima have become vanishingly rare, and by a million dimensions they're
-effectively nonexistent.
-
-<Wonder title="High dimensions are strange, and here they're on your side">
-Our intuition for optimisation comes from surfaces we can draw, which means two
-or three dimensions. And in two dimensions, local minima are a real and constant
-menace — you can see them in the plot above.
-
-But "curves upward in every direction" is a conjunction, and conjunctions get
-exponentially harder to satisfy as you add terms. Needing a million independent
-things to all go one way is not a mild requirement.
-
-So the thing that *should* make optimisation hopeless — an unimaginably large
-parameter space — is precisely the thing that removes the classical obstacle.
-
-And a saddle is a much friendlier place to be stuck than a minimum. At a
-minimum, every direction is uphill and you are finished. At a saddle,
-*some* direction goes down — you just have to find it. Any noise at all will
-eventually knock you off.
-
-Which reframes what mini-batch noise is doing. It isn't a regrettable
-approximation you'd remove if you could afford not to. In a landscape made almost
-entirely of saddles, **the noise is what keeps you moving.**
-
-I find this lovely. The two things that look like the biggest problems
-— too many parameters, and a gradient we can't afford to compute exactly — turn
-out to be the two things that make it work.
-</Wonder>
+Small amounts of stochastic variation can sometimes help an optimiser move away from a saddle, but the effect depends on the landscape and optimiser.
 
 ```python run title="escaping a saddle, with and without noise"
 # f(x,y) = x^2 - y^2 : the textbook saddle, sitting exactly at the origin
@@ -143,14 +96,13 @@ print(f"noisy gradient : after 60 steps, distance from saddle {np.abs(noisy[-1])
 print("\nthe clean run is still crawling off the saddle. the noisy one left.")
 ```
 
-## Surprise 2: the minima are mostly equally good
+## Different solutions can perform similarly
 
-The second thing that upends the picture.
+Neural networks can represent the same function with different parameter settings. For example, permuting hidden units and their corresponding weights may leave predictions unchanged. Overparameterised models can also have many low-training-loss solutions.
 
-Even granting that local minima exist somewhere, empirically they turn out to be
-**about as good as each other**. In a large network, the minima you actually
-reach have very similar loss values — so "did I find the global minimum?" stops
-being an interesting question, because the answer barely affects your result.
+That does not mean all minima are equally good. Some solutions generalise better than others, and training loss alone cannot tell us which one will perform best on new data.
+
+This example trains a small model from several starting points and compares its results.
 
 ```python run title="many random starts, similar answers"
 from sklearn.datasets import make_moons
@@ -187,32 +139,9 @@ print(f"\nloss spread: {min(losses):.4f} to {max(losses):.4f}"
       f"  (range is {100 * (max(losses) - min(losses)) / min(losses):.1f}% of the minimum)")
 ```
 
-Eight completely different random initialisations. Eight different sets of
-weights, which are not the same network. And essentially the same loss
-and the same accuracy.
+## Robustness to small changes
 
-They landed in eight different minima that are, for all practical purposes,
-interchangeable.
-
-<Aside type="nice">
-Part of this is a symmetry that's fun to notice once and then never think about
-again.
-
-Take any trained network and swap hidden units 3 and 7 — swap their incoming
-weights, and swap their outgoing weights to match. The function computed is
-*identical*. Same predictions, same loss, different parameters.
-
-A layer with $n$ hidden units therefore has at least $n!$ equivalent copies of
-every solution. For $n = 100$ that's about $10^{158}$ copies of each minimum.
-
-So a great many of those "different local minima" are literally the same function
-wearing a different permutation. The loss landscape is far more repetitive than
-its dimension suggests.
-</Aside>
-
-## Surprise 3: flat minima generalise better
-
-Not all minima with equal *training* loss are equally good. The shape matters.
+A flat region of a loss surface changes less under a small parameter shift than a sharp region.
 
 ```python run title="sharp and flat, and what happens when the world shifts"
 xs = np.linspace(-2, 2, 400)
@@ -233,93 +162,18 @@ print(f"  sharp: loss goes 0 -> {30 * shift ** 2:.2f}")
 print(f"  flat : loss goes 0 -> {1.2 * shift ** 2:.2f}")
 ```
 
-Both minima have zero training loss. But the test distribution is never *exactly*
-the training distribution — so the true minimum sits slightly elsewhere, and the
-sharp one falls off a cliff while the flat one barely notices.
+Flatness can be useful intuition, but its measurement depends on parameter scale and representation. It is not a complete explanation of generalisation. Evaluate performance on data the model did not train on.
 
-A flat minimum is a solution that stays good when things move a bit. Which is
-precisely what generalisation means.
+## Why stochastic gradient methods work
 
-And here's the connection back to chapter 5: **SGD preferentially finds flat
-minima.** A noisy gradient can't stay balanced on a knife-edge — it gets knocked
-out of narrow basins and settles in broad ones.
+Mini-batch training uses an estimate of the full-data gradient. That estimate is noisy, but it is much cheaper to calculate. Noise may help with some optimisation problems; it can also make training less stable. Large batches do not always hurt generalisation, and small batches do not guarantee a better solution.
 
-<Aside type="key">
-Which gives the noise a third job, and it's now doing all the work in this
-chapter:
+Overparameterisation can make optimisation easier in many practical settings, but there is no single explanation that covers all networks, datasets, and training procedures.
 
-1. It knocks you off saddles.
-2. It lets you take many more steps per unit of compute.
-3. It biases you toward flat minima, which generalise.
+## What remains difficult
 
-The approximation we made to go faster turns out to be doing the optimisation
-*and* the regularisation. That's why "just use a bigger batch and a cleaner
-gradient" is not the obvious improvement it appears to be — past a point, larger
-batches measurably hurt generalisation, and this is the usual explanation.
-</Aside>
+Training can still fail because of poorly scaled data, unsuitable learning rates, bad initialisation, unstable losses, or bugs. Some tasks, including sparse-reward reinforcement learning and adversarial training, are especially difficult.
 
-## Surprise 4: over-parameterisation helps
+There is no general theorem showing that gradient descent always finds a useful solution for every deep network. Current understanding combines experiments, results under simplifying assumptions, and practices that work well in tested settings.
 
-The last one, and it's the least intuitive.
-
-Classical theory says more parameters than data points is a disaster. Modern
-practice says give the network far more parameters than it needs and it trains
-*more easily*.
-
-The picture that has emerged: in a very wide network, the loss surface has
-**connected valleys** of near-zero loss rather than isolated pits. There are so
-many ways to fit the data that you're almost never trapped — there's essentially
-always a downhill direction, because there are so many directions.
-
-The **lottery ticket** framing puts it well: a large random network contains many
-small subnetworks, and training is partly a search for one that happens to be
-well-positioned. Buying more tickets doesn't make any single ticket better; it
-makes finding a winner nearly certain.
-
-## What's actually still hard
-
-I don't want to leave you thinking optimisation is solved, because it isn't.
-
-**Conditioning.** The `w`-fast, `b`-slow problem from chapter 5 is real and gets
-much worse with depth. It's what Adam, normalisation layers and careful
-initialisation are all fighting.
-
-**Bad initialisation.** Start too small and signals vanish; too large and they
-explode. Chapter 8's exercise 3 is this, and no optimiser rescues you from it.
-
-**hard losses.** Sparse rewards in reinforcement learning, GAN
-minimax objectives, anything with discrete decisions inside. These break in ways
-that plain supervised learning does not.
-
-**Nobody can prove any of the above.** Almost everything on this page is
-empirical or holds under assumptions that don't quite apply. The theory is
-improving and it is behind the practice.
-
-<Aside type="warn">
-Which is worth being straight about. If you go looking for a theorem saying
-"gradient descent finds a good solution for deep networks," you won't find one.
-
-What exists is: a large body of experiment, several partial results under
-simplifying assumptions, and a set of practices that reliably work. That's a
-perfectly respectable state for an engineering field to be in — it's roughly
-where metallurgy was for several thousand productive years — but it does mean
-**measurement beats reasoning here.**
-
-When your intuition and your validation set disagree, believe the validation set.
-</Aside>
-
-## What to take away
-
-The classical worry — "gradient descent will get stuck in a local minimum" —
-turns out to be mostly wrong for deep networks, for four separate reasons:
-
-1. In high dimensions, critical points are saddles, not minima.
-2. The minima that exist are roughly equally good.
-3. Noise both escapes saddles and biases toward flat, generalising solutions.
-4. Over-parameterisation connects the good regions rather than isolating them.
-
-And the practical consequence: **when training fails, it's almost never because
-you found a bad local minimum.** It's the learning rate, the initialisation, the
-data scaling, or a bug.
-
-Check those four. In that order.
+When an intuition disagrees with held-out results, inspect the data and evaluation and trust the measurements. Use theories of optimisation to form hypotheses, then test them.

@@ -7,13 +7,11 @@ part: frontier
 minutes: 110
 introduces: ["transformer", "encoder", "decoder", "encdec", "rnn", "lstm", "selfsup"]
 ---
-Text is a sequence: order matters, and length varies. Attention lets a model compare each token with other tokens and combine the information it needs.
+A sequence has order: each token's position matters. Attention lets each position compare its representation with other positions and combine information from them. This chapter builds attention from its basic operations, then assembles a transformer block.
 
-We will build attention from its smaller operations, then put those operations into a transformer block.
 ## From recurrent networks to attention
 
-A **recurrent** network processes a sequence one step at a time, carrying a
-hidden state forward.
+A recurrent network reads a sequence one step at a time and carries a hidden state forward.
 
 ```python run setup title="an RNN, in five lines"
 import numpy as np, matplotlib.pyplot as plt
@@ -32,52 +30,21 @@ states = rnn(seq, rng.normal(size=(4, 8)) * .5, rng.normal(size=(8, 8)) * .5, np
 print("processed", len(states), "steps sequentially; final state", states[-1].round(2))
 ```
 
-Two fatal problems — and it really matters which one did the killing, because the
-answer is not the one most people would guess.
-
-**The information bottleneck.** Everything the model knows about the first 400
-words has to survive in one fixed-size vector. LSTMs (1997) added gates that
-decide what to keep and what to forget, which helped enormously — and did not
-remove the bottleneck.
-
-**No parallelism.** Step 12 needs step 11's output. You cannot compute them at the
-same time. Not with better code, not with more GPUs, not ever. It's a data
-dependency, and no amount of hardware defeats a data dependency.
-
-<Aside type="key">
-The second problem is the one that mattered.
-
-LSTMs worked reasonably well. They simply could not be *scaled* — because a GPU
-with 10,000 cores cannot help you do one thing after another. All that silicon
-sits idle waiting for step 11.
-
-So attention's decisive advantage is not that it's more expressive. It's that
-**every position can be computed simultaneously.**
-
-That's an argument about hardware, not about intelligence. And I think it's the
-single most instructive fact in this chapter about how this field actually moves:
-the winning idea is very often the one that fits the machine.
-</Aside>
+This design can make long-range information hard to preserve in one hidden state. It also limits parallelism: the next step depends on the previous step. Attention allows positions to exchange information directly and processes many positions in parallel during training.
 
 ## Build attention
 
-Let's build it from the question rather than the formula.
+For each position, create three vectors:
 
-Suppose each position could simply *look at* every other position and take what
-it needed. What would it need to know?
+- A **query** describes what the position is looking for.
+- A **key** describes what the position can match.
+- A **value** contains the information the position can pass on.
 
-1. What is this position looking for? → a **query** vector
-2. What does each position offer? → a **key** vector
-3. What does it hand over if selected? → a **value** vector
-
-Then: match queries against keys to get relevance, turn relevance into weights,
-and take the weighted average of the values.
-
-That's it. That's the design. Now let's write it.
+Compare queries with keys to calculate scores. Convert each row of scores to weights with softmax, then use those weights to combine the values.
 
 ```python run title="attention, from nothing"
 def softmax(z, axis=-1):
-    z = z - z.max(axis=axis, keepdims=True)      # the overflow guard, always
+    z = z - z.max(axis=axis, keepdims=True)      # keeps exponentials in range
     e = np.exp(z)
     return e / e.sum(axis=axis, keepdims=True)
 
@@ -97,10 +64,7 @@ print("output shape ", out.shape)
 print("weight rows sum to 1:", np.allclose(w.sum(-1), 1))
 ```
 
-<M id="attention">That is the whole mechanism.</M> Four lines of arithmetic.
-
-You have now written the core of every large language model in existence. It is
-this small, and I think everyone deserves to find that out.
+The attention weights show how much each position uses information from other positions:
 
 ```python run title="what the weights mean"
 plt.figure(figsize=(4.2, 3.4))
@@ -111,15 +75,11 @@ plt.title("row i = how position i distributes its attention")
 plt.tight_layout()
 ```
 
-Each **row** is one position's opinion about where to look, and each row sums to
-one — it's a budget. Position 3 might spend 60% of its attention on position 1 and
-spread the rest around.
+Each row is a distribution over positions. Larger weights mean that position contributes more to the weighted sum.
 
 ## Self-attention
 
-In practice Q, K and V all come from the *same* sequence, through three learned
-projections. That's **self-attention**: every position looking at every other
-position of the same input.
+In self-attention, the queries, keys, and values are learned projections of the same sequence.
 
 ```python run title="self-attention on a real-ish sequence"
 d_model, d_head = 16, 16
@@ -133,34 +93,9 @@ print("input ", X.shape, "-> output", out.shape, " (same shape: it is a mixer, n
 print("\nposition 0 attends to:", w[0].round(2))
 ```
 
-Three matrices, learned by [backpropagation](/learn/09-backpropagation/), exactly
-like everything else in this book.
+The projections are learned during training. Attention itself is a weighted combination of values, with the weights determined by query-key similarity.
 
-The names *query*, *key* and *value* are borrowed from database retrieval, and
-they're the standard vocabulary you'll meet everywhere. But don't let them make it
-sound clever: the mechanism is three projections and a softmax-weighted average.
-
-<Reveal title="Why divide by the square root of d_k?" kind="math">
-
-This looks like a fudge factor. It isn't, and the reasoning is nice.
-
-If $q$ and $k$ have independent components with mean 0 and variance 1, their
-<M id="dot-product">dot product</M> $\sum_{i=1}^{d_k} q_i k_i$ is a sum of $d_k$
-independent terms. Variances add, so the variance of the sum is $d_k$, and the
-typical magnitude is $\sqrt{d_k}$.
-
-At $d_k = 64$, that puts the scores around $\pm 8$.
-
-Now feed $\pm 8$ into <M id="softmax">softmax</M>. The largest score gets almost
-*all* the weight — the distribution comes out nearly one-hot. And the gradient of
-softmax is proportional to $p(1-p)$, which is approximately **zero** when $p$ is
-near 0 or 1.
-
-So without the scaling, attention saturates at initialisation, and the gradients
-vanish before training has started. The model is dead on arrival.
-
-Dividing by $\sqrt{d_k}$ returns the scores to variance 1, regardless of head
-size. Let's watch:
+The score is divided by the square root of the key dimension before softmax. Without this scaling, dot products can become large as the dimension grows. Large scores can make softmax too concentrated and its gradients small.
 
 ```python run title="see it happen"
 for d_k in [4, 64, 512]:
@@ -170,18 +105,11 @@ for d_k in [4, 64, 512]:
           f"scaled {(raw / np.sqrt(d_k)).std():.2f}")
 ```
 
-That single $\sqrt{d_k}$ is the difference between a transformer that trains and
-one that doesn't.
-
-I rather like it as an example of something true about this field: a great deal
-of what looks like deep architectural insight is **numerical hygiene wearing a
-Greek letter**. Keep your variances near 1 and most things work.
-</Reveal>
+The scaling keeps the scores at a useful range at initialization. Its effect depends on the model and training setup, but it helps stabilize attention calculations.
 
 ## Causal masking
 
-A model predicting the next token must not be allowed to see it. Which sounds
-like it would require careful engineering, and requires one triangular mask.
+For next-token prediction, each position must not use tokens that come later in the sequence. A causal mask sets those future scores to negative infinity before softmax, giving them zero weight.
 
 ```python run title="the mask that makes GPT possible"
 n = 6
@@ -199,25 +127,11 @@ plt.xlabel("key"); plt.ylabel("query"); plt.colorbar()
 plt.tight_layout()
 ```
 
-Everything above the diagonal is zero. No position can attend to its own future.
-
-Now here's a fact I find startling every time:
-
-**This one mask is the entire architectural difference between BERT and GPT.**
-
-Without it, every position sees the whole sequence, and you get an *encoder* —
-excellent for classification and embeddings. With it, you get a *decoder*, and you
-can train it to predict the next token on any text that has ever been written.
-
-Which is the <M id="log-likelihood">self-supervised</M> objective from
-[Chapter 3](/learn/03-the-shape-of-problems/) — the one that turned the whole
-internet into labelled data. Two of the most consequential model families of the
-last decade differ by a triangle of booleans.
+Without a causal mask, every position can use the full input. With the mask, position i can attend only to positions at or before i. This is the attention pattern used by autoregressive language models. Encoder models commonly use unmasked attention when the full input is available.
 
 ## Multiple heads
 
-One attention operation computes one kind of relevance. Real models run several
-in parallel with different projections, and concatenate the results.
+A single attention operation learns one set of relationships. Multi-head attention uses several projections in parallel, then combines their outputs.
 
 ```python run title="multi-head attention"
 def multihead(X, Wq, Wk, Wv, Wo, n_heads, mask=None):
@@ -237,21 +151,11 @@ print("multi-head output:", multihead(X, Wq, Wk, Wv, Wo, n_heads).shape)
 print(f"{n_heads} heads x {d_model // n_heads} dims = {d_model}, same as the input")
 ```
 
-Note that the total dimension is unchanged — the heads *split* it rather than
-multiplying it. Four heads of 8 dimensions, not four copies of 32.
+The model divides the representation across heads, then concatenates the head outputs. Different heads can learn different patterns, though their roles are learned rather than assigned by hand.
 
-And here's the lovely part. Interpretability researchers have gone and looked at
-what individual heads do in trained models, and found genuine specialisation: one
-head tracking syntactic dependencies, one matching up quotation marks, one
-attending to the previous occurrence of the current token.
+## Add position
 
-Nobody designed those roles. Nobody assigned head 3 to quotation marks. That
-specialisation *emerged* from gradient descent on next-token prediction, and it's
-one of the more surprising findings in the field.
-
-## Position
-
-Attention has a strange property that's worth discovering rather than being told.
+Attention without position information is permutation-equivariant: if the input order changes, the outputs change in the same way. It does not know that one token came before another.
 
 ```python run title="attention cannot see order"
 X = rng.normal(size=(5, d_model))
@@ -261,15 +165,7 @@ b = multihead(X[perm], Wq, Wk, Wv, Wo, 4)
 print("permuting the input just permutes the output:", np.allclose(a[perm], b))
 ```
 
-`True`. Shuffle the input and the outputs shuffle identically.
-
-Attention is **permutation-equivariant** — it has no notion of order whatsoever.
-It's a set operation wearing a sequence costume.
-
-For a bag of words that would be fine. For language it's fatal: *dog bites man*
-and *man bites dog* would be literally indistinguishable.
-
-So position has to be added to the input explicitly, by hand.
+Language needs positional information. One approach adds sine and cosine values for each position to the token representations:
 
 ```python run title="sinusoidal positional encoding"
 def positional_encoding(n_positions, d_model):
@@ -289,30 +185,11 @@ plt.title("each position gets a unique signature"); plt.colorbar()
 plt.tight_layout()
 ```
 
-Each position gets a unique pattern of sine and cosine values at different
-frequencies. Look at the picture: low dimensions oscillate fast, high dimensions
-slowly.
-
-If that reminds you of something, it should — it's **a binary counter in
-continuous form**. The fast bits flip constantly, the slow bits distinguish
-coarse position, and together they give every position a unique fingerprint.
-Adding it to the token embedding gives each position an identity.
-
-<Aside type="nice">
-Modern models mostly use **RoPE** (rotary position embeddings) instead, which
-rotates the query and key vectors by an angle proportional to position.
-
-Its advantage is elegant: the resulting attention score depends only on the
-*relative* distance between two positions, not their absolute indices. And it
-extrapolates to sequences longer than those seen in training far better than the
-sinusoidal version does.
-
-If you've ever wondered how a model's context window gets extended *after*
-training — that's largely RoPE frequency scaling, and it's a surprisingly small
-change for the size of the effect.
-</Aside>
+Modern transformers use several positional schemes, including rotary position embeddings. These can encode relative position in attention scores. Their behaviour on longer sequences depends on the method and how the model was trained.
 
 ## Assemble a transformer block
+
+A transformer block combines self-attention, residual connections, normalization, and a feed-forward network.
 
 ```python run title="a transformer block, assembled"
 def layer_norm(x, eps=1e-5):
@@ -321,7 +198,7 @@ def layer_norm(x, eps=1e-5):
     return (x - mu) / (sd + eps)
 
 def transformer_block(X, params, n_heads=4, mask=None):
-    # Pre-norm, residual, twice. This is the whole block.
+    # Apply attention and the feed-forward layer with residual connections.
     h = X + multihead(layer_norm(X), *params["attn"], n_heads, mask)
     ff = layer_norm(h) @ params["W1"]
     ff = np.maximum(0, ff) @ params["W2"]            # position-wise MLP
@@ -339,30 +216,13 @@ print("block output:", out.shape, " — same shape in, same shape out")
 print("so you can stack it:", transformer_block(out, params).shape)
 ```
 
-**That is a transformer.**
+Attention mixes information across positions. The feed-forward network transforms each position's representation. Residual connections provide a direct path for information and gradients. Normalization helps keep activations at usable scales.
 
-Stack ninety-six of those, make `d_model` 12,288, and you have GPT-3's
-architecture. The distance between this cell and a frontier model is scale, data,
-and an enormous amount of very good engineering — but it is not a different idea.
-
-That's worth sitting with for a second. You wrote it. It fits on a screen.
-
-Three pieces in that block earn their place, and each is worth a sentence:
-
-- **Residual connections** (`X + ...`). The gradient gets a path straight back
-  through the addition, *unmultiplied* — which is what makes 96 layers trainable
-  at all. Same problem as [vanishing gradients](/learn/09-backpropagation/), a
-  different and rather elegant fix.
-- **Layer normalisation.** Normalises each position's vector to zero mean and unit
-  variance — across the *features*, not across the batch. That's why it works with
-  variable sequence lengths where batch norm doesn't.
-- **The position-wise MLP.** Attention *mixes* information between positions; the
-  MLP *transforms* it within a position. Attention alone is just a weighted
-  average and can't compute much on its own. Roughly two thirds of a
-  transformer's parameters live in these MLPs, and there's good evidence this is
-  where factual knowledge gets stored.
+Stacking blocks builds a transformer. The architecture is repeated; size, data, training, and engineering distinguish small examples from large models.
 
 ## The cost of attention
+
+Standard attention forms scores between every pair of positions. With sequence length n, the attention matrix has n squared entries.
 
 ```python run title="quadratic"
 print(f"{'sequence':>10s} {'attention matrix':>18s} {'float32 memory':>16s}")
@@ -371,63 +231,11 @@ for n in [512, 2_048, 8_192, 128_000, 1_000_000]:
     print(f"{n:>10,} {cells:>18,} {cells * 4 / 1e9:>13,.1f} GB")
 ```
 
-The attention matrix is $n \times n$. So doubling the context **quadruples** the
-memory and the compute — per head, per layer.
+Doubling sequence length roughly quadruples the attention-score memory and computation in this formulation. Implementations such as FlashAttention reduce memory traffic and avoid storing the full matrix, while preserving exact attention. Other methods restrict which positions can interact or approximate the calculation.
 
-Look at the bottom row of that table. A million-token context needs four terabytes
-for one attention matrix. There isn't a GPU on Earth with four terabytes.
+## Practice: inspect attention
 
-That single table explains an entire research programme:
-
-- **FlashAttention** — recompute tiles instead of storing the whole matrix
-- **Sliding-window and sparse attention** — don't attend to everything
-- **Linear attention and state-space models** like Mamba — avoid forming the
-  matrix at all
-- **Multi-query and grouped-query attention** — shrink the KV cache at inference
-
-Every long-context announcement you've ever read is an attack on this quadratic.
-Now you know exactly what they're attacking.
-
-<Aside type="rust">
-The engineering shape of FlashAttention will be very familiar to you.
-
-The naive implementation materialises an $n^2$ intermediate and is
-**memory-bandwidth-bound**, not compute-bound — the arithmetic units sit waiting
-for data. FlashAttention's insight is to tile the computation so the intermediate
-never leaves fast on-chip memory, recomputing bits of it during the backward pass
-rather than storing them.
-
-That's cache blocking. Straightforward, well-understood cache blocking.
-
-It produced a 2–4x speedup on what is arguably the most important workload in
-computing, and it changed no mathematics whatsoever. Sometimes the systems person
-wins the ML paper.
-</Aside>
-
-<Stuck>
-**"I don't get what Q, K and V *are*."** They're three different views of the same
-token, produced by three different learned matrices. Q is "what I want", K is
-"what I offer", V is "what I'll give you". The names are analogy; the mechanism
-is three multiplications.
-
-**"Why does `scores` use `K.T`?"** You want every query dotted with every key. `Q`
-is `(n_q, d)` and `K` is `(n_k, d)`, so `Q @ K.T` is `(n_q, n_k)` — one score per
-pair. Do the shape arithmetic once and it stops being mysterious.
-
-**"What's `-np.inf` doing in the mask?"** `exp(-inf)` is 0, so masked positions
-get exactly zero weight after softmax. It's the cleanest way to say "never look
-here" without special-casing anything.
-
-**"Why subtract the max inside softmax?"** `exp(1000)` overflows to `inf`.
-Subtracting the max makes the largest exponent `exp(0) = 1` and changes nothing
-mathematically, because the constant cancels between numerator and denominator.
-Every softmax you'll ever see does this.
-
-**"How does a stack of these actually *predict* a word?"** One more linear layer
-at the end, mapping `d_model` to vocabulary size, then softmax. That's tomorrow.
-</Stuck>
-
-<TryThis title="Three experiments on attention" reveal="Show solutions">
+Try uniform attention, construct queries and keys that focus on one earlier position, and compare signal through blocks with and without a residual connection.
 
 ```python run title="your turn"
 # 1. Set the scores of a causal-masked attention to all zeros before softmax.
@@ -442,13 +250,7 @@ at the end, mapping `d_model` to vocabulary size, then softmax. That's tomorrow.
 print("replace me")
 ```
 
-<Fragment slot="hint">
-For 2, remember that a score is a dot product. If you want position 1's query to
-match position 0's key strongly and position 1's key weakly, make them *point in
-the same direction* — and make the query large.
-</Fragment>
-
-<Fragment slot="answer">
+With all scores equal, softmax assigns equal weight to every allowed position. In a causal model, each position computes an average of the available values.
 
 ```python run
 # 1. Uniform attention
@@ -457,12 +259,9 @@ uniform = softmax(np.where(np.tril(np.ones((n, n), dtype=bool)), 0.0, -np.inf))
 print(np.round(uniform, 3))
 ```
 
-Every position gets a uniform average of itself and everything before it — a
-**running mean**.
+A query aligned with one key produces a larger score for that position, so the attention weights concentrate there. This shows how training can learn to retrieve information from earlier positions.
 
-That's a real model, if a weak one, and it's a useful sanity baseline:
-if your trained attention does no better than this, the mechanism has learned
-nothing and something is wrong upstream.
+Some trained models develop heads that copy patterns from previous positions. Researchers have identified such circuits in particular models, but they are one part of a larger mechanism; there is no single complete explanation of in-context learning.
 
 ```python run
 # 2. Making position 1 look at position 0
@@ -475,18 +274,7 @@ _, w = attention(Q, K, np.eye(2), mask=np.tril(np.ones((2, 2), dtype=bool)))
 print("position 1 attention:", w[1].round(3))
 ```
 
-A large query aligned with position 0's key produces a large score there and a
-small one elsewhere, and softmax turns that into near-total attention.
-
-Now the point: **a learned "look at the previous token" head is exactly this,
-found by gradient descent.** You constructed by hand what training discovers on
-its own.
-
-**Induction heads** are a slightly more elaborate version — they look back for the
-previous occurrence of the current token and copy whatever followed it. They're
-believed to be a large part of how in-context learning works, which is to say a
-large part of why you can show a model three examples in a prompt and have it
-pick up the pattern.
+Residual connections add the block input to the transformed output. They help information and gradients pass through deep stacks.
 
 ```python run
 # 3. Residuals
@@ -503,21 +291,6 @@ for label, fn in [("with residual", transformer_block), ("without", block_no_res
     print(f"{label:15s} activation magnitude by depth: {np.round(mags, 4)}")
 ```
 
-Without residual connections the signal decays toward zero with depth. And since
-the backward pass traverses the very same multiplications, the *gradient* decays
-too — so the early layers receive almost nothing and never learn.
+## Next
 
-The residual gives the gradient an identity path straight through:
-
-$$\frac{d}{dx}\big(x + f(x)\big) = 1 + f'(x)$$
-
-And that `1` never shrinks. However small $f'(x)$ gets, the gradient still has a
-clean route home.
-
-One term. That's why 2015's ResNet could be 152 layers deep when 2014's best was
-19 — and it's in every architecture that has mattered since. A very small idea
-with a very large blast radius.
-</Fragment>
-</TryThis>
-
-Tomorrow: what you get when you scale this to the entire internet.
+Next, we will connect transformers to large language models, training objectives, and text generation.

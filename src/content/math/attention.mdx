@@ -1,6 +1,6 @@
 ---
 title: 'Scaled dot-product attention'
-summary: 'Every position looks at every other and takes a weighted average of what it finds relevant.'
+summary: "Compare each query with keys, then combine values using the resulting weights."
 formula: '\text{Attention}(Q,K,V) = \text{softmax}\!\left(\frac{QK^{\top}}{\sqrt{d_k}}\right)V'
 docs: 'https://arxiv.org/abs/1706.03762'
 docsLabel: 'Attention Is All You Need ↗'
@@ -16,21 +16,8 @@ symbols:
   - sym: '\sqrt{d_k}'
     means: 'a scale factor keeping the dot products from growing with dimension'
 ---
+Read the formula from right to left. First, each query is compared with every key using a dot product. Divide the scores by $\sqrt{d_k}$, then apply softmax so each row becomes weights that sum to one. The weighted sum of the values gives each position its output.
 
-Read it right to left, and it stops being intimidating.
+In words: each position looks for relevant information and combines the values it finds.
 
-$QK^{\top}$ is every query dotted with every key — a square grid of "how
-relevant is position j to position i". Dividing by $\sqrt{d_k}$ keeps those
-numbers from growing with the embedding size, which would push softmax into
-its saturated region where gradients vanish. Softmax turns each row into
-weights that sum to one. Multiplying by $V$ takes the corresponding weighted
-average.
-
-So: *each position produces a query, compares it against every key, and mixes
-the values in proportion to how well they matched.* That is the whole
-mechanism, and it is the load-bearing idea of every model you currently think
-of as AI.
-
-The cost is that the grid is $n \times n$: doubling the context length
-quadruples the work. Nearly all research on long context is an attack on that
-one quadratic.
+The score matrix has one entry for every pair of positions, so its size grows as sequence length squared. This can make standard attention expensive for long inputs.

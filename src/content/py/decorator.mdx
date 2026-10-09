@@ -1,7 +1,7 @@
 ---
 title: 'decorator'
 lib: 'stdlib'
-summary: '`@thing` above a definition replaces it with `thing(definition)`. Syntax for wrapping.'
+summary: "Wrap a function or class to add reusable behavior."
 signature: |-
   @decorator
   def fn(): ...
@@ -9,14 +9,13 @@ example: |-
   @functools.cache
   def load(path):
       return expensive_parse(path)
-rust: 'There is no direct equivalent. A proc-macro attribute like `#[derive(...)]` is the closest *shape*, but a decorator runs at import time and is an ordinary function — you can write one in three lines, and it can return anything at all.'
+rust: "Python decorators wrap functions or classes. Rust attributes are related syntax, but work differently."
 rustCode: |-
   #[derive(Debug)]   // similar shape, wildly different mechanism
   struct Config;
 docs: 'https://docs.python.org/3.14/glossary.html#term-decorator'
 docsLabel: 'Python glossary ↗'
 ---
+A decorator wraps or modifies a function or class. Python uses decorators such as property and dataclass to add behavior while keeping the definition readable.
 
-You mostly consume these rather than write them: `@property`, `@staticmethod`,
-`@functools.cache`, `@dataclass`, and — in fastai — `@patch`, which bolts a
-method onto an existing class after the fact.
+You will often use decorators provided by libraries. You can write your own when you need reusable behavior around a function.

@@ -1,6 +1,6 @@
 ---
 title: 'Bias and variance'
-summary: 'Two ways to be wrong: too simple to capture the pattern, or so flexible you fit the noise.'
+summary: "Separate error from model limitations, sample variation, and noise."
 formula: '\mathbb{E}[(\hat{f} - y)^2] = \underbrace{\text{Bias}^2}_{\text{too simple}} + \underbrace{\text{Var}}_{\text{too twitchy}} + \underbrace{\sigma^2}_{\text{irreducible}}'
 docs: 'https://en.wikipedia.org/wiki/Bias%E2%80%93variance_tradeoff'
 docsLabel: 'Wikipedia ↗'
@@ -12,17 +12,10 @@ symbols:
   - sym: '\sigma^2'
     means: 'noise in the data itself — no model can beat this'
 ---
+The bias–variance decomposition separates expected squared error into bias squared, variance across training samples, and noise:
 
-High bias is a straight line through a curve: it is wrong the same way every
-time, and more data will not save it. High variance is a degree-20 polynomial
-through nine points: it nails the training set and flails between the points,
-and would look completely different given nine other points.
+$$\mathbb{E}[(\hat{f}-y)^2] = \text{Bias}^2 + \text{Variance} + \sigma^2$$
 
-The third term is the honest one. If two identical inputs have different
-labels — and in the real world they routinely do — no model can be right about
-both. Knowing roughly how large $\sigma^2$ is for your problem is what stops
-you spending time chasing an accuracy that the data cannot support.
+High bias means the model’s average predictions miss the pattern. High variance means predictions change substantially when the training sample changes. Noise is variation the available inputs cannot explain under the model assumptions.
 
-Note that very large neural networks visibly break the classical picture of
-this tradeoff, which is an active and unsettled area. See
-[Generalisation](/learn/06-generalisation/).
+The balance between bias and variance can help explain overfitting. The classic picture is not the whole story for modern overparameterised models. See [Generalisation](/learn/06-generalisation/) and the [bias–variance extra](/extras/bias-variance/).

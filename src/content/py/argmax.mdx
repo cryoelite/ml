@@ -1,13 +1,13 @@
 ---
 title: 'argmax'
 lib: 'numpy'
-summary: 'Returns the *index* of the largest value, not the value. The bridge from scores to a decision.'
+summary: "Return the index of the largest value."
 signature: 'a.argmax(axis=None)'
 example: |-
   scores = np.array([[0.1, 0.7, 0.2], [0.6, 0.3, 0.1]])
   scores.argmax(axis=-1)
 output: 'array([1, 0])'
-rust: '`iter().enumerate().max_by(|a, b| a.1.partial_cmp(b.1).unwrap()).map(|(i, _)| i)` — the awkwardness of which is why a dedicated function exists.'
+rust: "In Rust, enumerate values and find the index of the largest one."
 rustCode: |-
   let i = xs.iter().enumerate()
       .max_by(|a, b| a.1.partial_cmp(b.1).unwrap())
@@ -15,10 +15,6 @@ rustCode: |-
 docs: 'https://numpy.org/doc/stable/reference/generated/numpy.argmax.html'
 docsLabel: 'numpy.argmax ↗'
 ---
+A classifier usually returns one score per class. Taking argmax along the class axis returns the index of the largest score.
 
-A classifier does not output a class; it outputs a score per class. `argmax`
-along the class axis is the step that turns "0.1, 0.7, 0.2" into "class 1".
-
-Note that this throws away the model's confidence. `0.34, 0.33, 0.33` and
-`0.98, 0.01, 0.01` both argmax to 0, and the difference between them is
-usually the most useful thing the model told you.
+Argmax keeps only the winning class. It does not show how confident the model was: two predictions can have the same winning class but very different score distributions.

@@ -1,6 +1,6 @@
 ---
 title: 'Derivative'
-summary: 'How much the output moves when you nudge the input. The slope of the function at a point.'
+summary: "Measure how an output changes when its input changes."
 formula: 'f''(x) = \lim_{h \to 0} \frac{f(x+h) - f(x)}{h}'
 docs: 'https://en.wikipedia.org/wiki/Derivative'
 docsLabel: 'Wikipedia ↗'
@@ -12,12 +12,8 @@ symbols:
   - sym: '\lim_{h \to 0}'
     means: 'the value this ratio approaches as the nudge shrinks'
 ---
+A derivative measures how much a function’s output changes when its input changes by a small amount. It is the slope of the function at a point.
 
-Everything in training reduces to this question: *if I increase this number a
-little, does the error go up or down, and by how much?* The derivative is the
-answer, and a negative derivative means "increase this to reduce the error".
+During training, derivatives tell us how a small change to a parameter affects the loss. A negative derivative means increasing that parameter would locally reduce the loss.
 
-You will never compute a limit by hand here. What matters is the intuition —
-slope — and the three rules that get composed millions of times a second:
-the power rule, the product rule, and above all
-[the chain rule](/appendix/math/#chain-rule).
+You will not need to calculate limits by hand here. The power rule, product rule, and [chain rule](/appendix/math/#chain-rule) are enough for the examples in this course.

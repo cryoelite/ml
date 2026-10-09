@@ -7,8 +7,11 @@ kind: "craft"
 after: "03-the-shape-of-problems"
 covers: ["supervised"]
 ---
-Course examples use tidy datasets so you can focus on models. Real datasets need careful inspection. This guide covers missing values, inconsistent categories, duplicates, date handling, and checks that help prevent leakage.
-## Look at the rows. Actually look at them.
+Course datasets are tidy so you can focus on models. Real datasets need inspection before training. This guide covers duplicates, missing values, inconsistent categories, dates, and leakage.
+
+## Start by looking at the data
+
+This small dataset includes common problems: inconsistent labels, missing values, unusual numeric values, and repeated rows.
 
 ```python run setup title="a realistically awful dataset"
 import numpy as np, pandas as pd
@@ -36,8 +39,7 @@ print(df.shape)
 df.head(6)
 ```
 
-Before anything else — before a model, before a split, before a single
-`train_test_split` — run these four lines. Every time.
+Before training, check its size, missing values, numeric ranges, category spellings, and duplicates.
 
 ```python run title="the four-line first look"
 print("shape:", df.shape, " duplicated rows:", df.duplicated().sum())
@@ -46,24 +48,9 @@ print("\nnumeric summary:\n", df[["monthly_spend", "sessions"]].describe().round
 print("\nplan values:", df["plan"].value_counts(dropna=False).to_dict())
 ```
 
-Four lines, and look how much is already visible.
+The summaries reveal duplicated rows, missing values, unusual spending values, and several spellings of the same plan. These issues can distort training or evaluation if you leave them unexplained.
 
-Twenty duplicated rows. Nulls in three columns. A `monthly_spend` whose minimum
-is −1 and maximum is 999999. And a `plan` column containing `pro`, `Pro`,
-`PRO ` — three spellings of one thing, which every model on Earth will treat as
-three unrelated categories.
-
-<Aside type="key">
-`describe()` is the highest-value four seconds in this field.
-
-A minimum that should be impossible, a maximum that's obviously a sentinel, a
-mean wildly different from the median — each of those is a data problem you'd
-otherwise discover in week three, after building a model on top of it.
-</Aside>
-
-## The five things that are always wrong
-
-### 1. Duplicates
+## 1. Find duplicate rows and entities
 
 ```python run title="duplicates leak across the split"
 print("exact duplicate rows :", df.duplicated().sum())
@@ -72,17 +59,11 @@ clean = df.drop_duplicates().reset_index(drop=True)
 print(f"\n{len(df)} -> {len(clean)} rows")
 ```
 
-Exact duplicates are easy. The dangerous ones are **near**-duplicates and
-repeated entities.
+Exact duplicate rows can usually be removed. Repeated people or other entities need more care. If the same person appears in both training and validation, the validation score may be too optimistic. Split by the entity when the task requires predictions for new entities.
 
-Because if user 1042 appears in both your training and validation sets, your
-model has effectively seen the answer. Your validation score is a lie, and it's
-the flattering kind of lie that nobody investigates.
+## 2. Check sentinel values
 
-That's chapter 6's "split by person, never by row," and this is what it looks like
-before you've noticed it's needed.
-
-### 2. Sentinel values pretending to be numbers
+Some datasets use special numbers such as -1 to mean “unknown.” These values are still treated as numbers unless you replace them.
 
 ```python run title="-1 is not a small number"
 spend = clean["monthly_spend"]
@@ -93,23 +74,16 @@ print(f"\n{(spend < 0).sum()} rows of -1 (means 'unknown')")
 print(f"{(spend > 100_000).sum()} rows of 999999 (test accounts)")
 ```
 
-Someone decided `-1` means unknown and `999999` means test account. Neither is
-documented. Both are numbers, so every statistic silently includes them, and your
-model learns that a spend of −1 predicts something.
-
-The mean moves substantially; the median barely does. Which is a decent detector
-in itself: **when mean and median disagree wildly, look for sentinels or
-outliers.**
-
-The fix is to convert sentinels to `NaN` explicitly, so they're *absent* rather
-than *wrong*:
+Compare summaries, then confirm the meaning with the data source. Convert known sentinel values to missing values rather than assuming they represent real amounts.
 
 ```python run title="make the unknown actually unknown"
 clean["monthly_spend"] = clean["monthly_spend"].replace({-1: np.nan, 999999: np.nan})
 print("nulls in monthly_spend now:", clean["monthly_spend"].isna().sum())
 ```
 
-### 3. Categories that are the same thing
+## 3. Standardise category values
+
+Differences in case and whitespace can turn one category into several.
 
 ```python run title="normalise before you encode"
 print("before:", sorted(clean["plan"].dropna().unique()))
@@ -119,25 +93,11 @@ print("after :", sorted(clean["plan"].dropna().unique()))
 print("country:", sorted(clean["country"].dropna().unique()))
 ```
 
-Strip whitespace, normalise case, *then* encode. Otherwise one-hot encoding gives
-you four columns for a category with two values, each fitted on a quarter of the
-data.
+Clean category text before encoding it. Apply the same transformation during training and prediction. Better still, put the transformation in a shared pipeline so the two paths cannot silently diverge.
 
-<Aside type="warn">
-Do this in a function that runs in **both** your training pipeline and your
-serving path.
+## 4. Understand missing values
 
-If training lowercases `plan` and serving doesn't, then production sends `"Pro"`,
-your encoder has never seen it, and depending on the library you get either an
-exception or — worse — a silent fall through to "unknown" that quietly degrades
-every prediction for that segment.
-
-This is chapter 16's training/serving skew, and it is the most common production
-ML bug there is. The defence is architectural: one function, called from both
-places, tested once.
-</Aside>
-
-### 4. Missing values, and what missingness means
+Missingness may itself carry information.
 
 ```python run title="the missingness is itself a signal"
 clean["sessions_missing"] = clean["sessions"].isna().astype(int)
@@ -147,32 +107,11 @@ print("\nif those churn rates differ, 'missing' carries information")
 print("and imputing it away throws that information out.")
 ```
 
-There are three broad strategies, and the choice matters more than people
-usually treat it:
+You can drop rows, fill missing values, or add an indicator showing that a value was missing. The right choice depends on why the data is missing and how much is missing. Learn fill values from the training set only; using the full dataset leaks information into evaluation.
 
-**Drop the rows.** Fine if the missingness is rare and random. Dangerous
-otherwise — if rows are missing *because* of something related to your target,
-dropping them biases everything downstream.
+Some tree libraries can handle missing values directly. Check the behavior of the library and model you use.
 
-**Impute.** Fill with the median (robust), the mean (not robust), or a model's
-prediction. Always compute the fill value from the **training set only** — an
-imputation fitted on all the data is leakage, and it's the sneakiest kind because
-it looks like preprocessing rather than modelling.
-
-**Add an indicator column.** Impute *and* keep a boolean saying the value was
-missing. This is usually the best answer, because it lets the model use both the
-filled value and the fact of its absence.
-
-<Aside type="nice">
-Some models don't need any of this. Gradient boosting implementations handle
-`NaN` natively — they learn, per split, which direction missing values should go,
-which is often better than anything you'd impute by hand.
-
-`HistGradientBoostingClassifier` will take your nulls without complaint. That's
-one more reason chapter 7 pointed you there for tabular data.
-</Aside>
-
-### 5. Time, which is always worse than you think
+## 5. Treat time as part of the data
 
 ```python run title="the temporal sanity checks"
 print("date range:", clean["signup"].min().date(), "to", clean["signup"].max().date())
@@ -180,19 +119,11 @@ print("rows per month:")
 print(clean.groupby(clean["signup"].dt.to_period("M")).size().tail(6).to_string())
 ```
 
-Things to check, every time, before trusting a date column:
+Check time zones, impossible dates, gaps, and incomplete recent periods. If you predict future outcomes, split by time so later information does not leak into training.
 
-- **Timezones.** Is this UTC or local? Mixed? A daily aggregation that's off by
-  hours will silently smear across day boundaries.
-- **The tail.** Does the most recent period have suspiciously few rows? Data
-  often arrives late, so the last week looks like a collapse in activity and is
-  actually a collapse in ingestion.
-- **Impossible dates.** Signup after cancellation. Events in 1970 (a zero
-  timestamp) or 2038 (an overflow).
-- **The gap.** A week with no rows is usually an outage, not a quiet week. Models
-  learn the outage.
+## A reusable preparation pipeline
 
-## A pipeline you can actually reuse
+A shared function can apply transformations that do not learn from the data, such as trimming spaces and replacing known sentinels.
 
 ```python run title="one function, both paths"
 def prepare(raw: pd.DataFrame) -> pd.DataFrame:
@@ -217,15 +148,7 @@ print("spend range:", round(prepared['monthly_spend'].min(), 2),
       "to", round(prepared['monthly_spend'].max(), 2))
 ```
 
-Note the docstring, because the distinction it draws is the important one:
-
-**Stateless transforms** (strip, lowercase, replace sentinels, derive flags) go in
-`prepare`. They're the same everywhere and can run anywhere.
-
-**Fitted transforms** (imputation values, encoders, scalers) must be *learned on
-training data* and *applied* to validation and production. That's precisely what
-a scikit-learn `Pipeline` exists for, and it's why fitting a scaler on your whole
-dataset before splitting is leakage — a subtle, common, entirely invisible kind.
+Fitted transformations are different. Imputation values, category vocabularies, and scaling statistics must be learned on the training split and then applied to validation or production data. A scikit-learn pipeline keeps those steps together.
 
 ```python run title="fitted state belongs in a Pipeline"
 from sklearn.pipeline import Pipeline
@@ -258,44 +181,21 @@ print(" model lands at or slightly BELOW the trivial baseline, which is the")
 print(" correct outcome and exactly what chapter 6 predicts)")
 ```
 
-Note the result: the model scores **below** the majority baseline. That is the
-correct outcome — the labels in this toy dataset are random, so there is no
-signal, and a flexible model given no signal will fit noise and do slightly worse
-than always guessing the majority class.
+The labels in this example are random, so a model should not discover a useful pattern. Compare its score with a simple baseline. A result below baseline can be a sign that the data contains no predictive signal.
 
-If you ever see that on a real project, it isn't a bug in your pipeline. It's the
-pipeline telling you something true.
+The pipeline’s unknown-category setting handles categories absent from training, and its minimum-frequency setting can group rare categories. Choose these settings based on the dataset and task.
 
-Two arguments in there are worth stealing permanently.
+## A practical checklist
 
-`handle_unknown="ignore"` means a category that appears in production but not in
-training becomes all-zeros instead of an exception. `min_frequency=5` folds rare
-categories together, so you don't get a column fitted on two rows.
+1. Check the number of rows, duplicate rows, and missing values.
+2. Review numeric ranges for impossible values and special codes.
+3. Inspect category values for spelling and whitespace variants.
+4. Check date ranges, gaps, and incomplete periods.
+5. Ask whether each feature would be available when making a prediction.
+6. Look at the target across key features and groups.
+7. Read a sample of complete rows.
+8. Split by the right unit: person, time, location, or another group.
+9. Fit imputation, encoding, and scaling on training data only.
+10. Use the same preparation logic for training and prediction.
 
-Both are one word each and both prevent a real production failure.
-
-## The checklist
-
-Print this. It's ten minutes and it catches most of it.
-
-1. `df.shape`, `df.duplicated().sum()`, `df.isna().sum()`
-2. `df.describe()` — check every min and max for impossible values
-3. `value_counts()` on every categorical — look for case and whitespace variants
-4. Date range, rows per period, and the tail specifically
-5. For each column: **would I have this at prediction time?** (leakage)
-6. Group the target by each feature — does anything move? (signal)
-7. Look at twenty actual rows. With your eyes. All the way across.
-8. Split by the right unit — person, session, time — not randomly
-9. All fitted state inside a Pipeline, fitted on train only
-10. The same `prepare()` function in training and serving
-
-<Aside type="key">
-Step 7 is the one people skip and the one that finds things nothing else does.
-
-Summary statistics can't tell you that a text field contains the string
-`"NULL"`, or that a "country" column is full of phone codes, or that every row
-after March has a duplicated timestamp.
-
-Twenty rows. Read across. It takes two minutes and it has saved me more time
-than any other habit on this list.
-</Aside>
+A few real rows can reveal errors that summary statistics miss. Inspecting them is a quick, useful habit.

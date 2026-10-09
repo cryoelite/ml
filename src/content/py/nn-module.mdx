@@ -1,7 +1,7 @@
 ---
 title: 'torch.nn.Module'
 lib: 'torch'
-summary: 'Base class for anything with learnable parameters. Subclass it, define `forward`, and call the instance.'
+summary: "Define a PyTorch module with layers and parameters."
 signature: |-
   class Net(nn.Module):
       def __init__(self): ...
@@ -11,18 +11,13 @@ example: |-
   net = nn.Sequential(nn.Linear(784, 128), nn.ReLU(), nn.Linear(128, 10))
   sum(p.numel() for p in net.parameters())
 output: '101770'
-rust: 'A trait with one required method, plus reflection: the base class walks your attributes to discover which of them are parameters. There is no Rust equivalent to that discovery step — `burn` uses a derive macro to generate it instead.'
+rust: "A PyTorch module registers layers and parameters assigned to it. Rust libraries may use traits or derive macros."
 rustCode: |-
   #[derive(Module, Debug)]
   struct Net<B: Backend> { l1: Linear<B>, l2: Linear<B> }
 docs: 'https://pytorch.org/docs/stable/generated/torch.nn.Module.html'
 docsLabel: 'Module docs ↗'
 ---
+A PyTorch Module groups layers and their parameters. Assigning a layer or Parameter as an attribute registers it so the module can find its parameters and move them between devices.
 
-The magic that is worth knowing about: assigning a `Parameter` or a submodule
-to `self` registers it. That is how `net.parameters()` can enumerate every
-weight in a hundred-layer network without you maintaining a list, and how
-`net.to('mps')` can move all of them at once.
-
-Call the module, do not call `forward` directly. `net(x)` runs hooks that
-`net.forward(x)` skips, and some of them matter.
+Call a module as model(x), not by calling its forward method directly. The normal call path runs hooks and other module behavior.

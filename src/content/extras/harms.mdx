@@ -7,68 +7,27 @@ kind: "culture"
 after: "12-embeddings-and-tabular"
 covers: ["deploy"]
 ---
-A model can repeat patterns in its data, make mistakes unevenly across groups, or change the system it is meant to predict. This guide describes common failure modes and practical checks to consider before deployment.
-## 1. The training data contains the past
+Machine learning systems can repeat patterns in their data, fail more often for some groups, or change the world they measure. These risks matter most when a model affects people’s access to money, work, care, safety, or information.
 
-This is the central one, and everything else is a variation.
+## Historical data can carry unfair decisions
 
-A model fitted to historical decisions learns to reproduce historical decisions.
-If those decisions were biased, the model is a bias-reproduction machine with
-better throughput and a veneer of objectivity.
+A model learns patterns from examples. If the examples reflect unequal treatment, the model may learn to repeat it.
 
-The mechanism is not mysterious. It's chapter 1's inversion, working exactly as
-specified: you supplied examples, and it found the rules. If the examples encode
-a pattern of who got hired, or who got a loan, or who got stopped, then that
-pattern *is* the signal, and the model will find it because finding it reduces
-the loss.
+For example, past hiring decisions may reflect who a company preferred, rather than who could do the job. Arrest records reflect where police looked, not only where crime happened. Health spending can look like a measure of need, but it also reflects who had access to care. If a model is trained to predict spending, it may mistake lower access for lower need.
 
-**The famous cases follow this shape exactly.** A hiring model trained on a
-decade of a company's own hiring decisions learns that decade's preferences. A
-recidivism model trained on re-arrest data learns policing patterns, because
-re-arrest measures police attention as much as it measures crime. A healthcare
-model trained on historical *spend* as a proxy for *need* learns that groups who
-historically received less care need less care.
+Removing a sensitive column does not guarantee fair results. Other inputs can carry similar information. A location, name, or purchase history may reveal patterns linked to a protected group. Keep the information needed to check outcomes, and measure performance across groups.
 
-<Aside type="key">
-Notice that last one, because it's the sharpest.
+## Feedback can reinforce a model’s predictions
 
-The healthcare model wasn't trained on race. It was trained on cost. But cost was
-a proxy for need, and access to care differed by group — so "how much was spent
-on this patient" quietly encoded "how much access did this patient have."
+Suppose a system sends more patrols to places with more recorded crime. More patrols can lead to more recorded incidents. The next model then sees those records and sends more patrols there again.
 
-**Removing the sensitive attribute does not remove the bias.** In a rich feature
-set, protected characteristics are usually reconstructible from postcode,
-purchase history, name, device, and a dozen other things.
+Similar loops can occur in recommendations, credit, and hiring. A recommendation gets more attention because it is shown more often. A person denied credit may have fewer chances to build a repayment history.
 
-This is the single most common misconception in the area, and it's worth being
-very clear about: dropping the `race` column does not make a model race-blind. It
-makes the model's use of race *unmeasurable*, which is strictly worse — you've
-kept the behaviour and lost the ability to audit it.
-</Aside>
+When possible, keep a way to observe outcomes outside the model’s decisions. That helps you tell whether the model is measuring a real pattern or reinforcing its own earlier choices.
 
-## 2. Feedback loops make it worse over time
+## Overall scores can hide who is struggling
 
-Chapter 16 introduced feedback loops as a data-quality problem. They're also a
-fairness problem, and the mechanism compounds.
-
-A predictive policing model sends more officers to areas with more recorded
-crime. More officers means more recorded crime in those areas. The next training
-run sees the increase and sends more officers.
-
-Nothing in that loop is a bug. Every component works as designed. The system
-converges on a conclusion it manufactured itself.
-
-The same shape appears in content recommendation (show what's engaged with →
-that gets engaged with more → recommend it harder), credit (deny → no repayment
-history → look riskier → deny), and hiring (screen out → no track record → screen
-out).
-
-**The mitigation is structural, not statistical:** hold out a slice of decisions
-that bypass the model, so you keep observing what would have happened. It costs
-something real. It's the only way to keep seeing the world rather than your own
-reflection.
-
-## 3. Aggregate metrics hide subgroup failure
+This example gives a model high overall accuracy, even though it makes many more mistakes for one group.
 
 ```python run title="93% accurate, and failing one user in ten"
 import numpy as np
@@ -89,46 +48,17 @@ print("\nThe headline number is fine. One in ten users gets a system that")
 print("fails nearly a third of the time, and no aggregate metric shows it.")
 ```
 
-A single accuracy number averages over everybody, and averaging is exactly the
-operation that hides a minority.
+Check important metrics by relevant groups, as well as overall. A single average cannot tell you whether the system works equally well for everyone.
 
-This is mechanically inevitable and worth internalising: a group that is 10% of
-your data contributes 10% of the weight to your loss. The optimiser is doing
-precisely what you asked. It is trading their accuracy for the majority's,
-because that's what minimising average loss *means*.
+A 2018 study of three commercial gender-classification systems reported error rates up to 34.7% for darker-skinned women and 0.8% for lighter-skinned men in its evaluation. The result showed why the makeup of an evaluation set matters. [Read the study](https://proceedings.mlr.press/v81/buolamwini18a.html).
 
-<Aside type="key">
-**Always report your metric sliced by every group you can identify.**
+## Fairness has more than one definition
 
-Not because of a policy. Because an aggregate number does not tell you
-whether the system works, and you'd want to know that about any system you
-shipped.
+Fairness measures can ask different questions. Demographic parity compares the rate of positive decisions. Equal opportunity compares true-positive rates. Predictive parity compares precision.
 
-This is the cheapest intervention on this entire page — three lines of `groupby`
-— and it catches more real problems than anything else here.
-</Aside>
+When groups have different underlying rates and predictions are imperfect, some combinations of these measures cannot all hold at once. The right choice depends on the decision and its consequences. Make the choice explicit, explain why it fits, and involve the people accountable for the system. [Kleinberg, Mullainathan, and Raghavan describe this trade-off](https://arxiv.org/abs/1609.05807).
 
-The best-known instance: commercial face analysis systems evaluated in 2018 were
-found to have error rates under 1% for lighter-skinned men and above 30% for
-darker-skinned women. The published accuracy numbers were high. The published
-accuracy numbers were averages.
-
-## 4. "Fairness" is several incompatible things
-
-Here's a uncomfortable technical fact, and I'd rather you meet it here
-than in a review meeting.
-
-There are multiple reasonable definitions of fairness, and they are
-**mathematically incompatible** except in degenerate cases.
-
-- **Demographic parity** — the same positive rate across groups.
-- **Equal opportunity** — the same true-positive rate across groups.
-- **Predictive parity** — the same precision across groups.
-
-If base rates differ between groups, you cannot satisfy all three at
-once. This is a theorem, not an engineering shortfall — it was proved in the
-context of the COMPAS recidivism debate, where two sides were each correctly
-pointing at a different definition and talking past each other.
+This example uses the same score rule for two groups with different base rates.
 
 ```python run title="you have to choose, and the choice has consequences"
 # Two groups, different base rates, one shared threshold.
@@ -149,82 +79,23 @@ print("\nSame model, same threshold. The rates differ because the base rates do.
 print("Equalising any one column requires unequalising another.")
 ```
 
-The practical consequence: **somebody has to choose which definition applies to
-this system, and it should be an explicit, documented, accountable decision** —
-not an accident of whichever default the library shipped with.
+## Fluent output can still be wrong
 
-Your job as the engineer is often to surface the choice clearly enough that
-somebody with the authority to make it, makes it.
+Language models can produce smooth, confident text without checking whether it is true. A fabricated source or incorrect summary can cause harm when a user cannot verify it.
 
-## 5. Confident wrongness at scale
+For tasks where accuracy matters, make sources easy to check, use code for calculations, and show uncertainty when it is relevant. Design the experience so a person can make an informed decision instead of quickly approving a model’s suggestion.
 
-A language model produces fluent, well-formatted, confident text. Fluency is what
-it was optimised for; correctness was never a term in the loss.
+## Data work has human costs
 
-Chapter 14 covered the mechanism. The harm is what happens when that output meets
-a person who has no way to tell — a fabricated citation in a legal filing, an
-invented drug interaction, a confidently wrong summary of somebody's medical
-history.
+Training data may include people’s writing, images, records, or code. Ask how it was collected and whether the people involved knew how it would be used. Annotation and content review can also involve low-paid or stressful work. Those costs belong in an honest account of a system.
 
-The scale is the part that's new. One person being confidently wrong is an
-ordinary Tuesday. A system being confidently wrong ten million times a day, in a
-consistent direction, is a different kind of object.
+## Practical checks
 
-**What helps:** show sources and make them checkable. Constrain output shape.
-Keep the arithmetic in code. Design the interface so the human is deciding rather
-than approving. Make uncertainty visible rather than smoothing it away.
+1. Compare key metrics across groups before reporting one overall result.
+2. Record the model’s intended use, training data, evaluation results, and known limits.
+3. Ask who created the labels and what those labels actually measure.
+4. For consequential decisions, give people a meaningful way to review and change outcomes.
+5. Keep enough logs to investigate errors, including the model version.
+6. Say when the evidence is too limited to know whether the system works for a group.
 
-## 6. The costs land somewhere
-
-Two things that are easy not to think about, and worth thinking about once:
-
-**The data came from somewhere.** Training corpora contain people's writing,
-photographs, medical records and code, frequently gathered without meaningful
-consent. Whatever your view on the law, "was this obtained in a way the people
-involved would recognise as fair?" is a question with a real answer.
-
-**Someone did the labelling.** Content moderation and annotation work — including
-labelling the material that makes a model refuse things — is often outsourced,
-low-paid, and psychologically harmful. It's a real cost, borne by real people,
-and it's largely invisible in the product.
-
-## What you can actually do
-
-Not everything here is in your control. Quite a lot is. From most to least
-leverage:
-
-1. **Slice every metric by every group you can identify.** Three lines. Do it
-   before you report a single aggregate number, and put the slices in the same
-   document.
-
-2. **Write down what the model is for, and what it isn't.** A short model card:
-   intended use, training data, evaluation, known failure modes. Half a page.
-   It's the artefact that stops a churn model being repurposed as a hiring
-   filter eighteen months later by somebody who wasn't in the room.
-
-3. **Ask where the labels came from.** Not "what's the schema" — who decided,
-   under what pressure, measuring what. The healthcare case above was a labelling
-   decision, not a modelling one.
-
-4. **Keep a human in the loop for consequential decisions**, and design so the
-   human decides. A screen with an accept button and a queue of 400 is
-   not a human in the loop; it's a human rubber-stamping at speed.
-
-5. **Log enough to audit.** Chapter 16's point, with a second reason. Inputs,
-   outputs, model version. Without it "why did it decline this?" is unanswerable,
-   and unanswerable is its own kind of harm.
-
-6. **Say the uncomfortable thing early.** "We don't have enough data on this
-   group to know if it works for them" is cheap in week two and expensive in
-   month nine. You're often the only person in the room who can tell.
-
-<Aside type="key">
-None of this requires you to be an ethicist, and none of it requires a committee.
-
-It's mostly the same instinct you already have about correctness and
-observability, pointed at a slightly different question: **not just "is this
-right on average?" but "who is it wrong for, and what happens to them?"**
-
-You're going to be one of very few people who can actually see the answer. That's
-not a burden so much as a interesting part of the job.
-</Aside>
+The core question is not only “How often is the model right?” Ask who it is wrong for, and what happens when it is wrong.

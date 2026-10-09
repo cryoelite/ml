@@ -1,7 +1,7 @@
 ---
 title: 'requires_grad / backward'
 lib: 'torch'
-summary: 'Tensors record the operations applied to them; `.backward()` replays that tape to fill in `.grad`.'
+summary: "Use recorded tensor operations to calculate gradients."
 signature: |-
   x = torch.tensor(2.0, requires_grad=True)
   loss.backward()   ->   x.grad
@@ -11,17 +11,10 @@ example: |-
   y.backward()
   x.grad
 output: 'tensor(6.)'
-rust: 'No analogue in std. It is operator overloading that, as a side effect, builds a DAG of the computation, then walks it backwards applying the chain rule. `dfdx` and `burn` do the same thing with types instead of a runtime tape.'
+rust: "Automatic differentiation records operations and applies the chain rule backward through the computation."
 docs: 'https://pytorch.org/docs/stable/notes/autograd.html'
 docsLabel: 'Autograd mechanics ↗'
 ---
+PyTorch records operations on tensors that require gradients. Calling backward applies the chain rule to compute derivatives.
 
-$y = x^2$, so $dy/dx = 2x$, and at $x = 3$ that is 6. PyTorch did not do
-algebra to get this — it recorded that a squaring happened and applied the
-known derivative of squaring in reverse.
-
-Gradients **accumulate** rather than overwrite. That is a feature (it lets you
-split a large batch across several backward passes) and a trap: forgetting
-`optimiser.zero_grad()` means every step uses the sum of all gradients so far,
-and training diverges for no visible reason. See
-[Backpropagation](/learn/09-backpropagation/).
+Gradients accumulate by default. Clear them before each training step unless you intentionally want to combine gradients across batches. See [Backpropagation](/learn/09-backpropagation/).

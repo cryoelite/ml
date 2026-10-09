@@ -7,16 +7,11 @@ kind: "theory"
 after: "14-llms"
 covers: ["loss"]
 ---
-Information theory gives a useful way to describe prediction: a good model assigns higher probability to events that occur. This guide introduces surprise, entropy, cross-entropy, KL divergence, and perplexity.
-## Information is surprise
+Information theory gives a useful language for prediction. It connects probability, surprise, entropy, and the cross-entropy loss used in classification and language modelling.
 
-Shannon's starting question, in 1948: how much information is in a message?
+## Surprise
 
-His answer inverts the intuitive framing. Information isn't about *content* — it's
-about **how surprised you were**. Learning something you already expected tells
-you nothing. Learning something unlikely tells you a lot.
-
-So define the information in an event of probability $p$ as:
+An unlikely event is more surprising than an expected one. The information in an event with probability p is:
 
 $$
 I(p) = -\log_2 p \quad \text{bits}
@@ -31,18 +26,11 @@ for p, label in [(1.0, "certain"), (0.5, "a coin flip"), (0.25, "one of four"),
     print(f"P = {p:8.5f}  ({label:16s}) -> {bits:6.2f} bits of information")
 ```
 
-Read the extremes. A certain event carries **zero** bits — you learned nothing,
-you already knew. One of 1024 equally likely things carries exactly 10 bits, which
-is $\log_2 1024$, which is the number of yes/no questions you'd need.
+A certain event gives zero bits because it provides no new information. One outcome among 1,024 equally likely outcomes gives 10 bits. The logarithm also makes information add across independent events.
 
-That's why the log is there. It makes information **additive**: two independent
-events multiply their probabilities and add their bits, which is the property you
-want from a measure of "how much did I learn."
+## Entropy: average surprise
 
-## Entropy is average surprise
-
-**Entropy** is the expected information of a distribution — how surprising it is
-*on average*:
+Entropy is the average information in a distribution:
 
 $$
 H(p) = -\sum_i p_i \log_2 p_i
@@ -64,21 +52,11 @@ for name, p in cases.items():
     print(f"{name:22s} {entropy(p):6.3f} bits")
 ```
 
-A fair coin is exactly 1 bit — the definition of a bit, in fact. A certain
-outcome is 0. And note the skewed 8-outcome case: eight possibilities, but only
-0.68 bits, because you can nearly always guess right.
+A fair coin has one bit of entropy. A certain outcome has zero. For a known distribution, entropy describes the minimum average code length needed in the ideal limit.
 
-**Entropy is the theoretical minimum average bits needed to encode outcomes from
-this distribution.** That's not a metaphor — it's Shannon's source coding theorem,
-and it's the reason this quantity matters practically rather than just
-aesthetically.
+## Cross-entropy: predictions from a model
 
-## Cross-entropy: encoding with the wrong beliefs
-
-Now the cross-entropy loss from the earlier lessons.
-
-**Cross-entropy** is the average bits needed if you encode data that truly follows
-$p$, using a code optimised for a *different* distribution $q$:
+Suppose the true outcomes follow distribution p, while your model predicts q. Cross-entropy is the average cost of using q to encode outcomes from p:
 
 $$
 H(p, q) = -\sum_i p_i \log q_i
@@ -100,25 +78,15 @@ for name, q in {
     print(f"{name:>28s} {ce:14.4f} {ce - entropy(truth):9.4f}")
 ```
 
-Three things fall straight out of that table, and they're the whole point:
-
-**Cross-entropy is minimised when $q = p$.** So minimising it drives your model's
-distribution toward the truth. That's the entire justification for the loss.
-
-**It can never go below the true entropy.** There's a floor, set by the data's own
-randomness — which is the irreducible error from the bias–variance extra, wearing
-information-theoretic clothes.
-
-**The excess is the price of being wrong.** That excess has a name.
+Cross-entropy is minimised when the model’s probabilities match the target distribution. Its minimum is the entropy of the data; prediction error adds a further cost.
 
 ## KL divergence
+
+The extra cost is the Kullback–Leibler divergence:
 
 $$
 D_{KL}(p \parallel q) = H(p, q) - H(p) = \sum_i p_i \log\frac{p_i}{q_i}
 $$
-
-The **Kullback–Leibler divergence**: the extra bits you pay for believing $q$ when
-the truth is $p$. Zero when they match, positive otherwise.
 
 ```python run title="cross-entropy = entropy + KL"
 def kl(p, q):
@@ -133,44 +101,13 @@ print(f"sum         = {entropy(truth) + kl(truth, q):.4f}")
 print(f"H(p, q)     = {-(truth * np.log2(q)).sum():.4f}   <- the same number")
 ```
 
-<Aside type="key">
-So here's why minimising cross-entropy is the right thing to do, stated precisely:
+KL divergence is zero when the distributions match and positive otherwise. It is not symmetric: swapping p and q can change the result.
 
-$$H(p,q) = \underbrace{H(p)}_{\text{fixed by the data}} + \underbrace{D_{KL}(p \parallel q)}_{\text{yours to minimise}}$$
+For a fixed data distribution p, minimising cross-entropy over q is equivalent to minimising this KL divergence, because H(p) does not depend on the model.
 
-$H(p)$ doesn't depend on your model at all — it's a property of the world.
+## Perplexity
 
-So **minimising cross-entropy is exactly minimising the KL divergence between
-your model and reality.** Not approximately. Exactly, up to a constant you can't
-influence.
-
-That's the justification chapter 4 didn't have room for.
-</Aside>
-
-<Aside type="warn">
-KL is **not symmetric**: $D_{KL}(p \parallel q) \neq D_{KL}(q \parallel p)$. It is
-not a distance, whatever it feels like.
-
-And the asymmetry has real consequences. Minimising $D_{KL}(p \parallel q)$ —
-what maximum likelihood does — is *mode-covering*: $q$ must put mass wherever $p$
-has mass, or the $\log(1/q)$ term explodes. Your model spreads itself to cover
-everything, including averaging between modes it can't represent.
-
-Minimising the reverse, $D_{KL}(q \parallel p)$, is *mode-seeking*: $q$ can safely
-ignore regions where $p$ has mass, so it picks one mode and commits.
-
-That's the technical root of the VAE-blur-versus-GAN-sharpness difference from
-the generative models extra. Two directions of the same quantity, two very
-different failure modes.
-</Aside>
-
-## Perplexity, and reading language model papers
-
-Language model papers rarely report cross-entropy. They report **perplexity**:
-
-$$
-\text{perplexity} = 2^{H(p,q)} \quad \text{(or } e^{\text{loss}} \text{ in nats)}
-$$
+Language-model papers often report perplexity rather than cross-entropy. If loss is measured in nats, perplexity is the exponential of the loss. If it is measured in bits, use two to the power of the loss.
 
 ```python run title="what a perplexity number means"
 print(f"{'loss (nats)':>12s} {'perplexity':>12s}   interpretation")
@@ -179,53 +116,11 @@ for loss in [np.log(50000), 5.0, 3.0, 2.0, 1.5]:
           f"as unsure as picking uniformly among {np.exp(loss):.0f} tokens")
 ```
 
-That's the useful reading: **perplexity is the effective number of options the
-model is choosing between.**
+Perplexity can be read as an effective number of choices at each position. Lower is better when comparing models on the same data, tokenisation, and evaluation setup. Numbers from different datasets or tokenisers may not be directly comparable.
 
-A model with perplexity 50,000 on a 50,000-token vocabulary has learned nothing —
-it's guessing uniformly. Perplexity 20 means that at each position it's about as
-uncertain as picking among 20 words, which is a good language model.
+## Prediction and compression
 
-Exponentiating makes the numbers *comparable to intuition*. A loss dropping from
-3.0 to 2.9 sounds trivial; perplexity dropping from 20 to 18 is visibly a tenth
-of the remaining uncertainty gone.
-
-<Wonder title="A language model is a compression algorithm">
-Now the connection I've been building toward, and it's one of my
-favourite facts in this subject.
-
-Shannon's source coding theorem says the optimal code length for a symbol of
-probability $q$ is $-\log_2 q$ bits.
-
-A language model outputs exactly that: a probability for every possible next
-token. So you can use it as the probability model inside an arithmetic coder —
-and compress text at precisely the cross-entropy loss, in bits per token.
-
-**The loss you've been minimising *is* the compressed file size.**
-
-Not analogous to it. Equal to it, up to a negligible constant.
-
-Which means every improvement in language modelling is, exactly and literally, an
-improvement in text compression. And the best neural compressors do beat
-general-purpose algorithms like gzip and xz by a wide margin, because they
-understand what they're compressing.
-
-Turn it around and it gets more interesting still. To compress well you must
-predict well. To predict the next word of a proof, or a chess game, or a piece of
-code, you need to have modelled something about proofs, chess and code.
-
-So there's a real sense — this is Shannon's, not mine — in which **compression and
-understanding are the same problem**. A model that can compress all human text
-into very few bits must have found the structure in it, because structure is
-exactly what redundancy is.
-
-That's an old idea (Solomonoff, Kolmogorov, Chaitin), it's the basis of the
-minimum description length principle, and there's a long-running competition —
-the Hutter Prize — that treats compressing a chunk of Wikipedia as an AI
-benchmark on precisely these grounds.
-
-You've been training compressors this whole time.
-</Wonder>
+A probability model can be used to encode data: common events need fewer bits, and rare events need more. Under ideal arithmetic coding, the expected code length is tied to cross-entropy.
 
 ```python run title="the loss is the file size"
 # The bigram model's cross-entropy on its own corpus, read as bits per character.
@@ -248,35 +143,16 @@ print(f"implied compression ratio : {8 / bits_per_char:.1f}x")
 print(f"\n{len(text)} chars -> {total_bits / 8:.0f} bytes at the model's own loss")
 ```
 
-A model built from a dictionary of character counts is a working compressor. A
-transformer is the same thing with a much better probability estimate.
+This links prediction and compression mathematically. Better probability estimates can make shorter encodings. Compression alone, however, does not prove that a model understands the content.
 
-## The vocabulary, collected
+## Terms you will see
 
-<div class="table-scroll">
-
-| Term | Means | Where you'll meet it |
+| Term | Meaning | Common use |
 |---|---|---|
-| **Entropy** $H(p)$ | average surprise; the compression floor | decision tree splits, the noise floor |
-| **Cross-entropy** $H(p,q)$ | bits when you believe $q$ and reality is $p$ | your loss function, every chapter |
-| **KL divergence** | the excess over the floor | VAEs, RLHF's constraint, distillation |
-| **Perplexity** | $e^{\text{loss}}$; effective number of choices | every language model paper |
-| **Mutual information** | how much one variable tells you about another | feature selection, representation learning |
+| Entropy | Average surprise in a distribution | Decision trees and information limits |
+| Cross-entropy | Cost of predictions against a target distribution | Classification and language-model loss |
+| KL divergence | Difference between distributions, with direction | Variational methods and distillation |
+| Perplexity | Exponential of language-model loss | Language-model evaluation |
+| Mutual information | How much one variable tells us about another | Feature and representation analysis |
 
-</div>
-
-Three places this shows up that you'd otherwise have to take on faith:
-
-**Decision trees** split on **information gain** — the reduction in entropy from
-a split. Chapter 7's "impurity" is this quantity.
-
-**Knowledge distillation** trains a small model to match a large one's full output
-*distribution*, minimising KL rather than cross-entropy against hard labels. The
-extra information in "it was 70% cat, 25% dog" is why distillation works better
-than retraining on labels.
-
-**RLHF** adds a KL penalty against the original model, keeping the tuned policy
-from drifting too far. That's the term stopping a reward-hacked model from
-collapsing into gibberish that happens to score well.
-
-Same quantity, three chapters, one idea.
+These quantities appear in many parts of machine learning. The practical question is often simple: what distribution is the model predicting, and what does its loss measure?

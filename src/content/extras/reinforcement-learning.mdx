@@ -7,52 +7,23 @@ kind: "sibling"
 after: "15-unsupervised-and-the-rest"
 covers: ["rl"]
 ---
-Reinforcement learning trains an agent through actions and feedback from an environment. This guide introduces rewards, policies, value estimates, and exploration, then explains why deep reinforcement learning is difficult to evaluate.
-## What makes it different
+In supervised learning, examples include an input and a target answer. In reinforcement learning (RL), an agent takes actions and receives rewards from an environment. It must learn which actions lead to good outcomes, sometimes after many steps.
 
-Everything in the sixteen chapters was **supervised**: here's an input, here's the
-right answer, minimise the difference.
+## The basic loop
 
-RL changes three things, and each one costs you something:
+The agent observes a state, chooses an action, receives a reward, and sees a new state. Rewards may be delayed, so the agent must work out which earlier actions contributed to the result. This is called credit assignment.
 
-**The feedback is evaluative, not instructive.** Nobody tells you the right move.
-You get a number saying how well that went. "You lost" doesn't tell you which of
-forty moves was the mistake.
+The agent also generates its own experience. Changing its policy changes which situations it sees, so training data is not fixed as it is in ordinary supervised learning.
 
-**It's delayed.** The reward arrives long after the action that caused it. This is
-the **credit assignment** problem, and it's the hard one.
+## Core terms
 
-**The agent generates its own data.** A bad policy visits bad states, collects
-data about bad states, and learns mostly about bad states. Your training
-distribution is a consequence of your current parameters — which breaks essentially
-every assumption chapter 6 relied on.
+- **State** ($s$): information the agent observes about the current situation.
+- **Action** ($a$): a choice available to the agent.
+- **Reward** ($r$): feedback from the environment.
+- **Policy** ($\pi$): a rule for choosing actions.
+- **Value** ($V$ or $Q$): an estimate of future rewards from a state or state-action pair.
 
-<Aside type="key">
-That third point is the one that makes RL harder, and it's worth
-dwelling on.
-
-In supervised learning your dataset is fixed. You can shuffle it, split it, and
-compute an honest validation score, because the data doesn't care what your model
-thinks.
-
-In RL, improving your policy **changes your dataset**. There's no fixed
-distribution to hold out. A validation set isn't a meaningful object in the same
-way. And the feedback loop that chapter 16 warned about as a production hazard is
-here as the *core mechanic*.
-</Aside>
-
-## The vocabulary
-
-Five words, and they're all you need to read the first page of an RL paper.
-
-- **State** ($s$) — what the agent can currently observe.
-- **Action** ($a$) — what it can do.
-- **Reward** ($r$) — the scalar it gets back.
-- **Policy** ($\pi$) — the thing you're learning: a map from states to actions.
-- **Value** ($V$ or $Q$) — expected total future reward. $V(s)$ from a state;
-  $Q(s,a)$ from a state having taken a particular action.
-
-The loop: observe state, choose action, get reward and a new state, repeat.
+This example uses a small corridor with a reward at each end.
 
 ```python run setup title="a tiny world"
 import numpy as np
@@ -74,17 +45,15 @@ print("reward is zero everywhere except the two ends —")
 print("so the agent must connect an action at state 3 to an outcome three steps later.")
 ```
 
-## Discounting, and why it exists
+## Future rewards and discounting
 
-Future reward is worth less than immediate reward, by a factor $\gamma$ per step:
+A reward received later is often multiplied by a discount factor $\gamma$:
 
 $$
 G_t = r_t + \gamma r_{t+1} + \gamma^2 r_{t+2} + \dots
 $$
 
-Two reasons, one practical and one mathematical. The practical one is that the
-future is uncertain. The mathematical one is that without discounting, an infinite
-episode has infinite value and nothing can be compared to anything.
+A lower discount puts more weight on near-term rewards. Discounting can also help keep the total finite in tasks that continue indefinitely.
 
 ```python run title="what gamma does to your horizon"
 for g in [0.5, 0.9, 0.99]:
@@ -93,22 +62,15 @@ for g in [0.5, 0.9, 0.99]:
           f"   (effective horizon ~{horizon:.0f} steps)")
 ```
 
-$\gamma$ is not a minor knob. It sets **how far ahead the agent can see**, and
-$1/(1-\gamma)$ is a good mental estimate of that horizon. Set it too low and the
-agent can't plan; too high and learning becomes unstable.
-
 ## Q-learning
 
-The classic algorithm, and it's short enough to write in full.
-
-Learn $Q(s,a)$ — the expected total reward from taking action $a$ in state $s$ —
-and then act greedily with respect to it.
-
-The update is the **Bellman equation** turned into a learning rule:
+Q-learning estimates the value of taking each action in each state. It updates an estimate toward the immediate reward plus the best estimated future value:
 
 $$
-Q(s,a) \leftarrow Q(s,a) + \alpha\Big[\underbrace{r + \gamma \max_{a'} Q(s',a')}_{\text{better estimate}} - Q(s,a)\Big]
+Q(s,a) \leftarrow Q(s,a) + \alpha\left[r + \gamma\max_{a'}Q(s',a') - Q(s,a)\right]
 $$
+
+The difference inside the brackets is the temporal-difference error.
 
 ```python run title="Q-learning, entire"
 def q_learn(episodes=500, alpha=0.1, gamma=0.95, eps=0.2, seed=0, max_steps=50):
@@ -132,33 +94,11 @@ for s in range(1, N_STATES - 1):
     print(f"{s:6d} {Q[s,0]:9.3f} {Q[s,1]:10.3f}  {'right' if Q[s].argmax() else 'left'}")
 ```
 
-The agent learned to go right from every state, and the values rise as you get
-closer to the goal — because the discounted reward is larger when it's fewer steps
-away.
+In this small environment the table can represent every state and action. The agent uses some random actions while learning, so it can discover rewards it has not reached yet.
 
-Nobody told it the goal was on the right. It found out by wandering into it.
+## Bootstrapping
 
-<Wonder title="Bootstrapping: learning from your own guesses">
-Look at that update again, because there's something slightly outrageous in it.
-
-$$Q(s,a) \leftarrow Q(s,a) + \alpha\big[r + \gamma \max_{a'} Q(s',a') - Q(s,a)\big]$$
-
-The target contains $Q$ itself. We're updating our estimate toward a number
-computed **from the very estimate we're updating.**
-
-By every instinct you have about circular reasoning, this should not work. It's
-pulling on your own bootstraps — which is why the technique is literally called
-*bootstrapping*.
-
-But it does work, because of the one real thing in the expression: $r$. Actual
-reward, from the actual world.
-
-Every update mixes a little bit of ground truth with a lot of guess. States next
-to a reward become accurate first. Their neighbours then bootstrap off *them* and
-become accurate. Truth spreads outward from the places where reality touched the
-system, one step per update sweep.
-
-Watch it happen:
+Q-learning’s target includes an estimate of future reward. Learning from an estimate that is itself still changing is called bootstrapping.
 
 ```python run title="truth propagating backwards from the goal"
 for n in [1, 3, 10, 50, 300]:
@@ -168,19 +108,11 @@ for n in [1, 3, 10, 50, 300]:
 print("\nstates near the goal (right) learn first, then it flows leftward")
 ```
 
-That's the whole intuition for temporal-difference learning, and it's why RL can
-solve credit assignment at all. You don't need to know which of forty moves was
-wrong. You just need reality to touch the system somewhere, repeatedly, and let
-the information walk backwards.
-</Wonder>
+The observed reward anchors the update to experience. Over time, information about a reward can affect estimates for earlier states. The method can be effective, but its behavior depends on the environment and learning setup.
 
-## Exploration versus exploitation
+## Exploration and exploitation
 
-The `eps` in that code is doing something essential.
-
-If the agent always takes its current best action, it never discovers a better
-one. If it always explores, it never uses what it knows. This trade-off has no
-clean solution and it is the permanent tension in RL.
+An agent must balance exploring unfamiliar actions with using the best action it currently knows. An epsilon-greedy policy chooses randomly with probability epsilon and otherwise chooses its current favourite.
 
 ```python run title="the cost of not exploring"
 for eps in [0.0, 0.05, 0.2, 0.8]:
@@ -190,49 +122,17 @@ for eps in [0.0, 0.05, 0.2, 0.8]:
           f"{'found the goal' if reached else 'NEVER found the goal'}")
 ```
 
-At `eps=0` the agent commits to whatever it did first and can be stuck forever.
-`ε-greedy` — act randomly with probability ε — is the simplest fix and remains
-extremely common. Fancier schemes exist (optimistic initialisation, UCB, Thompson
-sampling) and mostly buy sample efficiency.
+Too little exploration can leave the agent with a poor policy. Too much exploration can waste experience. Other exploration strategies include optimism bonuses and Thompson sampling.
 
-## From tables to networks
+## From tables to neural networks
 
-Our $Q$ is a $7 \times 2$ array. Chess has $10^{47}$ states, so a table is out.
+A table is too large for tasks with many states, such as board games or image inputs. Deep Q-networks use a neural network to estimate action values. Experience replay and a separate target network can help make training more stable, but neural-network RL remains sensitive to design choices.
 
-**Deep Q-Networks** (DeepMind, 2013–15) replace the table with a neural network
-$Q_\theta(s,a)$, which is what got RL onto Atari from raw pixels. Two tricks made
-it work, and both address problems you'd predict:
+Combining bootstrapping, function approximation, and off-policy learning can create instability. This combination is often called the “deadly triad”; it is a warning about a difficult setting, not a claim that every such method will diverge.
 
-**Experience replay.** Store transitions in a buffer and train on random samples.
-Consecutive states in an episode are highly correlated, which violates the
-independence that SGD assumes; sampling randomly from a buffer restores it.
+## Policy gradients and language models
 
-**A target network.** Compute the bootstrap target using a frozen copy of the
-network, updated occasionally. Otherwise you're chasing a target that moves every
-time you take a step — and it diverges.
-
-<Aside type="warn">
-Both fixes exist because bootstrapping plus function approximation is unstable, in a way tabular Q-learning is not.
-
-The tabular version has convergence guarantees. Add a neural network and those
-guarantees evaporate — a fact sometimes called the *deadly triad*: bootstrapping,
-function approximation, and off-policy learning together can diverge.
-
-Which is worth knowing before you spend a week assuming your code is buggy. It
-might be. It might also be the method.
-</Aside>
-
-## Policy gradients, and how this reaches language models
-
-Q-learning learns values and derives a policy. **Policy gradient** methods skip
-the middleman and adjust the policy directly:
-
-$$
-\nabla_\theta J = \mathbb{E}\big[\nabla_\theta \log \pi_\theta(a \mid s) \cdot R\big]
-$$
-
-In words: **increase the log-probability of actions that led to high reward.**
-That's it. Multiply the usual gradient by how well things went.
+Policy-gradient methods adjust the policy directly. In simplified form, they increase the probability of actions that received higher returns.
 
 ```python run title="REINFORCE, on a two-armed bandit"
 def reinforce(steps=800, lr=0.1, seed=0):
@@ -251,58 +151,14 @@ print(f"probability of choosing the better arm: {reinforce():.3f}")
 print("no value function anywhere — just 'do more of what worked'")
 ```
 
-That is the family **RLHF** belongs to. The recipe from chapter 14, now with
-names attached:
+Preference-based training for language models can use a related setup: collect comparisons, train a reward model to predict preferences, then update the model policy to score well under that reward. Methods and training recipes vary. Since the reward model is only a proxy for human preferences, a policy can learn to exploit its mistakes.
 
-1. Collect human comparisons of pairs of model responses.
-2. Train a **reward model** to predict which a human preferred.
-3. Treat the language model as a policy — states are prompts-so-far, actions are
-   tokens — and use policy gradients (**PPO**) to increase the probability of
-   responses the reward model scores highly.
+## What to expect from RL
 
-**PPO** is a policy gradient with a constraint stopping the policy moving too far
-in one update, which is what keeps the model from collapsing into whatever
-degenerate text maximises the reward model.
+- It can require many environment interactions.
+- Results may vary across random seeds and training runs.
+- Reward design is difficult; a poorly chosen reward can lead to unwanted behavior.
+- Real-world experiments may be costly or unsafe, so simulation is common.
+- Simulation results may not transfer cleanly to the real environment.
 
-**DPO** derives a loss that achieves a similar effect without a separate reward
-model or an RL loop — simpler, cheaper, now more common.
-
-<Aside type="nice">
-And the failure mode of stage 3 is worth knowing by name: **reward hacking**.
-
-The reward model is a *proxy* for human preference, not human preference. Optimise
-a proxy hard enough and you find the places where it diverges from the thing it
-was proxying for.
-
-In practice: excessive hedging, flattery, padded structure, confident restatement
-of the question. Behaviours that score well with a reward model trained on human
-ratings, without actually being better.
-
-Which is Goodhart's law again — the same thing that rots benchmarks, arriving in
-the training loop instead. It's the deepest unsolved problem in this part of the
-field.
-</Aside>
-
-## What you'd be signing up for
-
-If you go further, expect:
-
-**Sample inefficiency.** RL often needs millions of episodes. Supervised learning
-would want thousands of examples. If you can turn your problem into a supervised
-one, do.
-
-**Brutal variance.** Two runs with different seeds can produce a working agent and
-a complete failure. Published RL results with fewer than five seeds should be
-read with suspicion.
-
-**Reward design as the actual job.** Most of the work is specifying what you want
-in a way that can't be gamed. Agents are extremely good at finding the letter of
-your reward function.
-
-**Simulation.** Most RL needs a simulator, because millions of real trials are
-impossible. Building one — and dealing with the gap between it and reality — is
-often the whole project.
-
-**The good starting points:** Sutton and Barto's *Reinforcement Learning: An
-Introduction* is the standard text and readable. Spinning Up in Deep RL
-is the practical companion. Both assume roughly what you now have.
+Evaluate with multiple runs and scenarios, and compare with simple baselines. If the task can be expressed as supervised learning or direct optimisation, those approaches may need much less interaction.

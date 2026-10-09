@@ -7,8 +7,11 @@ kind: "sibling"
 after: "15-unsupervised-and-the-rest"
 covers: ["gan", "diffusion"]
 ---
-A generative model learns patterns in examples and uses them to produce new samples. This guide compares three families—autoregressive models, variational autoencoders, and diffusion models—and explains their training goals and tradeoffs.
-## Why it's hard
+A generative model learns patterns in examples and uses them to create new samples. This guide introduces autoregressive models, variational autoencoders, generative adversarial networks, and diffusion models.
+
+## Why generation is difficult
+
+Even a small image can take many possible pixel values. Most possible arrangements do not look like useful images.
 
 ```python run setup title="the space of possible images"
 import numpy as np, matplotlib.pyplot as plt
@@ -20,18 +23,11 @@ print("\nalmost all of which are static. the ones that look like anything")
 print("occupy a vanishingly thin sliver of that space.")
 ```
 
-That's the problem in one line. Generating an image means landing on the
-**manifold** of things that look like images — a set so small, relative to the
-space it sits in, that random sampling will never once find it.
+A generative model needs to learn which parts of that large space contain examples like its training data.
 
-So a generative model has to learn where that sliver *is*.
+## Autoencoders and variational autoencoders
 
-## Attempt 1: autoencoders, and why they don't quite work
-
-Chapter 15 built an autoencoder: compress to a bottleneck, reconstruct.
-
-Obvious idea — sample a random point in the latent space, decode it, get a new
-image. Let's see why that fails.
+An autoencoder compresses an input into a smaller representation and learns to reconstruct it. But a plain autoencoder does not have to organise the space between training examples. Randomly choosing a point there may produce an unhelpful output.
 
 ```python run title="the latent space has holes"
 rng = np.random.default_rng(0)
@@ -57,39 +53,13 @@ print(f"median distance from a random sample to the nearest real code: {np.media
 print("most samples land in empty space, and the decoder was never trained there.")
 ```
 
-A plain autoencoder learns to encode *the training set*. Nothing constrains what
-happens between the clusters, so decoding a point from the gaps produces
-whatever the network happens to do there — which is usually a blur.
+A variational autoencoder (VAE) adds a probabilistic objective that encourages the latent codes to follow a chosen distribution. This makes it easier to sample points and decode them.
 
-**VAEs** (variational autoencoders, 2013) fix this by adding a term to the loss
-that pushes the latent distribution toward a standard Gaussian. Now the space is
-filled, and sampling works.
+VAEs can produce blurry outputs when trained with pixel-wise reconstruction losses. If several outputs are plausible, an average can reduce the loss while looking less sharp. This depends on the objective and task; it is not a rule that all VAEs must be blurry.
 
-The cost is that VAEs produce characteristically *blurry* output — because they
-optimise a reconstruction loss, and when the model is uncertain between two
-plausible completions, the loss-minimising answer is the average of them. An
-average of two faces is a blurry face.
+## Generative adversarial networks
 
-<Aside type="key">
-That blur is worth understanding, because it's a general property rather than a
-VAE quirk.
-
-**Any model trained with a per-pixel reconstruction loss will hedge.** Squared
-error's optimum under uncertainty is the mean, and the mean of several sharp
-possibilities is one unsharp thing.
-
-Which tells you the shape of the fix: to get sharp output, you need a loss that
-doesn't reward averaging. That's exactly what the next two families do, by two
-completely different routes.
-</Aside>
-
-## Attempt 2: GANs, and the arms race
-
-Goodfellow's 2014 idea is clever: **if you can't write down a loss for
-"looks real", learn one.**
-
-Two networks. A **generator** turns noise into images. A **discriminator** tries
-to tell real from generated. The generator's loss is the discriminator's failure.
+A generative adversarial network (GAN) trains two models together. A generator creates samples. A discriminator tries to distinguish generated samples from real ones. The generator learns to make samples the discriminator treats as real.
 
 ```python run title="the adversarial loop, in miniature"
 def sigmoid(z): return 1 / (1 + np.exp(-z))
@@ -115,47 +85,11 @@ print(f"generator learned : mean {g_mean:.2f}")
 print("no reconstruction loss anywhere — it learned only by being judged")
 ```
 
-The generator never sees a real example. It only ever receives the gradient of
-"how convinced was the judge," and that's enough to find the distribution.
+The generator can learn without directly reconstructing each training example. GANs can make sharp outputs, but training can be unstable. The generator may produce only a narrow range of samples, and the two models can be difficult to balance.
 
-GANs produced the first convincing synthetic faces, and for about six
-years they were how generation worked.
+## Diffusion models
 
-<Aside type="warn">
-And they are famously miserable to train.
-
-**Mode collapse.** The generator finds one output that fools the discriminator
-and produces only that. It has "won" the game while completely failing the task —
-which is what happens when your loss is a game rather than a measurement.
-
-**No progress signal.** The loss doesn't tell you anything. Both losses can look
-stable while the output is rubbish, because they're measuring a *relative*
-balance between two moving parts.
-
-**Balance.** If either network gets too strong the other stops learning. Keeping
-them matched is an art with a large folklore literature attached.
-
-The underlying reason is structural: this is a minimax problem, not a
-minimisation. You're not descending a landscape — you're looking for an
-equilibrium between two players who keep moving. Everything in chapter 5 assumed
-a fixed landscape, and none of that reasoning applies here.
-</Aside>
-
-## Attempt 3: diffusion, and the move that won
-
-Now the one that took over — and I think it's one of the most satisfying ideas in
-modern machine learning, because it converts an impossible problem into a boring
-one.
-
-**Forward process.** Take a real image. Add a little Gaussian noise. Repeat, a
-thousand times, until it's pure static. This requires no learning at all — you
-are adding the noise, so you know exactly what you added.
-
-**Reverse process.** Train a network to look at a noisy image and predict *the
-noise that was added*.
-
-And that's an ordinary supervised regression problem. With perfect labels. For
-free.
+A diffusion model defines a process that gradually adds noise to data, then trains a network to reverse that process. A common training objective asks the model to predict the added noise.
 
 ```python run title="the forward process, which needs no learning"
 signal = np.sin(np.linspace(0, 4 * np.pi, 200))
@@ -170,6 +104,8 @@ for a, b in zip(ax, betas):
 plt.tight_layout()
 print("left: the real thing.  right: pure noise.  no model involved yet.")
 ```
+
+That turns generation into a supervised prediction problem: the training process knows which noise it added.
 
 ```python run title="learning to denoise, and then generating"
 # A tiny concrete case: the "data" is points on a circle.
@@ -223,6 +159,8 @@ print(f"generated points: mean radius {radii.mean():.3f} (target 1.000)")
 print(f"fraction landing on the circle: {((radii > 0.85) & (radii < 1.15)).mean():.0%}")
 ```
 
+Starting from random noise, the model repeatedly removes predicted noise to create a sample.
+
 ```python run title="what came out"
 fig, ax = plt.subplots(1, 2, figsize=(7.4, 3.4))
 truth = real_batch(400)
@@ -232,85 +170,23 @@ for a in ax: a.set_xlim(-2, 2); a.set_ylim(-2, 2); a.set_xticks([]); a.set_ytick
 plt.tight_layout()
 ```
 
-The model was never shown a circle, and nothing in its loss mentioned one. It was
-only ever asked "what noise is in this point?" — an ordinary regression — and
-running that answer backwards recovers the distribution.
+This small demonstration does not show the image quality or scale of a production system. Real diffusion models use larger networks, more data, and much more computation.
 
-Roughly three quarters of the generated points land on the ring. The stragglers
-are honest:
-this is a 128-unit network trained for a few seconds in a browser, and a real
-diffusion model is a large U-Net trained for GPU-weeks. The point isn't the
-fidelity — it's that the fidelity is a matter of scale, and the *mechanism* is
-what you just read.
+Diffusion models often train with a stable prediction objective and can generate detailed outputs. Sampling is slower than a single-pass generator because denoising happens over multiple steps. Faster samplers and other methods reduce that cost.
 
-<Wonder title="The move worth stealing">
-Step back from images entirely, because the *shape* of what just happened is
-general and it's the reason this page is worth reading.
+## Autoregressive generation
 
-Generating from a distribution is hard. There's no target, no loss, no supervised
-signal. Two families of methods spent a decade attacking it directly, with
-adversarial games and variational bounds and a great deal of instability.
+Autoregressive models predict one part at a time using the parts already generated. A language model predicts the next token and repeats the process. The same idea can be used for other kinds of data, though generation may take many steps.
 
-Diffusion's answer was to **not attack it directly**. Instead: find a related
-problem that is (a) easy, (b) supervised, and (c) invertible.
+## Compare the trade-offs
 
-Destroying data is easy — you can do it in one line, and you know exactly what
-you did. So learn to *undo* the easy thing, and run it backwards.
+| Family | Common strengths | Common trade-offs |
+|---|---|---|
+| VAE | Useful latent representations and direct sampling | Reconstruction quality depends on the objective |
+| GAN | Fast generation and sharp samples | Training can be unstable and miss modes |
+| Diffusion | Flexible, detailed generation | Often requires many sampling steps |
+| Autoregressive | Strong sequence modelling and likelihood-based training | Generation is sequential |
 
-That's the same move as self-supervision in chapter 3 (hide a word, predict it),
-and the same move as the autoencoder in chapter 15 (destroy information through a
-bottleneck, reconstruct it). Three times now, in three different contexts:
+These are broad patterns, not guarantees. Results depend on the architecture, training data, evaluation, and intended use.
 
-> **When a problem has no labels, look for a reversible corruption whose labels
-> you generate yourself.**
-
-I think that's one of the transferable ideas in this field — the kind
-you can carry to a problem nobody has written a paper about. If you're ever stuck
-with data and no targets, ask what you could break on purpose.
-</Wonder>
-
-## Why diffusion beat GANs
-
-Concretely:
-
-**A stable objective.** Plain regression on noise. It's chapter 5's landscape, not
-a two-player game. The loss goes down and means something.
-
-**A real progress signal.** You can watch it train and know whether it's working,
-which sounds mundane and is enormously valuable.
-
-**Mode coverage.** Diffusion is fitted to the whole distribution, so it doesn't
-collapse onto one output the way an adversarial generator can.
-
-**Steerable.** Conditioning on text (or anything else) is easy to add, because you
-just feed it to the denoiser. That's what made text-to-image possible.
-
-The cost: **slow generation.** A GAN generates in one forward pass; diffusion
-needs tens to hundreds of denoising steps. A great deal of recent work — improved
-samplers, distillation, consistency models — is about buying that back, and it's
-largely succeeded.
-
-## Where they all ended up
-
-<div class="table-scroll">
-
-| | Trains stably | Sample quality | Speed | Still used for |
-|---|---|---|---|---|
-| **VAE** | yes | blurry | fast | latent spaces *inside* other models |
-| **GAN** | no | sharp | very fast | real-time and on-device generation |
-| **Diffusion** | yes | sharp | slow | images, video, audio, molecules |
-| **Autoregressive** | yes | sharp | slow | text, and increasingly everything |
-
-</div>
-
-Two closing notes.
-
-VAEs didn't disappear — Stable Diffusion runs its diffusion process inside a VAE's
-compressed latent space rather than on raw pixels, which is most of why it's
-affordable. The blurry-decoder problem matters much less when the diffusion model
-is doing the detail.
-
-And chapter 14's language model is a generative model too, by the fourth route:
-autoregressive factorisation. Generate one token at a time, each conditioned on
-everything before. It's the oldest idea on this list and it's currently winning
-in the most domains — which is a fittingly untidy place to end.
+A useful way to compare generative models is to ask what they learn to predict, how they represent uncertainty, how long they take to sample, and which failures matter for your task.

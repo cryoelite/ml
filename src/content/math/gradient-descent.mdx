@@ -1,6 +1,6 @@
 ---
 title: 'Gradient descent update'
-summary: 'Take a small step downhill. Repeat. This is the whole of training.'
+summary: "Update parameters by moving opposite the loss gradient."
 formula: '\theta_{t+1} = \theta_t - \eta \, \nabla_\theta L(\theta_t)'
 docs: 'https://en.wikipedia.org/wiki/Gradient_descent'
 docsLabel: 'Wikipedia ↗'
@@ -14,14 +14,10 @@ symbols:
   - sym: '\nabla_\theta L'
     means: 'the gradient of the loss with respect to the parameters'
 ---
+Gradient descent updates parameters by moving opposite the gradient of the loss:
 
-Every optimiser you will meet is a variation on this line. Momentum adds a
-running average of past gradients so the step keeps its direction through
-noise. Adam additionally divides by a running estimate of each gradient's
-magnitude, giving every parameter its own effective step size. RMSProp is Adam
-without the momentum term.
+$$\theta_{t+1} = \theta_t - \eta\nabla_\theta L(\theta_t)$$
 
-$\eta$ is the hyperparameter that matters most. Too large and the loss
-diverges to NaN; too small and training takes a week to get nowhere. The
-practical method is to try a few on a log scale — $10^{-1}, 10^{-2}, 10^{-3}$ —
-and watch which loss curve falls fastest without exploding.
+The gradient points toward the steepest local increase in loss. The learning rate $\eta$ sets the step size. A step that is too large can make training unstable; one that is too small can make it slow.
+
+Momentum uses past gradients to smooth the update. Adam adapts step sizes using running estimates of gradient statistics. These methods change the update rule, but they still use gradients to reduce the loss.

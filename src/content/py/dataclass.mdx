@@ -2,7 +2,7 @@
 title: '@dataclass'
 lib: 'stdlib'
 since: 'Python 3.7'
-summary: 'Generates `__init__`, `__repr__` and `__eq__` from annotated class attributes.'
+summary: "Store named fields in a simple Python class."
 signature: |-
   @dataclass
   class Config:
@@ -15,14 +15,13 @@ example: |-
   
   Config(lr=0.01)
 output: 'Config(lr=0.01, epochs=5)'
-rust: 'A struct with `#[derive(Debug, PartialEq, Default)]` and a generated constructor. Note that the annotations are **not enforced** at runtime — `Config(lr=''oops'')` succeeds.'
+rust: "A dataclass is similar to a struct with generated fields and methods. Python type annotations are not checked at runtime."
 rustCode: |-
   #[derive(Debug, PartialEq)]
   struct Config { lr: f64, epochs: u32 }
 docs: 'https://docs.python.org/3.14/library/dataclasses.html'
 docsLabel: 'Python docs ↗'
 ---
+A dataclass stores related settings in a small class. It provides named attributes and a readable display, which can make experiment configuration easier to inspect.
 
-The honest way to carry a hyperparameter set around. A dict works, but a
-dataclass gives you attribute access, a readable repr in a notebook, and a
-single place to write the defaults down.
+Use a dataclass when the fields are known in advance. A dictionary may be simpler for values that are added or removed dynamically.

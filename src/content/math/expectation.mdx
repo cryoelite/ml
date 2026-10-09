@@ -1,6 +1,6 @@
 ---
 title: 'Expectation'
-summary: 'The average value of something, weighted by how likely each outcome is.'
+summary: "Calculate a probability-weighted average."
 formula: '\mathbb{E}[X] = \sum_x p(x)\, x \qquad \mathbb{E}_{x \sim D}[f(x)] \approx \frac{1}{n}\sum_{i=1}^{n} f(x_i)'
 docs: 'https://en.wikipedia.org/wiki/Expected_value'
 docsLabel: 'Wikipedia ↗'
@@ -12,13 +12,8 @@ symbols:
   - sym: 'p(x)'
     means: 'the probability of outcome x'
 ---
+Expectation means a probability-weighted average. For a dataset, the average of a quantity across examples estimates its expected value under the data distribution.
 
-This notation is why papers look harder than they are. When a paper writes the
-training objective as
-$\min_\theta \mathbb{E}_{(x,y) \sim D}[L(f_\theta(x), y)]$, it means: *make the
-average loss over your data small*. That is all. The expectation is over the
-data distribution, and the average over your actual dataset is the estimate of
-it you can compute.
+For example, minimising $\mathbb{E}_{(x,y)\sim D}[L(f_\theta(x),y)]$ means choosing parameters that make the average prediction loss small.
 
-Learning to read $\mathbb{E}$ as "average over" removes most of the intimidation
-from a methods section.
+When you read $\mathbb{E}$ in a paper, read it as “average over.”

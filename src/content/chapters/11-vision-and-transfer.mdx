@@ -7,10 +7,11 @@ part: frontier
 minutes: 100
 introduces: ["cnn", "vit", "transfer"]
 ---
-An image is a grid. Nearby pixels often belong to the same edge, texture, or object. A dense layer treats every pixel as a separate input and does not use this local structure.
+Images contain spatial structure: nearby pixels often belong to the same edge, texture, or object. A dense layer treats each pixel as a separate input. Convolutional layers use local filters and share the same weights across image locations.
 
-Convolutions scan small filters across the image. We will see how they work, then use transfer learning to adapt an existing image model.
 ## Keep image structure
+
+A dense layer connected to every pixel can require many parameters and does not automatically recognize the same feature in another location.
 
 ```python run setup title="the arithmetic that kills it"
 import numpy as np, matplotlib.pyplot as plt
@@ -25,38 +26,11 @@ for h, w, hidden in [(8, 8, 100), (28, 28, 100), (224, 224, 1000)]:
     print(f"{h}x{w} -> dense({hidden})   {n_in * hidden:,} weights in the first layer alone")
 ```
 
-A 224×224 colour photograph into a modest first layer is **150 million weights**.
-For one layer. Of one model. And you haven't learned anything yet.
-
-But the cost isn't even the worst part. Think about what those weights *are*.
-
-Each one is a separate parameter for one specific pixel position. So a network
-that learns "there's a vertical edge here" at pixel (30, 40) has learned
-absolutely nothing about a vertical edge at (31, 40). One pixel over. Every
-position has to be learned independently, from its own separate examples.
-
-That's not a network that's expensive. That's a network that's *badly designed for
-the job*.
-
-<Aside type="key">
-Both problems have exactly one cause: a dense layer knows nothing about the
-**structure** of its input.
-
-Here's a test that makes it vivid. Shuffle all the pixels of every image — the
-same shuffle each time — and a dense network performs identically. It literally
-cannot tell.
-
-For a spreadsheet that's correct behaviour, and in chapter 7 it's why trees do
-well. For an image it throws away the single most useful fact you have: nearby
-pixels are related, and a cat is a cat wherever it happens to be standing.
-</Aside>
+If a model learns an edge at one pixel position, a fully connected layer does not automatically reuse that feature elsewhere. Convolution addresses this by applying the same filter across the image.
 
 ## Apply a convolution
 
-<M id="convolution">A convolution</M> slides a small grid of weights across the
-image and records the dot product at every position.
-
-The important word is *same*. The **same** weights, at every position.
+A convolution slides a small grid of weights, called a kernel or filter, across the image. It computes a weighted sum at each position.
 
 ```python run title="a kernel is a tiny template"
 def convolve2d(image, kernel):
@@ -81,11 +55,7 @@ for a, (name, k) in zip(ax, [("original", None), ("vertical edges", vertical),
 plt.tight_layout()
 ```
 
-**Nine numbers** turned an image into an edge map.
-
-Change the nine numbers and you get a completely different detector — blur,
-sharpen, horizontal edges, whatever you like. And the useful part: *learning the
-nine numbers* is exactly, precisely what a convolutional layer does. Nothing more.
+A small kernel can respond to patterns such as edges. Training can learn the kernel weights from data.
 
 ```python run title="weight sharing, counted"
 h = w = 224
@@ -96,59 +66,16 @@ print(f"conv 3x3, 64 filters   : {conv_first_layer:>12,} weights")
 print(f"ratio                  : {dense_first_layer / conv_first_layer:>12,.0f}x fewer")
 ```
 
-Thousands of times fewer parameters — and every single one is reused at every
-position.
+Sharing the same weights at every location greatly reduces the number of parameters. It also encodes an assumption: a useful local pattern can matter wherever it appears. Convolution is therefore a good fit for images, where local structure is meaningful.
 
-That reuse *is* the idea, and it encodes a genuine claim about the world:
+## Channels, stride, padding, and pooling
 
-**What a thing looks like does not depend on where it is.**
+A convolutional layer has several settings:
 
-<Aside type="rust">
-It's the difference between a lookup table with an entry per position, and a
-single function applied over a sliding window — `slice.windows(3).map(f)`, in two
-dimensions.
-
-You'd never write the lookup table, and for exactly the same reason: the
-positions aren't independent, so giving each one its own parameters is both
-wasteful *and* worse at generalising. You'd factor out the function. That's all a
-convolution is.
-</Aside>
-
-<Aside type="nice">
-That assumption is a **prior**, and priors can be wrong.
-
-Convolutions assume translation equivariance and local structure. Both hold for
-photographs. Neither holds for a spreadsheet — which is why CNNs never worked on
-tabular data, and now you know it wasn't a tuning problem.
-
-And both hold only *weakly* for a medical scan, where absolute position is often
-diagnostic. Which is why medical imaging models frequently feed position back in
-explicitly, undoing part of the very thing that made convolutions work.
-
-Choosing an architecture is choosing an assumption. That one sentence is most of
-what architecture research actually is.
-</Aside>
-
-## Channels, stride, padding, pooling
-
-Four knobs, and they're the entire vocabulary of a convolutional layer. Learn
-these four and you can read any CNN paper's architecture table.
-
-**Channels.** A colour image has 3 input channels. A layer with 64 filters
-produces 64 output channels — 64 different learned detectors, each looking at all
-the input channels at once. So a `Conv2d(3, 64, 3)` weight has shape
-`(64, 3, 3, 3)`.
-
-**Stride.** How far the window jumps between positions. Stride 2 halves the
-output size.
-
-**Padding.** Zeros around the border so the output keeps its size. Without it,
-every 3×3 convolution shrinks the image by 2 pixels — and thirty layers would
-leave you with nothing at all.
-
-**Pooling.** Downsample by taking the max (or mean) of each small block. Fewer
-positions, a larger effective field of view, and a bit of robustness to small
-shifts.
+- **Channels** describe the input and output feature maps. A colour image has three input channels; a layer can produce many learned output channels.
+- **Stride** controls how far the filter moves. A stride of two reduces the spatial size.
+- **Padding** adds values around the border. Padding can preserve the width and height for a chosen kernel.
+- **Pooling** reduces spatial dimensions by summarizing small regions, often with a maximum or average.
 
 ```python run title="the shapes, worked out"
 def conv_out(size, kernel, stride=1, pad=0):
@@ -163,15 +90,11 @@ for label, k, s, p in [("conv 3x3 pad 1", 3, 1, 1), ("conv 3x3 pad 1", 3, 1, 1),
     print(f"{label:28s} {size:>6d}")
 ```
 
-That shrinking ladder is the standard shape of every CNN: spatial resolution
-falls, channel count rises.
-
-And there's a nice way to read that trade. You're exchanging **"where"** for
-**"what"**. Early layers know precisely where an edge is but not what it means.
-Late layers know there's a face *somewhere* but have lost the exact pixel. Which
-is usually what you wanted.
+As a network gets deeper, it often uses fewer spatial positions and more channels. Early layers retain precise location information; later layers combine features over larger regions.
 
 ## Build a convolutional network
+
+The next examples define and train a convolutional model on small digit images:
 
 ```python run local setup title="a convnet on 8x8 digits"
 import torch, torch.nn as nn
@@ -217,36 +140,13 @@ for epoch in range(8):
     print(f"epoch {epoch+1}  valid accuracy {acc:.3f}")
 ```
 
-Same five lines as yesterday. Different architecture, identical loop — which is
-rather the point.
+The training loop is the same as before. The architecture changes how the model processes the data.
 
-Note <Py id="argmax">`argmax(1)`</Py>: the model outputs ten scores and you take
-the index of the largest. And `CrossEntropyLoss` takes **logits** and integer
-class labels, applying <M id="softmax">softmax</M> internally — the same
-logits-not-probabilities rule from yesterday.
-
-**BatchNorm** deserves a sentence, and an honest one. It normalises each channel's
-activations to zero mean and unit variance across the batch, which keeps the
-scale of activations stable through depth and lets you use a larger learning
-rate.
-
-It was introduced in 2015 with an explanation — "internal covariate shift" — that
-later work largely disputes. So the current state of knowledge is: nobody is
-entirely sure *why* it works so well, and everybody uses it anyway. I'd rather
-tell you that than pretend the story is settled.
+The model returns one score per digit. Cross-entropy takes those logits and the integer class labels, then computes the classification loss. Batch normalization is another common layer; it normalizes activations using statistics from the training data and can help stabilize optimization.
 
 ## Transfer learning
 
-Now the technique that makes computer vision practical for people who don't own a
-data centre. If you take one thing from today, take this.
-
-A network trained on ImageNet has learned, in its early layers, edge detectors,
-texture detectors and shape detectors. And here's the key observation: **none of
-that is specific to the thousand ImageNet classes.** Edges are edges. Texture is
-texture. A curve is a curve whether it belongs to a cat or a car or a chest X-ray.
-
-So: take those weights. Throw away the final classification layer. Bolt on a new
-one for *your* classes. Train.
+A pretrained image model has already learned useful visual features. Transfer learning adapts it to a new task: replace its final classification layer, then train that layer on the new labels.
 
 ```python run local title="borrow a network that has already seen 14 million photos"
 import torchvision
@@ -270,27 +170,15 @@ trainable = sum(p.numel() for p in backbone.parameters() if p.requires_grad)
 print(f"trainable now: {trainable:,} of {total:,}  ({trainable / total:.2%})")
 ```
 
-<Aside type="key">
-This is the difference between needing a million labelled images and needing two
-hundred.
+This can reduce the amount of labelled data needed compared with training an entire image model from scratch. It does not guarantee good results; the new data and task still need to be evaluated.
 
-That's not a marginal optimisation. It is the entire reason a person with a
-laptop can build a working image classifier in an afternoon — and it is
-comfortably the most valuable practical technique in this chapter.
+A common procedure is:
 
-Somebody else spent the GPU-years. You get the edges for free.
-</Aside>
+1. Freeze the pretrained layers and train the new classification head.
+2. Unfreeze some or all of the model and continue training with a lower learning rate.
+3. Optionally use different learning rates for different layers.
 
-The standard recipe, worth memorising:
-
-1. **Freeze the backbone, train the new head** for a few epochs. The head starts
-   random, and a random head sends garbage gradients backwards through weights
-   that took a small fortune to tune. Don't let it.
-2. **Unfreeze everything, train at a much lower learning rate** — often 10 to 100
-   times lower. You're *nudging* good weights, not searching from scratch.
-3. Optionally use **discriminative learning rates**: lower for early layers
-   (generic edges, already correct) and higher for late layers (task-specific,
-   need to change).
+The lower rate helps preserve useful features while adapting them to the new task.
 
 ```python run local title="phase two"
 for p in backbone.parameters():
@@ -306,9 +194,9 @@ for g in opt.param_groups:
     print(f"  lr={g['lr']:<8} {sum(p.numel() for p in g['params']):>10,} params")
 ```
 
-## Augmentation
+## Data augmentation
 
-Free data, made out of the data you already have.
+Data augmentation creates additional training examples by applying transformations that keep the label correct.
 
 ```python run title="what augmentation does, conceptually"
 img = images[7]
@@ -325,89 +213,19 @@ for a, (name, v) in zip(ax, variants):
 plt.tight_layout()
 ```
 
-Each variant is a **new training example with the same label** — and each one
-teaches the model an invariance. A rotated cat is a cat. A darker cat is a cat. A
-slightly noisy cat is still, reassuringly, a cat.
+A flip, crop, or brightness change may be appropriate for one task and harmful for another. A horizontal flip may preserve a cat label, but it can change the meaning of text, digits, or road signs. Choose transformations based on the data and task.
 
-Ten thousand photos become effectively a hundred thousand, and you didn't label a
-single one.
-
-<Aside type="warn">
-Augment with transformations that **preserve the label**, and think about it
-properly rather than copying somebody's config.
-
-Horizontal flips are fine for cats. They are catastrophic for handwritten digits,
-because a mirrored 2 is not a 2. Also bad for road signs, text, and anything
-where chirality carries meaning. You would be *teaching the model something
-false*.
-
-And: **augment the training set only.** Augmenting validation makes your metric
-measure a different, easier problem, and the number quietly stops meaning
-anything at all.
-</Aside>
-
-<Stuck>
-**"My convolution output is a weird size."** Use `conv_out` above. The commonest
-cause is forgetting `padding=1` on a 3×3 conv, which silently shrinks by 2 each
-layer.
-
-**"`Expected 4-dimensional input`"** — Conv2d wants `(batch, channels, height,
-width)`. A single image needs `.unsqueeze(0)` for batch and often
-`.unsqueeze(1)` for a missing channel dimension. That's what the `/ 16.0` cell
-above is doing.
-
-**"Why divide the images by 16?"** The digits dataset stores pixel values 0–16.
-Dividing puts them in [0, 1], which keeps activations in a sane range — the same
-standardisation habit from chapter 5, wearing different clothes.
-
-**"The pretrained model download failed with an SSL error."** That's the
-certificate issue on the [Setup](/setup/) page. One double-click fixes it
-permanently.
-
-**"My transfer-learned model got *worse* after unfreezing."** Learning rate too
-high for phase 2. You're supposed to be nudging. Try dividing by 10, then 100 —
-this is the single most common transfer learning mistake.
-</Stuck>
+Apply augmentation to training examples. Evaluate on a separate set that represents the examples the model will see in use.
 
 ## Current approaches to computer vision
 
-CNNs dominated from 2012 to about 2020. Then the **Vision Transformer** (2020)
-showed something startling: cut an image into 16×16 patches, treat them as a
-sequence of tokens, and a plain transformer
-([Chapter 13](/learn/13-attention-and-transformers/)) beats a CNN.
+Convolutional networks are still widely used. Vision Transformers divide an image into patches and process them with transformer layers. They can work well, especially with sufficient data and compute, while convolutional models build in a useful assumption about local image structure. Hybrid architectures combine ideas from both.
 
-*Given enough data.*
+The best choice depends on the dataset, compute budget, and intended use. Pretrained models are a useful starting point for either architecture family.
 
-And that caveat is the interesting part. A ViT has **no built-in
-assumption** about locality or translation. It has to learn from data what a CNN
-was handed for free.
+## Practice: inspect image filters
 
-With ImageNet-scale data it does learn it — and then goes further, because it
-isn't constrained by an assumption that was only ever approximately true. With
-5,000 images it loses badly, because it's spending its capacity rediscovering
-edges.
-
-<Wonder title="A structural prior is a loan against data">
-That pattern is worth carrying out of this chapter, because it recurs everywhere.
-
-**A structural prior is a loan against data.** It buys you performance when data
-is scarce, and it costs you a ceiling when data is plentiful.
-
-Watch the field make that trade over and over: convolutions gave way to
-attention. Hand-crafted image features gave way to learned features. Hand-written
-grammars gave way to language models. Each time, the structure that helped when
-data was expensive became the constraint that capped you once data was cheap.
-
-Which means the question "which architecture is best?" simply has no answer
-without "at what data scale?" — and if somebody answers it without asking you
-that, they've told you something about themselves rather than about
-architectures.
-
-Modern practice mostly uses hybrids (ConvNeXt, Swin) that keep a bit of the
-locality prior and take attention's flexibility. Have your loan and repay it too.
-</Wonder>
-
-<TryThis title="Three small experiments" reveal="Show solutions">
+Design a filter for diagonal edges, apply an edge detector to its own output, and calculate the output size of a sequence of convolution and pooling layers.
 
 ```python run title="your turn"
 # 1. Design a 3x3 kernel that detects diagonal edges. Apply it with convolve2d.
@@ -422,17 +240,7 @@ locality prior and take attention's flexibility. Have your loan and repay it too
 print("replace me")
 ```
 
-<Fragment slot="hint">
-For 1, look at the vertical Sobel kernel and think about which direction its
-positive and negative weights are arranged along. Then rotate that arrangement 45
-degrees.
-
-For 2, do question 3 first if you like — but really, just think: if the first
-pass finds *edges*, what does a thing that finds edges find when you point it at
-a picture made of edges?
-</Fragment>
-
-<Fragment slot="answer">
+The example solutions show one approach:
 
 ```python run
 diag = np.array([[-2, -1, 0], [-1, 0, 1], [0, 1, 2]], float)
@@ -452,32 +260,10 @@ for label, k, s, p in [("conv 5x5 no pad", 5, 1, 0), ("maxpool 2", 2, 2, 0),
     print(f"{label:18s} -> {size}x{size}")
 ```
 
-Question 2 is the one worth sitting with, because it's the whole chapter in
-miniature.
+Applying an edge detector to an edge map responds to changes in edge strength, such as corners or line ends. This is a simple example of how later layers can combine earlier features.
 
-Applying an edge detector to an edge map gives you a **second derivative**. It
-responds to places where the edge *strength itself* is changing — which means
-corners and line ends, not edges.
+In a convolutional network, early filters may detect local patterns. Later layers combine those patterns into more complex features. The learned hierarchy depends on the data and training process; it is not prescribed by hand.
 
-You just built a two-layer network by hand. And that is the entire intuition for
-depth in a CNN:
+## Next
 
-- Layer 1 finds edges.
-- Layer 2 combines edges into corners and textures.
-- Layer 3 combines those into object parts — an eye, a wheel, a doorway.
-- Layer 4 combines parts into objects.
-
-Nobody designs that hierarchy. Nobody writes down "layer 3 should find eyes." It
-*emerges*, from gradient descent, because that happens to be an efficient way to
-turn pixels into labels.
-
-And you can go and look at it. Visualising what maximally activates each filter
-is a well-established technique, and the pictures are honestly beautiful — early
-layers show edges and colour blobs, middle layers show textures and patterns,
-late layers show recognisable eyes and faces and text. It's one of the few places
-where you can directly see what a network decided to care about.
-</Fragment>
-</TryThis>
-
-Tomorrow: what to do when your input isn't pixels but *categories* — the idea that
-turns "user 84,113" into something a model can actually reason about.
+Next, we will represent categories as vectors and use those vectors for similarity search and recommendations.

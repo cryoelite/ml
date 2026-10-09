@@ -7,7 +7,7 @@ part: orientation
 minutes: 75
 introduces: ["ml", "classical", "supervised"]
 ---
-Start with a real task: label handwritten digits. Press **Run**. The code trains a model on some examples, then checks its predictions on examples it did not train on. You do not need to understand every line yet. First, notice what the program was asked to do.
+Start with a real task: classify handwritten digits. Run the first example. It trains a model on some labelled images and measures its accuracy on images kept aside for testing.
 
 ```python run setup title="fit a digit classifier"
 from sklearn.datasets import load_digits
@@ -22,95 +22,42 @@ model = LogisticRegression(max_iter=5000).fit(X_train, y_train)
 print(f"accuracy on digits it has never seen: {model.score(X_valid, y_valid):.1%}")
 ```
 
-The dataset contains small pictures and their correct digit labels. The model gets the pixel values and labels for the training examples. It adjusts numbers inside itself, then predicts labels for the held-out pictures. The accuracy tells us how often those predictions match the labels.
+The dataset contains small pictures and their correct labels. During training, the model sees pixels and labels. It adjusts its parameters to reduce mistakes. The test set gives us a separate check on examples it did not train on. An accuracy near 95% is a useful result for this small demonstration, but it does not mean the model understands handwriting or will work equally well on every writer.
 
-This is a useful first result, but it does not prove that the model understands handwriting or will work on every person's writing. We will use this example to define the main ideas and the limits of machine learning.
 ## How machine learning differs
 
-Here is a shape worth having in front of you:
-
-<div class="table-scroll">
-
-| | You provide | The computer gives back |
+| Approach | What a person provides | What the computer produces |
 |---|---|---|
-| **Ordinary program** | rules + input | output |
-| **Machine learning** | input + output | **rules** |
+| Ordinary programming | Rules and input | Output |
+| Machine learning | Examples, feedback, and input | A fitted model |
 
-</div>
-
-In an ordinary program, a person writes the rules. In machine learning, a person
-provides examples and a way to measure errors. Training adjusts the model's
-parameters to reduce those errors.
-
-This helps with tasks where the rules are hard to write down. People can spot a
-cat in many kinds of photos, but listing every useful feature and exception is
-difficult. A model can learn patterns from labelled examples. It can still make
-mistakes, especially on examples unlike the ones it saw during training.
+In ordinary programming, a person writes the rules. In machine learning, a training process adjusts a model using examples and a measure of error. This is useful when the rules are hard to specify. A person can recognize a cat in many kinds of photos, but writing down every useful feature and exception is difficult. A model can learn patterns from labelled examples, though it can still fail on unfamiliar images.
 
 <Aside type="rust">
-The closest thing you already write is the gap between a function and a
-*constraint*. You know the signature you want:
-
-`fn is_seven(pixels: &[u8]) -> bool`
-
-You have no idea what goes in the body, and no amount of staring will produce
-it. What you *can* produce is a pile of `(input, expected)` pairs and a way to
-score how badly a candidate body is doing. Machine learning fills in the body by
-searching, guided by that score.
+In Rust, the difference is like knowing the function signature but not the body. You can provide input and expected output pairs, then define how to score a candidate function. Training searches for a function that performs well on those examples.
 </Aside>
 
 ## Core terms
 
-Four words get thrown around in public as if they mean the same thing. They
-don't. Five minutes here saves you a lot of confusion later, and then we mostly
-won't need them again.
+**Artificial intelligence (AI)** is the broad field of building systems that perform tasks associated with human intelligence. The term dates to a 1956 workshop. Some AI systems use hand-written rules; others learn from data.
 
-**Artificial intelligence** is the whole field, and it's old — the name was
-coined at a workshop in 1956. It covers chess engines built entirely from
-hand-written search, expert systems built from hand-written rules, and everything
-below. It's an *aspiration*, not a technique. Almost nobody describes their own
-work as "AI" when talking to another practitioner.
+**Machine learning (ML)** is an approach within AI. A model is fitted to examples instead of having every rule written by hand. Logistic regression and decision trees are ML methods. They do not require neural networks.
 
-**Machine learning** is the part of AI where the rules get fitted to data
-instead of written by hand. Logistic regression is machine learning. So is a
-decision tree. So was the spam filter that shipped in 2002. Most of it involves
-no neural networks at all.
+**Deep learning** is machine learning that uses neural networks with many layers. It is useful for tasks such as image, audio, and language processing, where useful patterns can be difficult to describe directly.
 
-**Deep learning** is the part of machine learning that uses neural networks with
-many layers. "Deep" literally means "has a lot of layers stacked up." That's the
-whole etymology. It's the part that got startlingly good after about 2012, and
-it's where nearly all the recent noise lives.
+A **model** is a function with parameters set by training. The variable named model above holds one. Other software can call it to make predictions on new examples.
 
-**A model** is the fitted thing itself — the function with its numbers filled in.
-`model` in the code above is a model. A file of weights is a model. When someone
-says "we deployed the model", they put a function somewhere other software can
-call it.
+Product descriptions often use “AI” without saying which method is involved. Ask what the system does and what it learned from data; the label alone tells you little.
 
-<Aside type="nice">
-An awkward consequence of that nesting: a straight-line fit from 1805 is,
-technically and correctly, artificial intelligence. Which means "AI-powered" is a
-claim entirely compatible with a spreadsheet formula.
+Three more terms will appear often:
 
-Being able to ask *which layer of that nest do you mean?* — politely — turns out
-to be quite useful.
-</Aside>
+- **Training** is the process of fitting a model to examples.
+- **Inference** is using a fitted model to make a prediction.
+- **Parameters**, also called weights, are the values training adjusts.
 
-Worth knowing while you read anything written for the public: the four words
-above get used interchangeably by people who should know better, and sometimes by
-people who benefit from the confusion. When a product says it uses AI, it may
-mean a language model, and it may mean an average.
+## A model is a function with numbers
 
-Three more words and we can get back to the interesting part:
-
-- **Training** — finding the numbers. Expensive, done once, offline.
-- **Inference** — running the finished model on something new. Cheap, done constantly.
-- **Parameters** (or *weights*) — the numbers that got found. The model above found
-  650 of them. The big language models have hundreds of billions.
-
-## The machine learning process
-
-I don't want you to take my word for any of this, so let's open the model up. It
-will not take long, because there is almost nothing inside.
+The digit classifier stores one set of weights for each digit. Together, those weights and offsets make up 650 learned numbers.
 
 ```python run title="a model is just numbers"
 w = model.coef_          # the learned weights
@@ -119,15 +66,7 @@ print("weights:", w.shape, " offsets:", b.shape)
 print("total learned numbers:", w.size + b.size)
 ```
 
-Ten rows of 64 weights, plus ten offsets. One row per digit, one weight per
-pixel. That's it. That is the entire model — 650 floating-point numbers.
-Everything it learned from 1257 examples of human handwriting is sitting in
-those 650 numbers and nowhere else.
-
-To decide what an image is, it gives each of the ten digits a score — multiply
-every pixel by that digit's weight, add them all up — and picks whichever scores
-highest. We can do that ourselves, without the library, so you can see there is
-nothing hidden.
+For an image, the model combines its pixels with each digit's weights and adds an offset. This gives one score per digit. It predicts the digit with the highest score. The next example performs that calculation directly:
 
 ```python run title="inference, from scratch"
 import numpy as np
@@ -138,29 +77,11 @@ print("scores :", np.round(scores, 1))
 print("predicted:", scores.argmax(), " actual:", y_valid[0])
 ```
 
-One <Py id="matmul">matrix multiply</Py>, one addition, one
-<Py id="argmax">argmax</Py>. That is *inference* — the whole of it.
+That calculation is inference. A fitted model can make predictions with a small number of operations. Training is the step that found the parameters, and it usually takes more work.
 
-Which means the expensive part was never running the model. Running it costs a
-handful of multiplications. The expensive part was finding those 650 numbers, and
-that asymmetry — costly once, cheap forever after — is why any of this is
-economically interesting at all.
+## What the weights represent
 
-<Reveal title="Why a weighted sum, though? Where does that come from?" kind="math">
-
-There is a nice way to see it.
-
-Each row of `w` is a **template** — a 64-number picture of what that digit tends
-to look like. The <M id="dot-product" /> between an image and a template comes
-out large when the bright pixels of the image line up with the large weights of
-the template.
-
-So "which digit is this?" quietly becomes "which template does this image agree
-with most?", and agreement is measured by a dot product. That's all a linear
-classifier ever is: a shelf of templates and a way to measure agreement.
-
-You don't have to take that on trust, because the templates are pictures and we
-can look at them:
+Each row of the weight matrix corresponds to one digit. A dot product combines an image's pixels with one row of weights to produce a score. The visualization below shows those weights as small images.
 
 ```python run title="what the model learned"
 import matplotlib.pyplot as plt
@@ -171,211 +92,63 @@ for digit, ax in enumerate(axes.flat):
 plt.tight_layout()
 ```
 
-Red means "a bright pixel here argues *for* this digit." Blue means it argues
-against.
+Red weights raise a digit's score when the corresponding pixel is bright. Blue weights lower it. For example, the weights for zero tend to favour a ring and give lower scores to ink near the centre.
 
-Look at the 0: it's a ring, and the middle is blue. The model worked out that a
-zero is a shape with a *hole*, and that ink in the middle is evidence against.
-Look at the 1: a vertical stripe. Nobody wrote either of those down. They fell
-out of 1257 examples and some arithmetic.
-
-And here — right here — is the limitation, visible in the same picture. One
-template per class cannot say "a 7 with a crossbar *or* a 7 without one." It has
-to average them, and the average of two different-looking 7s is a blurry 7 that
-matches neither very well. You can see it in the plot if you look: the harder
-digits are muddier.
-
-Fixing exactly that is what layers are for, and that's
-[Chapter 8](/learn/08-neural-networks/). Keep this picture in mind until then.
-</Reveal>
+This classifier uses one template per digit. It cannot capture every variation in handwriting, such as sevens with and without a crossbar. A neural network can combine simpler features in more flexible ways; Chapter 8 introduces that approach.
 
 <Stuck>
-**"I ran it and got a slightly different number."** Good — that means you're
-paying attention. Small differences come from library versions and the browser's
-maths. Anything in the 94–96% range is the same result. If you get something
-wildly different, something is wrong and I'd want to know.
+**I got a slightly different accuracy.** Small differences can come from library versions and numerical details. A result around 94–96% is expected. A much lower result may mean the code or data split changed.
 
-**"What is that `@` symbol?"** It multiplies two grids of numbers together in
-the particular way described just above — every row against every column. Python
-has a dedicated symbol for it because this operation turns up constantly here.
-Hover the underlined <Py id="matmul">matrix multiply</Py> for a short
-explanation, and there's a longer one in the appendix.
+**What does the @ symbol mean?** In Python, @ multiplies two arrays using matrix multiplication. The appendix explains the operation in more detail.
 
-**"I don't see how multiplying pixels by numbers 'recognises' anything."** You're
-not missing something — that reaction is correct and it's the right thing to be
-suspicious of. Open the fold above and *look at the templates*. That's the
-moment it usually clicks: the numbers are a picture, and the multiplication is
-asking "how much does this look like that?"
+**How can multiplying pixels by numbers recognize a digit?** The weights assign different importance to different pixels. The model combines those values into a score for each digit. The plot above shows some of the patterns it uses.
 
-**"Where did the 650 numbers come from?"** We are deliberately not answering
-that yet — it's chapters 4 and 5. For today the thing to hold onto is that they
-are *just numbers*. A model is a recipe someone's program found, not a mind
-somebody summoned.
+**Where did the 650 numbers come from?** Training adjusted them to reduce errors on its examples. Chapters 4 and 5 explain how this works. For now, think of a model as a function with learned numbers, not as a human mind.
 </Stuck>
 
-## Why machine learning is more useful now
+## Why machine learning became more useful
 
-Machine learning has been in the news for about a decade. It is reasonable to
-assume that something was invented about a decade ago. Mostly, that isn't what
-happened.
+Many machine-learning ideas are decades old. The perceptron, an early artificial neuron, was built in 1958. Backpropagation became widely known in 1986. Convolutional networks were used to read handwritten cheques in the early 1990s, and LSTMs for sequence data appeared in 1997. Three changes later made larger models practical.
 
-**The ideas are old.**
+**More data.** Models need examples. ImageNet, assembled from 2007 to 2009, contained more than 14 million labelled images. The internet made images easier to collect, and online workers helped label them.
 
-The perceptron — a single artificial neuron, trained by exactly the method you'll
-build in chapter 5 — was built as *physical hardware* in 1958. Backpropagation,
-which makes deep networks trainable and which we'll write by hand in
-[Chapter 9](/learn/09-backpropagation/), was popularised in 1986. Convolutional
-networks were in production reading cheques for the US Postal Service in the
-early 1990s. LSTMs, which handled sequences for the next two decades, are from
-1997.
+**More computing power.** Training requires many matrix operations. Graphics processing units (GPUs), designed to draw images quickly, can perform many of these operations in parallel. GPUs made neural-network experiments faster and allowed researchers to try larger models.
 
-So "somebody finally thought of it" isn't the answer. The thinking was done
-decades ago. Three other things had to turn up first.
+**Better training methods.** Improvements to initial weights, activation functions, regularisation, and optimisation made deep networks easier to train. You will meet these ideas later.
 
-**Data.** A model fits itself to examples, so it needs examples, and for most of
-this history nobody had any. The dataset that broke the field open was ImageNet:
-14 million labelled photographs, assembled between 2007 and 2009, in large part
-by paying people on Mechanical Turk to label images one at a time. It took the
-internet to make collection cheap and crowdsourcing to make labelling cheap.
-Before that, nobody on Earth had a million labelled anything.
-
-**Compute — and specifically the right *shape* of compute.** You saw above that
-inference is a matrix multiply. Training is an enormous number of them. And it
-turns out somebody had already built a machine for doing vast numbers of parallel
-multiplications and additions at once, for reasons entirely to do with drawing
-triangles quickly in video games. Graphics cards. When people started running
-neural networks on graphics cards around 2009, the same experiment ran roughly
-fifty times faster.
-
-That number matters more than it first looks. An idea that takes six months to
-test is not an idea you can tinker with. An idea that takes three days is.
-Fifty times faster didn't only speed the work up; it changed which experiments
-were worth trying at all.
-
-**A pile of small, unglamorous fixes.** Better starting values for the numbers.
-A simpler bend in the middle of the network, so the training signal survives many
-layers ([why](/appendix/math/#relu)). Dropout, batch normalisation, Adam — all of
-which you will meet later, and none of which is more than a paragraph of
-arithmetic on its own. Together they moved deep networks from "should work in
-principle" to "works on a Tuesday afternoon".
-
-All three arrived at once in **September 2012**, when a network called AlexNet
-won an image-recognition competition, getting 15.3% of the pictures wrong against
-the runner-up's 26.2%. On a competition where everyone had been fighting over
-fractions of a percent for years, a ten-point gap was enough to change what the
-whole field worked on.
-
-<Wonder>
-There's a pattern in that story, and it repeats.
-
-Nearly every "breakthrough" here is an **old idea that finally became affordable**.
-Transformers (2017) took attention, an idea from 2014, and made it cheap enough
-to build big. Diffusion models are 2015 mathematics that became practical around
-2021. Neural networks themselves are a 1950s idea that had to wait sixty years
-for the hardware.
-
-So when somebody says a thing in this field is impossible, it is worth asking
-whether they mean impossible or merely expensive at the moment. Those two have
-quite different futures.
-</Wonder>
+These changes came together in 2012, when AlexNet won a major image-recognition competition. Its error rate was 15.3%, compared with 26.2% for the next-best entry. The result led many researchers to focus on deep learning. Progress often happens this way: an older idea becomes practical when data, computing power, and training methods improve together.
 
 ## When a model is not the right tool
 
-This belongs early rather than late, because it is where the judgement lives and
-almost nobody teaches it.
+Machine learning is not the best choice for every problem.
 
-**When you can just write the rule.** Tax calculation is defined in legislation.
-Don't learn it from examples. You'll achieve 99.4% accuracy on a problem where
-100% was sitting right there for free, and you won't be able to explain the 0.6%
-to anyone, least of all a regulator.
+- **The rules are clear.** Tax calculations follow explicit rules. Implement them directly so the result is predictable and explainable.
+- **A mistake could cause serious harm.** Models can be wrong and may not explain a prediction. Use appropriate safeguards and keep qualified people involved in high-stakes decisions.
+- **You do not have enough relevant data.** A small or unrepresentative sample may not support a reliable model. Collect better data or choose another method.
+- **A simple method already works.** Start with a clear baseline, such as a count, average, or fixed rule. Keep a more complex model only if it improves the result enough to justify its cost.
 
-**When being wrong is unacceptable *and* unexplainable.** These models are
-statistical. They are sometimes wrong and they often can't tell you why. If a
-wrong answer means a wrong medication, the model is at best an input to a human
-decision, and should be built and described that way.
-
-**When you have no data.** Two hundred examples of a rare event is not a training
-set, it's an anecdote. Sometimes the correct project is spending six
-months building the pipeline that collects the data, and shipping the model next
-year. That's a much less fun sentence to say in a planning meeting, and it is
-often the right one.
-
-**When a simple sum would do.** A surprising amount of what gets sold as "AI"
-is an average, or a count, with a better name. Try the boring version first and
-*measure how well it does*. That number is your baseline. If the clever model
-can't beat it, you found that out in an afternoon rather than three months in.
-
-<Aside type="warn">
-The expensive mistake is almost never picking the wrong kind of model. It is
-spending four months building one for a problem where the data could never have
-answered the question in the first place.
-
-The skill that prevents that is knowing how to frame a problem, and it's the
-whole of [Chapter 3](/learn/03-the-shape-of-problems/).
-</Aside>
+Before training, check that the data can answer the question you care about. [Chapter 3](/learn/03-the-shape-of-problems/) explains how to frame a problem for machine learning.
 
 ## The field map
 
-Everything so far is one branch of something larger. Here is the shape of the
-whole thing.
-
-Most of it won't mean anything yet, and that's expected. It is here so that you
-have somewhere to put each new idea as it arrives, rather than meeting each one
-on its own with no context. Come back after every part and watch it fill in.
+You do not need to memorize this map now. Use it to place new ideas as you meet them, then return after each part of the course.
 
 <ConceptMap compact />
 
-Three questions hang off machine learning, and running them together is the
-single biggest source of early confusion:
+Machine-learning projects answer three separate questions:
 
-*What feedback do you get?* (supervised, unsupervised, self-supervised,
-reinforcement.) *What shape is the learned function?* (linear model, tree, neural
-network.) *What makes the fitting work?* (losses, gradients, validation.)
+1. **What feedback is available?** Examples include labels, patterns in unlabelled data, or rewards from actions.
+2. **What kind of model will make predictions?** Examples include a linear model, a tree, or a neural network.
+3. **How will the model be fitted and checked?** This includes its loss, training method, and evaluation data.
 
-Every project answers all three, and the answers are independent of each other.
-A tree can be supervised or not; a neural network can be trained on labelled
-examples or on raw data. Keeping the three questions apart makes a lot of writing
-about this field much easier to follow.
+These choices are related, but they are not the same. A tree or neural network can use different kinds of feedback. Keeping the questions separate makes it easier to compare methods.
 
-<TryThis title="Before you go">
-Think of a decision somebody makes over and over — at your work, in a hobby, in
-a household. Sorting applications, marking homework, deciding which emails
-matter, spotting a bad batch on a production line. Then ask which of these three
-it is:
+## Try it
 
-1. A rule somebody could write down, and has.
-2. A rule somebody could write down, but it's a growing tangle of exceptions and
-   special cases that nobody quite trusts any more.
-3. A rule nobody can write down at all, so it stays a judgement call.
+Choose a repeated decision from work, school, a hobby, or home. For example: sort applications, mark homework, filter email, or spot defective products. Ask whether the rule is clear, whether people handle many exceptions, or whether the task mostly relies on judgment.
 
-<Fragment slot="hint">
-The second one is the interesting category, and it is more common than people
-expect. Look for anything where the instructions have a lot of "except when"
-in them.
-</Fragment>
-
-<Fragment slot="answer">
-There's no right answer here — the point is the habit of asking.
-
-Categories 2 and 3 are where machine learning earns its keep, and 2 is the one
-people miss. A growing tangle of exceptions is a rule being fitted to examples
-by hand, slowly, by a person. That is the same job as machine learning, done the
-hard way.
-
-Category 1 is where most wasted effort goes. If the rule can be written down and
-it doesn't keep changing, write the rule.
-
-Hold onto whichever example you picked. In chapter 3 we'll give it a shape, and
-by chapter 16 you'll be able to say whether it was worth doing.
-</Fragment>
-</TryThis>
+There is no single right answer. The exercise is to check whether a rule can be written down, whether the examples contain useful evidence, and whether a model could help. Keep your example in mind. Chapter 3 shows how to frame it; Chapter 16 helps you decide whether to build and deploy a model.
 
 ## What you will learn
 
-You will build a line-fitting model, train a neural network, and then use PyTorch
-to do the same work with a library. Building a small version first makes the
-library’s tools easier to understand and debug.
-
-You will also learn how to compare model families, test predictions on new data,
-and place new methods on the field map. Next, we will cover the Python used in
-the examples.
+You will fit a simple model, train a neural network, and use PyTorch to build models with a library. You will compare model families, evaluate predictions on new data, and learn where different methods fit. Next, we will cover the Python used in the examples.

@@ -1,14 +1,14 @@
 ---
 title: 'with (context manager)'
 lib: 'stdlib'
-summary: 'Runs setup and guaranteed teardown around a block, whatever happens inside it.'
+summary: "Run a block within a managed context."
 signature: |-
   with expression as name:
       body
 example: |-
   with open('data.csv') as f:
       header = f.readline()
-rust: 'RAII, but explicit and scoped to a block rather than to a value''s lifetime. `Drop` runs when the value dies; `__exit__` runs when the block ends. Errors are given to `__exit__`, so it can also act like a `catch`.'
+rust: "A context manager runs setup and cleanup around a block, similar in purpose to scoped resource management."
 rustCode: |-
   {
       let f = File::open("data.csv")?;  // closed when the block ends
@@ -16,8 +16,6 @@ rustCode: |-
 docs: 'https://docs.python.org/3.14/reference/compound_stmts.html#the-with-statement'
 docsLabel: 'Python reference ↗'
 ---
+A with statement runs a block inside a context manager. The context manager can set up a resource or temporary behavior, then restore or close it when the block ends.
 
-In PyTorch you will meet `with torch.no_grad():`, which switches off gradient
-tracking for its block. That is not resource cleanup — it is using the same
-mechanism to scope a piece of global state, which is a very common Python
-idiom and worth recognising as one.
+In PyTorch, torch.no_grad() is commonly used this way to disable gradient recording for a block.

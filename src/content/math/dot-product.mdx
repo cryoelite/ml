@@ -1,6 +1,6 @@
 ---
 title: 'Dot product'
-summary: 'Multiply two vectors elementwise and add it all up. One number measuring how much they agree.'
+summary: "Multiply corresponding vector elements and sum the results."
 formula: 'a \cdot b = \sum_{i=1}^{n} a_i b_i = \|a\|\,\|b\|\cos\theta'
 docs: 'https://en.wikipedia.org/wiki/Dot_product'
 docsLabel: 'Wikipedia ↗'
@@ -12,13 +12,6 @@ symbols:
   - sym: '\cos\theta'
     means: 'the cosine of the angle between the two vectors'
 ---
+A dot product multiplies corresponding values in two vectors and adds the results. It is positive when the vectors point in similar directions, zero when they are perpendicular, and negative when they point in opposing directions.
 
-The second form is the one to remember: a dot product is large and positive
-when two vectors point the same way, zero when they are perpendicular, and
-negative when they oppose.
-
-That is why it appears everywhere. A linear model's prediction is the dot
-product of weights and features — "how much does this example agree with what
-I have learned to look for". Cosine similarity between embeddings is a dot
-product with the lengths divided out. Attention scores in a transformer are
-dot products between queries and keys. Same operation, three names.
+A linear model uses a dot product of weights and features. Attention compares queries with keys the same way. Cosine similarity divides a dot product by the lengths of both vectors, so it measures direction without their scale.
