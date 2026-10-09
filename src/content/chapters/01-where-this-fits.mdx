@@ -1,17 +1,15 @@
 ---
-title: "Where this all fits"
-blurb: "A working model in eight lines of code, the handful of words you will hear over and over, and why almost none of this worked until recently."
+title: "Where machine learning fits"
+blurb: "See a model work, learn what machine learning is, and decide when it is useful."
 order: 1
 day: 1
 part: orientation
 minutes: 75
 introduces: ["ml", "classical", "supervised"]
 ---
+Start with a real task: label handwritten digits. Press **Run**. The code trains a model on some examples, then checks its predictions on examples it did not train on. You do not need to understand every line yet. First, notice what the program was asked to do.
 
-Before we explain anything at all, here is a machine learning model. You do
-not need to understand a word of it yet. Press **Run** and see what happens.
-
-```python run setup title="the whole thing"
+```python run setup title="fit a digit classifier"
 from sklearn.datasets import load_digits
 from sklearn.model_selection import train_test_split
 from sklearn.linear_model import LogisticRegression
@@ -24,38 +22,10 @@ model = LogisticRegression(max_iter=5000).fit(X_train, y_train)
 print(f"accuracy on digits it has never seen: {model.score(X_valid, y_valid):.1%}")
 ```
 
-The first time takes a few seconds, because your browser is quietly downloading
-a whole copy of Python. After that it's instant.
+The dataset contains small pictures and their correct digit labels. The model gets the pixel values and labels for the training examples. It adjusts numbers inside itself, then predicts labels for the held-out pictures. The accuracy tells us how often those predictions match the labels.
 
-<Says who="juno">
-If you skipped the button: go back and press it. This site is built around
-running things, and reading about a result is not the same as watching one
-appear. Nothing installs, nothing breaks, and you can press it as many times as
-you like.
-</Says>
-
-What just happened: the computer read handwriting. Somebody scanned in 1797
-handwritten digits; the program was shown about seventy per cent of them along
-with the right answers, and then tested on the rest — digits it had never seen.
-It got roughly nineteen out of twenty right.
-
-The part worth sitting with is this one.
-
-**Nobody told it what a 7 looks like.**
-
-Nowhere in those eight lines does anyone describe a pen stroke, or deal with the
-7s that have a crossbar and the 7s that don't, or mention the little hook some
-people put on a 9. There is no instruction about digits anywhere in there. There
-isn't a single *fact* about digits anywhere in there. And it reads handwriting
-anyway.
-
-<Aside type="key">
-Nobody wrote the rules. Somebody handed over examples, and a program went and
-found the rules. That swap is what the whole subject is about. Everything in the
-other fifteen chapters is the machinery for doing it.
-</Aside>
-
-## The inversion
+This is a useful first result, but it does not prove that the model understands handwriting or will work on every person's writing. We will use this example to define the main ideas and the limits of machine learning.
+## How machine learning differs
 
 Here is a shape worth having in front of you:
 
@@ -103,7 +73,7 @@ score how badly a candidate body is doing. Machine learning fills in the body by
 searching, guided by that score.
 </Aside>
 
-## The four words, once, and then we'll stop
+## Core terms
 
 Four words get thrown around in public as if they mean the same thing. They
 don't. Five minutes here saves you a lot of confusion later, and then we mostly
@@ -139,12 +109,10 @@ Being able to ask *which layer of that nest do you mean?* — politely — turns
 to be quite useful.
 </Aside>
 
-<Says who="basil">
 Worth knowing while you read anything written for the public: the four words
 above get used interchangeably by people who should know better, and sometimes by
 people who benefit from the confusion. When a product says it uses AI, it may
 mean a language model, and it may mean an average.
-</Says>
 
 Three more words and we can get back to the interesting part:
 
@@ -153,7 +121,7 @@ Three more words and we can get back to the interesting part:
 - **Parameters** (or *weights*) — the numbers that got found. The model above found
   650 of them. The big language models have hundreds of billions.
 
-## Let's take it apart
+## The machine learning process
 
 I don't want you to take my word for any of this, so let's open the model up. It
 will not take long, because there is almost nothing inside.
@@ -259,7 +227,7 @@ are *just numbers*. A model is a recipe someone's program found, not a mind
 somebody summoned.
 </Stuck>
 
-## So why is all this suddenly everywhere?
+## Why machine learning is more useful now
 
 Machine learning has been in the news for about a decade. It is reasonable to
 assume that something was invented about a decade ago. Mostly, that isn't what
@@ -325,7 +293,7 @@ whether they mean impossible or merely expensive at the moment. Those two have
 quite different futures.
 </Wonder>
 
-## When the answer is not machine learning
+## When a model is not the right tool
 
 This belongs early rather than late, because it is where the judgement lives and
 almost nobody teaches it.
@@ -360,7 +328,7 @@ The skill that prevents that is knowing how to frame a problem, and it's the
 whole of [Chapter 3](/learn/03-the-shape-of-problems/).
 </Aside>
 
-## The map
+## The field map
 
 Everything so far is one branch of something larger. Here is the shape of the
 whole thing.
@@ -416,19 +384,12 @@ by chapter 16 you'll be able to say whether it was worth doing.
 </Fragment>
 </TryThis>
 
-## Where you're going
+## What you will learn
 
-By the end of the fortnight you will have built, from scratch and with nothing
-clever hidden inside it: a model that fits a straight line, the search procedure
-that finds its numbers, a neural network, and the method that trains one.
+You will build a line-fitting model, train a neural network, and then use PyTorch
+to do the same work with a library. Building a small version first makes the
+library’s tools easier to understand and debug.
 
-Then you'll build the whole lot again using a library called PyTorch, in about a
-tenth of the code. Doing it the long way first is the point. When something goes
-wrong later — and it will — you'll know what the library is doing on your behalf,
-which is the difference between fixing a problem and guessing at it.
-
-You'll also be able to open a paper, read the first page, and know which boxes on
-that map it lives in. That skill, more than any particular architecture, is what
-makes the rest of this field learnable without anybody's help.
-
-Tomorrow: Python, at the speed of somebody who already knows how to program.
+You will also learn how to compare model families, test predictions on new data,
+and place new methods on the field map. Next, we will cover the Python used in
+the examples.

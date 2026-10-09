@@ -1,24 +1,13 @@
 ---
-title: "The probabilistic tradition"
-blurb: "The branch that lost the race to scale up, and is very much alive wherever data is scarce or being wrong is expensive. It does the one thing neural networks are worst at: knowing what it does not know."
+title: "Bayesian methods"
+blurb: "Represent uncertainty about model parameters and predictions with probability distributions."
 order: 23
 minutes: 13
 kind: "sibling"
 after: "07-the-model-zoo"
 covers: ["bayes"]
 ---
-
-Every model in the sixteen chapters gives you a point estimate. One number, or
-one probability, and no indication of how much to trust it.
-
-Chapter 16 touched on calibration — whether a stated 0.7 happens 70% of the time.
-That's a useful patch. The Bayesian tradition treats uncertainty as **the object
-you compute**, rather than something you retrofit afterwards.
-
-It lost the scaling race decisively. It is also the right answer in a set of
-situations you will eventually meet, and its vocabulary shows up in places you
-wouldn't expect.
-
+Most models in the main course return one prediction. Bayesian methods can represent uncertainty about parameters or predictions as probability distributions. This article introduces the basic idea and shows when that view is useful.
 ## The core move
 
 Frequentist: *the parameter has one true value; my estimate has uncertainty.*

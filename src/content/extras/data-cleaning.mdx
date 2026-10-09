@@ -1,26 +1,13 @@
 ---
-title: "The unglamorous 60%"
-blurb: "Nobody writes a chapter about missing values and duplicated rows, and it is where most of the time on a real project goes. The part of the job that tutorials skip."
+title: "Prepare real-world data"
+blurb: "Inspect missing values, inconsistent records, duplicates, and data leakage before training."
 order: 30
 minutes: 14
 kind: "craft"
 after: "03-the-shape-of-problems"
 covers: ["supervised"]
 ---
-
-Every dataset in the sixteen chapters was clean. `load_digits()` just works.
-`make_moons()` has never had a null in its life.
-
-That was deliberate — teaching gradient descent while also fighting a timezone
-bug would have taught neither. But it does leave a false impression, so here
-correct it plainly:
-
-**On a real project, most of your time goes here.** Not on architecture. Not on
-hyperparameters. On working out what the data actually is, and why three
-different systems disagree about it.
-
-This page is that work, written down.
-
+Course examples use tidy datasets so you can focus on models. Real datasets need careful inspection. This guide covers missing values, inconsistent categories, duplicates, date handling, and checks that help prevent leakage.
 ## Look at the rows. Actually look at them.
 
 ```python run setup title="a realistically awful dataset"

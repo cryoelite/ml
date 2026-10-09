@@ -2,387 +2,90 @@
 layout: ../layouts/Doc.astro
 title: "Setup"
 current: setup
-description: "Everything you need installed, why each piece is there, and the two macOS gotchas that will otherwise cost you an hour."
+description: "Most lessons run in your browser. Use this guide only when you want to run the site locally or use PyTorch on your computer."
 ---
 
 import Aside from "../components/Aside.astro";
-import Reveal from "../components/Reveal.astro";
-import Says from "../components/Says.astro";
 
 # Setup
 
-**You almost certainly don't need this page.** You can read every chapter and run
-almost every piece of code with nothing installed at all — Python runs inside
-your browser, and pressing **Run** is the whole of it.
+You can read the course and run most examples without installing anything. Python runs in your browser when you press **Run**. Come back to this page if you want to run the site on your computer or reach the PyTorch lessons.
 
-<Says who="moss">
-If you are here because something isn't working, or because you got to chapter 10
-and hit a box saying "this one needs a kernel", you're in the right place.
-Otherwise, go and read — nothing on this page is needed before chapter 10, and
-you may never need it at all.
-</Says>
+## What runs where?
 
-Three chapters use PyTorch, which is too large to run in a browser. Those need
-Python installed on your own computer. This page walks through that from a
-standing start, on Windows, macOS or Linux, and lists the handful of
-platform-specific snags that otherwise cost an hour.
-
-## The two ways code can run
-
-A **kernel**, in this context, is just a Python process sitting there waiting for
-code to run. The site can talk to two of them: one inside your browser tab, which
-arrives on its own, and one on your own machine, which you have to start.
-
-<div class="table-scroll">
-
-| | Browser | Local kernel |
+| | In your browser | On your computer |
 |---|---|---|
-| What it is | CPython 3.14 compiled to WebAssembly (Pyodide) | A real Jupyter kernel on your machine |
-| Install needed | none | `uv`, and one command |
-| Has | numpy, pandas, scikit-learn, scipy, matplotlib, sympy | all of that, plus PyTorch, torchvision, MPS |
-| Chapters | 1–9, 11–16 (most cells) | 10, and the `needs local kernel` cells elsewhere |
-| Speed | roughly 2–5× slower than native | native |
-| Works offline | yes, once vendored | yes |
+| What runs | Python compiled to WebAssembly (Pyodide) | A local Jupyter kernel |
+| Install needed | No | Yes, for the PyTorch lessons |
+| Used for | Most examples in the course | Chapter 10 and examples marked `local` |
 
-</div>
+The site does not host a shared Python kernel. The local kernel runs on your computer and the browser connects to it.
 
-The runtime pill in the header shows which one is active and lets you switch. The
-default is the browser, because it is the one with no prerequisites.
+## Run the site on your computer
 
-<Aside type="key">
-There is no cloud anywhere in this. The browser runtime executes on your own
-machine inside the tab's sandbox; the local kernel executes on your own machine
-as an ordinary process. Nothing you run here leaves the computer.
-</Aside>
-
-## Running the site
-
-The quickest way, and the same on every platform — it needs only
-[Docker Desktop](https://docs.docker.com/get-started/get-docker/):
+The simplest option is [Docker Desktop](https://docs.docker.com/get-started/get-docker/):
 
 ```bash
 docker compose up --build
 ```
 
-That serves the site on `http://localhost:4321` with Python already vendored in,
-so it works with no network at all.
+Open `http://localhost:4321`. Stop the site with `Ctrl+C`.
 
-To develop rather than just read, you need [Bun](https://bun.sh) instead. Node
-20+ works too — substitute `npm`:
+For development, install [Bun](https://bun.sh), then run:
 
 ```bash
-bun install && bun run dev
+bun run setup
+bun run dev
 ```
 
-`bun run dev` also vendors Pyodide into `public/pyodide/` on first run — about
-56 MB, downloaded once and gitignored. After that the browser runtime works with
-no network at all.
+The setup command installs the site packages and the browser Python runtime. It also creates a light Python environment for the course tools. To include PyTorch now, use `bun run setup --deep`.
+
+## Run the PyTorch lessons
+
+First, download the project code using the instructions on the [GitHub repository](https://github.com/cryoelite/ml). Install [uv](https://docs.astral.sh/uv/), then start the kernel from the project folder.
+
+**macOS or Linux**
 
 ```bash
-bun run vendor
+bash kernel/run.sh
 ```
 
-Run that by hand if you ever want to force a refresh, or `bun run vendor --force`
-to re-download everything.
+**Windows PowerShell**
 
-## Getting the code
-
-For [Chapter 10](/learn/10-pytorch/) onwards you need the repository on your own
-machine — that is where the Python kernel runs from. Everything before that needs
-nothing at all.
-
-<Aside type="key">
-If you have never used Git before, this is three commands and about two
-minutes. Nothing below assumes you know what a repository is.
-</Aside>
-
-**1. Install Git**, if you do not already have it. Open a terminal — that is
-**PowerShell** on Windows, **Terminal** on macOS or Linux — and run the line for
-your system:
-
-<div class="table-scroll">
-
-| | |
-|---|---|
-| **Windows** | `winget install Git.Git` |
-| **macOS** | `xcode-select --install` |
-| **Linux** | `sudo apt install git` (or your package manager's equivalent) |
-
-</div>
-
-If `git --version` prints a number, you already had it and can skip this.
-
-**2. Download the code.** This creates a folder called `ml` wherever you run it,
-so `cd` somewhere sensible first:
-
-```bash
-git clone https://github.com/cryoelite/ml.git
-cd ml
-```
-
-**3. Pick one of the three ways below.** That is the whole setup.
-
-<Aside type="nice">
-Later on, `git pull` inside that folder fetches any changes without
-re-downloading everything.
-</Aside>
-
-## The local kernel
-
-PyTorch has no WebAssembly build, so the cells that need it run in a real Python
-process — **on your own machine, always**.
-
-<Aside type="key">
-That "always" matters if you are reading this on someone else's server.
-
-A Jupyter kernel executes arbitrary Python, so it can never be shared between
-visitors to a website — not as a hardening measure, but because the idea does
-not work: one interpreter, many strangers, shared mutable state.
-
-So you run your own, and the page in your browser talks to your own
-`localhost`. Whoever hosts this site is never in the path, and nothing you run
-leaves your computer.
-</Aside>
-
-### Three ways to start one
-
-**A — With Docker.** Identical on Windows, macOS and Linux, and you need nothing
-else installed. Install [Docker Desktop](https://docs.docker.com/get-started/get-docker/),
-then:
-
-```bash
-cd kernel
-docker compose up --build
-```
-
-The first build takes a few minutes and downloads PyTorch. After that it starts
-in seconds.
-
-**B — With a script.** Use this if you would rather not run Docker, and
-**definitely** use it on an Apple Silicon Mac, because a container cannot reach
-the Metal GPU and this can.
-
-<div class="table-scroll">
-
-| | |
-|---|---|
-| **Windows** | `powershell -ExecutionPolicy Bypass -File kernel\run.ps1` |
-| **macOS / Linux** | `bash kernel/run.sh` |
-
-</div>
-
-Either one checks for [uv](https://docs.astral.sh/uv/) (a fast Python installer),
-tells you how to get it if it is missing, installs everything including PyTorch,
-reports whether your GPU is usable, and starts the kernel.
-
-**C — By hand**, if you would rather see each step:
-
-```bash
-uv sync --project lab --extra deep
-bun run kernel
-```
-
-<Aside type="nice">
-`uv` is worth having regardless — it installs and manages Python itself, so you
-do not have to think about which Python you are using or what a virtualenv is.
-
-Windows: `powershell -ExecutionPolicy ByPass -c "irm https://astral.sh/uv/install.ps1 | iex"`
-
-macOS / Linux: `curl -LsSf https://astral.sh/uv/install.sh | sh`
-</Aside>
-
-### Connecting the site to it
-
-Click the runtime pill in the header, choose **On this machine**, and press
-**Test connection**.
-
-The defaults (`http://127.0.0.1:8899`, token `gradient`) already match, so if you
-are running the site locally it should say **Connected** straight away. If it
-does not, the message tells you which of the three things below is wrong rather
-than leaving you to guess.
-
-<div class="table-scroll">
-
-| Setting | Default | Change it when |
-|---|---|---|
-| Server port | `8899` | something else already uses it |
-| Token | `gradient` | you set a different one |
-| `GRADIENT_SITE_ORIGIN` | *(unset)* | **the site is not on your machine** |
-
-</div>
-
-That last one is the one people miss. The kernel only accepts browser requests
-from origins it has been told about. Localhost is always allowed; a hosted site
-is not, and without it the connection fails with no obvious cause.
-
-Set it before starting the kernel:
-
-<div class="table-scroll">
-
-| | |
-|---|---|
-| **Windows** | `$env:GRADIENT_SITE_ORIGIN = "https://projects.itscryo.com"` |
-| **macOS / Linux** | `export GRADIENT_SITE_ORIGIN=https://projects.itscryo.com` |
-
-</div>
-
-Or, with Docker, copy `kernel/.env.example` to `kernel/.env` and edit it. The
-same file takes `GRADIENT_KERNEL_PORT` and `GRADIENT_KERNEL_TOKEN` if you need to
-move off the defaults.
-
-<Aside type="warn">
-**If the site is served over HTTPS**, your browser will only let it reach a
-*loopback* address over plain HTTP. Chrome and Firefox allow `127.0.0.1`;
-Safari is stricter and may refuse.
-
-**Test connection** names this case explicitly if it happens, so you are not left
-staring at a silent failure. If you hit it on Safari, use another browser or run
-the site locally.
-</Aside>
-
-## Things that will bite you, by platform
-
-None of these are your fault, and all of them have a one-line fix. They are here
-so you recognise the error message rather than losing an hour to it.
-
-### macOS
-
-<Aside type="warn">
-**1. Python cannot verify HTTPS certificates.**
-
-A python.org installer does not wire up a CA bundle until you run a script it
-ships with. Until you do, every dataset download and every `resnet18(weights=...)`
-fails with:
-
-`SSLCertVerificationError: unable to get local issuer certificate`
-
-The permanent fix is one double-click, or one line:
-
-```bash
-open "/Applications/Python 3.14/Install Certificates.command"
-```
-
-Adjust the version to match yours. `scripts/kernel.sh` and the cell checker both
-work around this by pointing `SSL_CERT_FILE` at `certifi`, so the tutorial works
-either way — but everything *else* on your machine will keep failing until you
-run it.
-</Aside>
-
-<Aside type="warn">
-**2. MPS and `float64`.**
-
-Apple's Metal backend does not support 64-bit floats at all. Since NumPy defaults
-to `float64` and PyTorch defaults to `float32`, a `torch.tensor(numpy_array)`
-quietly produces a `float64` tensor that then fails on `.to("mps")`.
-
-Pass `dtype=torch.float32` when converting. Every cell in this tutorial does.
-
-Some operations are also still unimplemented on MPS.
-`PYTORCH_ENABLE_MPS_FALLBACK=1` makes those fall back to CPU silently instead of
-raising; `scripts/kernel.sh` sets it for you.
-</Aside>
-
-### Windows
-
-<Aside type="warn">
-**1. PowerShell refuses to run the script.**
-
-You will see *"running scripts is disabled on this system"*. That is Windows'
-default execution policy, and it is doing its job — it stops you running scripts
-you did not mean to.
-
-The `-ExecutionPolicy Bypass` in the command above applies to that one run only
-and changes nothing permanently:
-
-```
+```powershell
 powershell -ExecutionPolicy Bypass -File kernel\run.ps1
 ```
-</Aside>
 
-<Aside type="warn">
-**2. `uv` is not recognised after installing it.**
-
-The installer adds it to your PATH, but an already-open terminal does not notice.
-Close PowerShell, open it again, and `uv --version` will work.
-</Aside>
+The first run installs PyTorch and may take a few minutes. Leave the terminal open. In the site header, open the runtime menu, choose **On this machine**, then select **Test connection**.
 
 <Aside type="nice">
-**Not a problem, but worth knowing:** there is no Apple MPS on Windows. If you
-have an NVIDIA card the script reports CUDA; otherwise everything runs on CPU,
-which is slower and completely fine for every cell here.
-
-**WSL also works** if you prefer it — inside WSL, follow the macOS/Linux
-instructions rather than the Windows ones, since you are on Linux there.
+On Apple Silicon, run the script on macOS if you want to use the Metal GPU. Docker on macOS runs the kernel without access to that GPU. CPU mode still works for the course examples.
 </Aside>
 
-### Linux
+## If the site is hosted elsewhere
 
-<Aside type="nice">
-Nothing platform-specific bites here. If `docker compose up` complains about
-permissions, you are probably not in the `docker` group:
+The kernel accepts browser connections from localhost by default. If the course is open on a hosted website, tell the kernel that site's origin before starting it.
 
-```bash
-sudo usermod -aG docker $USER
-```
-
-Then log out and back in.
-</Aside>
-
-## Checking it all works
+**macOS or Linux**
 
 ```bash
-uv run --project lab python scripts/check_cells.py --deep
+GRADIENT_SITE_ORIGIN=https://example.com bash kernel/run.sh
 ```
 
-That extracts every runnable cell from every chapter and executes them in
-document order, in one namespace per chapter — the same way you would by pressing
-Run down the page. It should report `all passing`. Drop `--deep` to skip the
-PyTorch cells.
+**Windows PowerShell**
 
-It is also the fastest way to find out whether your environment is broken before
-you start blaming a chapter.
-
-## Notebooks
-
-If you would rather work in a real notebook than in the page:
-
-```bash
-uv run --project lab jupyter lab
+```powershell
+$env:GRADIENT_SITE_ORIGIN = "https://example.com"
+powershell -ExecutionPolicy Bypass -File kernel\run.ps1
 ```
 
-`lab/notebooks/` holds one starter notebook per part, and the kernel started by
-`bun run kernel` is the same environment.
+Replace `https://example.com` with the address in your browser. The kernel only listens on your own computer and requires a token. Keep the terminal running while you use the PyTorch cells.
 
-## Versions this was built against
+## Common problems
 
-<div class="table-scroll">
+- **The connection test cannot reach the kernel:** make sure the kernel terminal is still open. The default address is `http://127.0.0.1:8899` and the default token is `gradient`.
+- **The site is hosted over HTTPS:** browsers restrict connections to local services. Try a recent version of Chrome or Firefox, or run the site locally.
+- **Port 8899 is already in use:** start the kernel with a different `GRADIENT_KERNEL_PORT` value, then enter the same port in the runtime menu.
+- **A dataset or model download fails on macOS:** some Python installers need their certificate bundle set up. See [Python's certificate instructions](https://docs.python.org/3/using/mac.html#installing-certificates).
 
-| | Version |
-|---|---|
-| Bun | 1.3 |
-| Astro | 7.3 |
-| Pyodide | 314.0.6 (CPython 3.14.2) |
-| Python (local) | 3.14 |
-| PyTorch | 2.14 |
-| NumPy / pandas / scikit-learn | 2.5 / 3.0 / 1.9 |
-
-</div>
-
-Nothing here depends on a bleeding-edge feature; earlier versions of most of these
-will be fine. The one hard requirement is a browser with `WebAssembly`, module
-workers and the Popover API — any browser from 2023 onward.
-
-## If something is wrong
-
-**"Could not load pyodide.mjs"** — run `bun run vendor`. If it still fails, your
-browser is blocking module workers; check the console.
-
-**"cannot reach http://127.0.0.1:8899"** — the kernel is not running. Start it
-with `bun run kernel` in another terminal.
-
-**"403 — wrong or missing token"** — the token in the runtime panel does not match
-the one `bun run kernel` printed. They both default to `gradient`.
-
-**A cell hangs forever** — the browser runtime is single-threaded and a runaway
-loop will hang the worker. Open the runtime panel and press **Restart runtime**.
-
+If you only want to learn from the browser lessons, you can ignore the rest of this page.

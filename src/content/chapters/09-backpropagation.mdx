@@ -1,31 +1,16 @@
 ---
-title: "Backpropagation"
-blurb: "The chain rule applied mechanically, right to left, working out every gradient in a network for the price of one extra pass. Derived, written, and checked."
+title: "How backpropagation works"
+blurb: "Apply the chain rule to compute a neural network’s gradients efficiently, then check the result against numerical estimates."
 order: 9
 day: 9
 part: deep-learning
 minutes: 110
 introduces: ["backprop"]
 ---
+To train a model, we need to know how each parameter affects the loss. A numerical estimate changes one parameter at a time and repeats the calculation. That becomes too slow for a large network.
 
-Yesterday's numerical gradient cost two forward passes **per parameter**.
-
-Backpropagation costs about one forward pass **in total** — for every parameter
-at once. Today is where that comes from.
-
-It is the most important procedure in the field, and it is not difficult. It is
-<M id="chain-rule">the chain rule</M> from school calculus, applied step by step,
-working backwards. If you can do the chain rule, you can do this. The difficulty
-is all in the reputation.
-
-<Says who="moss">
-If the phrase "chain rule" makes your stomach drop a little: it means that when
-one thing depends on a second thing, which depends on a third, you can work out
-how the first responds to the third by multiplying the two steps together. That
-is the entire tool. Everything today is that, done several times in a row.
-</Says>
-
-## The idea, on something tiny
+Backpropagation applies the chain rule from the output back through the network. It computes the gradients for all parameters in one backward pass.
+## Start with a small function
 
 ```python run setup title="a tiny composed function"
 import numpy as np, matplotlib.pyplot as plt
@@ -83,7 +68,7 @@ delta ($\delta$). PyTorch calls it `grad_output` inside an autograd function.
 Same thing, three names.
 </Aside>
 
-## Why it's cheap
+## Why backpropagation is efficient
 
 Consider a chain $x \to h_1 \to h_2 \to \dots \to h_n \to L$.
 
@@ -140,7 +125,7 @@ computing — wearing a machine-learning-shaped name.
 </Aside>
 </Wonder>
 
-## Deriving it for our network
+## Compute gradients for the network
 
 Yesterday's network:
 
@@ -434,7 +419,7 @@ plt.tight_layout()
 
 There's your crescent boundary, learned by a network you wrote every line of.
 
-## Where gradients go wrong
+## When gradients vanish or explode
 
 **Vanishing.** Each layer multiplies the flowing gradient by its local
 derivative. Sigmoid's derivative maxes at 0.25, so ten sigmoid layers scale the

@@ -1,6 +1,6 @@
 ---
-title: "The same thing, in PyTorch"
-blurb: "Everything from the last two chapters in a tenth of the code — and the one thing the library gives you that is not convenience."
+title: "Use PyTorch"
+blurb: "Replace the hand-written training loop with PyTorch tensors, automatic differentiation, and standard training tools."
 order: 10
 day: 10
 part: deep-learning
@@ -27,7 +27,7 @@ Which raises the obvious question: why write it at all? Because the library hide
 exactly the parts you just built, and when something goes wrong later it will go
 wrong in there, silently. Having built it once, you'll know where to look.
 
-## Tensors are arrays with two extra fields
+## Tensors and devices
 
 ```python run local title="familiar, with additions"
 import torch
@@ -71,7 +71,7 @@ numbers, and nothing anywhere to warn you. Same shape of mistake, new place to
 make it.
 </Aside>
 
-## Autograd replaces your backward pass
+## Use automatic differentiation
 
 ```python run local title="the tape"
 x = torch.tensor(3.0, requires_grad=True)
@@ -174,7 +174,7 @@ Apply sigmoid or softmax only at inference, when you want a probability
 to show somebody.
 </Aside>
 
-## The training loop
+## Write a training loop
 
 ```python run local setup title="every PyTorch script you will ever read"
 from sklearn.datasets import make_moons
@@ -239,7 +239,7 @@ absolutely nothing, and building the habit now costs you nothing either.
 <Py id="with-statement">`with torch.no_grad()`</Py> stops building the tape,
 saving memory and time when you're not going to call `.backward()`.
 
-## Data loading
+## Load data in batches
 
 ```python run local title="Dataset and DataLoader"
 from torch.utils.data import TensorDataset, DataLoader
@@ -274,7 +274,7 @@ knows your file format and nothing whatsoever about batching. `DataLoader` knows
 about batching and nothing whatsoever about your files. Two small interfaces that
 compose, instead of one big one that does everything.
 
-## Devices, and Apple Silicon
+## Choose a compute device
 
 ```python run local title="pick the device once"
 def best_device():
@@ -312,7 +312,7 @@ and you spend more time talking to the GPU than the GPU spends working.
 Device choice is worth measuring, not assuming. "Use the GPU" is not a law.
 </Aside>
 
-## What the library actually gave you
+## What PyTorch handles
 
 ```python run local title="the honest accounting"
 print("NumPy version (chapter 9): ~24 lines of init + forward + backward + loop")

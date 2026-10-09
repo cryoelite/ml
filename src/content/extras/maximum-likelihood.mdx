@@ -1,21 +1,13 @@
 ---
-title: "Where every loss function comes from"
-blurb: "MSE and cross-entropy look like two unrelated formulas somebody chose. They're the same principle applied to two different assumptions — and once you see it, you can derive a loss for a problem nobody has written one for."
+title: "Maximum likelihood and loss functions"
+blurb: "Derive squared error and cross-entropy from assumptions about the data."
 order: 10
 minutes: 14
 kind: "theory"
 after: "04-your-first-model"
 covers: ["loss"]
 ---
-
-Chapter 4 showed two loss functions and said, in passing, that both fall out of
-something called maximum likelihood. Then it moved on, because it was day four
-and there was a model to fit.
-
-This is the fold I skipped. It's worth twenty minutes because it turns "here are
-the losses people use" into "here is how you *derive* a loss," which is a different capability — and it's the fastest way to make sense of half the
-equations in any paper.
-
+A loss function measures how well model predictions match the data. Maximum likelihood offers a common way to choose one: pick parameters that make the observed examples probable. This guide derives squared error and cross-entropy from that idea.
 ## The principle
 
 Here it is, and it's one sentence:

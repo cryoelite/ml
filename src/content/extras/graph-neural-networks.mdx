@@ -1,20 +1,13 @@
 ---
-title: "When your data is a graph"
-blurb: "Molecules, social networks, fraud rings, road systems. The same weight-sharing idea as convolution, with a graph in place of a grid — and once you see that, GNNs stop being a separate subject."
+title: "Machine learning on graphs"
+blurb: "Represent relationships between items with graph neural networks."
 order: 24
 minutes: 11
 kind: "sibling"
 after: "11-vision-and-transfer"
 covers: ["gnn"]
 ---
-
-Chapter 11 made an argument I'd like to reuse: a dense layer is the wrong tool for
-pixels, because it knows nothing about the *structure* of its input.
-
-The same argument applies whenever your data has structure a dense layer would
-throw away. And graphs — molecules, social networks, transaction ledgers, road
-systems, code dependency trees — are the case where it applies most sharply.
-
+Some data is best described by entities and their relationships: molecules, roads, transactions, or social networks. A graph neural network passes information between connected nodes so the model can use that structure.
 ## The problem with flattening a graph
 
 ```python run setup title="a small graph, and why ordering is a trap"

@@ -1,22 +1,13 @@
 ---
-title: "The bias–variance decomposition, actually decomposed"
-blurb: "Chapter 6 said overfitting is memorising noise. This is the algebra that splits your error into three named pieces — one of which you can never remove, and knowing its size is what stops you chasing an impossible number."
+title: "Bias and variance"
+blurb: "Separate error from model limitations, data noise, and sensitivity to the training sample."
 order: 11
 minutes: 13
 kind: "theory"
 after: "06-generalisation"
 covers: ["generalise"]
 ---
-
-Chapter 6 gave you the practical version: watch the gap between training and
-validation error, and act on what you see. That's most of what you need.
-
-This is the algebra underneath. It is worth an afternoon for one reason: it
-tells you that **part of your error can never be removed**, and gives
-you a way to estimate how much. Which is the difference between stopping at 88%
-because that's the ceiling, and spending three weeks trying to reach 95% because
-nobody told you it wasn't there.
-
+Training and validation scores show whether a model is overfitting, but they do not explain every source of error. The bias–variance decomposition separates error caused by a model’s limitations, noise in the data, and changes across training samples.
 ## The setup
 
 Suppose there's some true function $f(x)$, and what you observe is that function

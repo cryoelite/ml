@@ -1,20 +1,13 @@
 ---
-title: "Making it fast enough to ship"
-blurb: "Quantisation, distillation, batching and caching. A trained model is rarely a deployable one, and the gap is bridged with a handful of techniques that trade accuracy you don't need for latency you do."
+title: "Make a model faster to use"
+blurb: "Measure latency and memory, then compare batching, quantization, distillation, and caching."
 order: 32
 minutes: 13
 kind: "craft"
 after: "16-shipping-and-reading-papers"
 covers: ["deploy"]
 ---
-
-Chapter 16 said a model is, in the end, just a function that other software
-calls. True — and it skipped the part where the function is 400 MB, takes 800 ms
-to answer, and the thing calling it can only wait 50 ms.
-
-This is that gap. The good news is that the techniques are few, they compose, and
-the first two are nearly free.
-
+A useful model also needs to fit the limits of the system that runs it. Start by measuring response time and memory use. Then consider batching, quantization, distillation, or caching, depending on the bottleneck.
 ## First: measure the right thing
 
 ```python run setup title="latency is a distribution, not a number"

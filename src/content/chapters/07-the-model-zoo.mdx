@@ -1,27 +1,16 @@
 ---
-title: "The model zoo"
-blurb: "Trees, forests, boosting and nearest neighbours — what each one quietly assumes, and why on table-shaped data they still beat neural networks."
+title: "Choose a model"
+blurb: "Compare linear models, trees, ensembles, nearest neighbors, and support vector machines on the same task."
 order: 7
 day: 7
 part: foundations
 minutes: 90
 introduces: ["family", "trees", "cart", "rf", "gbm", "knn", "svm", "bayes"]
 ---
+Different model families represent patterns in different ways. We will fit several models to the same data and compare their results.
 
-You now have the machinery: a model, a loss, an optimiser, and a validation set
-that doesn't lie to you. Today we do the second axis of [the map](/map/) — what
-*shape* the learned function is allowed to take.
-
-One thing up front, because it saves a lot of wasted effort:
-
-**On ordinary table-shaped data, a method called gradient boosting usually beats
-neural networks.**
-
-Not sometimes — usually. If your data looks like a spreadsheet, that's where to
-start. The middle of this chapter is about why, because the reasons are concrete
-and knowing them makes choosing much easier.
-
-## Everything shares one interface
+For many tabular problems, boosted trees are a strong starting point and often perform well. They are not always best. Use a validation set and compare them with a simple baseline before deciding.
+## A common fit-and-predict interface
 
 ```python run setup title="the contract"
 import numpy as np
@@ -165,7 +154,7 @@ Perfect training accuracy, mediocre validation accuracy, hundreds of leaves.
 That's yesterday's [memorisation](/learn/06-generalisation/) in its purest form —
 and this time you can count it, one leaf per memorised row.
 
-## Ensembles: the two ways to combine trees
+## Combine decision trees
 
 So if one tree overfits, what do you do?
 
@@ -218,7 +207,7 @@ majority of Kaggle competitions on tabular data. They still do. There is a whole
 generation of very good data scientists whose main tool is a tree.
 </Aside>
 
-## Why trees still beat neural networks on tables
+## Why trees work well on tabular data
 
 This surprises people who've absorbed the "deep learning solved
 everything" story. The reasons are concrete, and I think they're worth
@@ -293,7 +282,7 @@ And — this is the reason it earns its place here — it's the conceptual basis
 including the retrieval half of RAG, is k-NN with a learned distance and a clever
 index. You'll build the learned-distance half in chapter 12.
 
-## Support vector machines, briefly
+## Support vector machines
 
 Find the boundary with the widest margin between the classes — and then, the
 clever part, compute distances in a high-dimensional space you never actually
@@ -344,7 +333,7 @@ happens a lot in this field, and it's worth remembering when you're tempted to b
 clever.
 </Wonder>
 
-## Which to reach for
+## Choose a starting model
 
 <div class="table-scroll">
 
@@ -384,7 +373,7 @@ has maximum impurity. The tree picks the split that most reduces it, which is
 just a formal way of saying "the question that best separates the classes."
 </Stuck>
 
-## Feature importance, and its limits
+## Feature importance and its limits
 
 ```python run title="what the model leaned on"
 from sklearn.datasets import load_breast_cancer

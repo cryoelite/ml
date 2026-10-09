@@ -1,21 +1,16 @@
 ---
-title: "Pictures: convolutions and borrowed weights"
-blurb: "Why the network from chapter eight is the wrong tool for photographs, what a convolution assumes, and how to train a good classifier on 200 pictures."
+title: "How models process images"
+blurb: "Use convolutions to make the most of image structure, and adapt a trained model to a new task."
 order: 11
 day: 11
 part: frontier
 minutes: 100
 introduces: ["cnn", "vit", "transfer"]
 ---
+An image is a grid. Nearby pixels often belong to the same edge, texture, or object. A dense layer treats every pixel as a separate input and does not use this local structure.
 
-A photograph is just numbers, so the network from chapter 8 can happily take
-one as input.
-
-It shouldn't, and the reason is worth getting exactly right, because the same
-reasoning produces every remaining design in this book. Understand it once here
-and chapters 12, 13 and 14 will read as variations rather than surprises.
-
-## Why not just flatten it?
+Convolutions scan small filters across the image. We will see how they work, then use transfer learning to adapt an existing image model.
+## Keep image structure
 
 ```python run setup title="the arithmetic that kills it"
 import numpy as np, matplotlib.pyplot as plt
@@ -56,7 +51,7 @@ well. For an image it throws away the single most useful fact you have: nearby
 pixels are related, and a cat is a cat wherever it happens to be standing.
 </Aside>
 
-## A convolution, by hand
+## Apply a convolution
 
 <M id="convolution">A convolution</M> slides a small grid of weights across the
 image and records the dot product at every position.
@@ -176,7 +171,7 @@ And there's a nice way to read that trade. You're exchanging **"where"** for
 Late layers know there's a face *somewhere* but have lost the exact pixel. Which
 is usually what you wanted.
 
-## A real CNN
+## Build a convolutional network
 
 ```python run local setup title="a convnet on 8x8 digits"
 import torch, torch.nn as nn
@@ -374,7 +369,7 @@ high for phase 2. You're supposed to be nudging. Try dividing by 10, then 100 â€
 this is the single most common transfer learning mistake.
 </Stuck>
 
-## Where vision is now
+## Current approaches to computer vision
 
 CNNs dominated from 2012 to about 2020. Then the **Vision Transformer** (2020)
 showed something startling: cut an image into 16Ã—16 patches, treat them as a

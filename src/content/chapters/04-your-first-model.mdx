@@ -1,22 +1,16 @@
 ---
-title: "Your first model, built by hand"
-blurb: "A straight line fitted by hand, a way of measuring how wrong it is, and the realisation that finding good numbers is a search."
+title: "Build your first model"
+blurb: "Fit a simple model, define its error with a loss, and compare it with a basic baseline."
 order: 4
 day: 4
 part: foundations
 minutes: 90
 introduces: ["linear", "logreg", "classification", "regression"]
 ---
+We will build a model that predicts a score from study time. First, write the prediction as a simple formula. Then use examples to choose the formula’s adjustable numbers.
 
-Today you write a model yourself, with no library doing anything on your
-behalf.
-
-It's about twenty lines, and it fits a straight line through some dots. That
-sounds small. But every neural network in the rest of this book, including the
-ones with billions of numbers in them, is a stack of exactly this thing repeated.
-So it's worth doing slowly.
-
-## A model is a function with adjustable numbers
+The same pattern appears in larger models: define a function, measure its mistakes, and find values that reduce those mistakes.
+## A model makes predictions from adjustable parameters
 
 ```python run setup title="the data"
 import numpy as np
@@ -70,7 +64,7 @@ borrowed, parameters owned by the optimiser — is exactly the split every deep
 learning framework makes.
 </Aside>
 
-## A loss says what "wrong" means
+## Use a loss to measure error
 
 To guess parameters you need a way to compare guesses. That's a **loss
 function**: one number, and lower is better.
@@ -103,7 +97,7 @@ If they're measurement noise, you've just told your model to chase the noise, an
 mean absolute error will serve you far better.
 </Aside>
 
-## Fitting, the stupid way
+## Fit by trying parameter values
 
 Before anything clever, let's do the obviously dumb thing: try lots of
 parameters, keep the best one.
@@ -169,7 +163,7 @@ makes every brute-force approach useless, and it is the reason the rest of this
 book has to exist.
 </Aside>
 
-## Fitting, the algebraic way
+## Solve for the best fit directly
 
 For this *particular* loss and this *particular* model family, it turns out
 calculus just hands you the answer.
@@ -418,7 +412,7 @@ That gap is the *irreducible error* term from
 <M id="variance-bias">the bias–variance decomposition</M>.
 
 Having a rough sense of how big that term is for your problem is what stops you
-spending a fortnight chasing an accuracy that was never on offer in the first
+spending weeks chasing an accuracy that was never on offer in the first
 place. It's one of the most valuable and least taught intuitions in the field.
 
 **The baseline comparison is the habit to keep.** "MSE 640" means nothing on its

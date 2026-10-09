@@ -1,20 +1,16 @@
 ---
-title: "Putting it out into the world, and reading papers"
-blurb: "Why accuracy is usually the wrong number, what a threshold really is, how a model goes stale, and how to get the gist of a paper in fifteen minutes."
+title: "Evaluate, ship, and keep learning"
+blurb: "Choose useful evaluation measures, plan for deployment, and build a repeatable way to learn from research."
 order: 16
 day: 14
 part: practice
 minutes: 90
 introduces: ["eval", "deploy"]
 ---
+A good training score is not enough to decide whether a model is useful. You need a test that matches the task, a measure that reflects the cost of mistakes, and a plan for what happens after deployment.
 
-Last day, and two things left. Knowing which number to report — because
-"accuracy" is usually the wrong one — and being able to carry on learning after
-this site runs out, without anybody writing you a syllabus.
-
-Both today, and then you're done.
-
-## Accuracy is usually the wrong number
+This chapter covers those decisions and gives you a practical way to keep learning from projects, documentation, and research papers.
+## Choose an evaluation metric
 
 ```python run setup title="a 99% accurate model that is worthless"
 import numpy as np, matplotlib.pyplot as plt
@@ -71,7 +67,7 @@ single most confident case has precision near 1.0 and useless recall.
 
 Neither of those is a better model. They're the same model at different settings.
 
-## The threshold is a business decision
+## Choose a decision threshold
 
 ```python run title="one model, many operating points"
 rows = []
@@ -194,7 +190,7 @@ a decision — expected value, triage, pricing — it's not.
 Neural networks are typically *over*confident. The usual fixes are Platt scaling
 or temperature scaling on a held-out set, and both are about ten lines.
 
-## After it ships
+## Monitor the model after deployment
 
 **Distribution shift.** A model learns the distribution it was shown. When the
 world moves — a new competitor, a new product line, a pandemic — performance
@@ -302,10 +298,10 @@ $$\min_\theta \mathbb{E}_{(x,y)\sim D}\left[\mathcal{L}(f_\theta(x), y)\right] +
 says: *make the average loss on your data small, and penalise large weights while
 you're at it.*
 
-Which is the whole of Chapters 5 and 6, written in nine symbols. It looked like a
-foreign language a fortnight ago. It's a sentence about a hill and a penalty.
+Which is the whole of Chapters 5 and 6, written in nine symbols. The symbols may be new, but the expression describes ideas you have already
+used: average loss and a penalty on large parameters.
 
-## A checklist for your first real project
+## A checklist for a first project
 
 1. **Frame it.** Supervision, task, features, target. Write it down.
 2. **Build the validation set first**, before any modelling, structured the way
@@ -324,7 +320,7 @@ foreign language a fortnight ago. It's a sentence about a hill and a penalty.
 Print it, put it somewhere. Steps 2, 4 and 6 are the ones people skip, and
 they're the ones that decide whether the project works.
 
-## Where to go next
+## Plan what to learn next
 
 **Consolidate.** Do a Kaggle playground competition end to end — not to win, but
 to feel the loop of *validate, change one thing, measure*. A week of that is
@@ -334,7 +330,7 @@ worth a month of reading, and it's the fastest way to build the instinct.
 nothing and is the natural sequel to chapters 9 and 13. The fastai course is
 excellent and takes the *opposite* route to this one — top down, library first —
 which makes the two complementary rather than redundant. You'll get
-more from it now than you would have a fortnight ago.
+more from it now that you have seen the main ideas.
 
 **Go deeper on the theory.** Bishop's *Pattern Recognition and Machine Learning*
 for the probabilistic view; Goodfellow, Bengio and Courville's *Deep Learning*
@@ -388,7 +384,7 @@ doing at all.
 Good abandonment criteria are **concrete and set in advance**. For example:
 
 > *If a well-tuned gradient-boosted model cannot beat the baseline by 5 points on
-> the validation set within two weeks, the signal isn't there.*
+> the validation set after a reasonable training period, the signal may not be there.*
 
 Or:
 
@@ -408,7 +404,7 @@ technical and it doesn't demo well.
 
 ---
 
-## That's the fortnight
+## Summary and next steps
 
 You've built a linear model, a gradient descent optimiser, a neural network, a
 backward pass, an attention mechanism, an embedding, an autoencoder and a

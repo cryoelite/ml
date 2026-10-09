@@ -5,7 +5,7 @@
  *
  * Bump `version` in package.json and every surface below follows:
  *   · the chip beside the wordmark in the masthead
- *   · the "shape of it in numbers" table in the colophon
+ *   · the release number in the colophon
  *   · the <meta name="generator"> tag
  */
 import pkg from "../../package.json";

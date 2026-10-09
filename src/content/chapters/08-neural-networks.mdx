@@ -1,27 +1,16 @@
 ---
-title: "Neural networks, built from multiply and add"
-blurb: "One hidden layer and one bend is the whole idea. Build it by hand, train it by brute force, and see exactly why backpropagation had to be invented."
+title: "Build a neural network"
+blurb: "Combine linear layers with nonlinear functions, then train a small network on a pattern a straight line cannot fit."
 order: 8
 day: 8
 part: deep-learning
 minutes: 100
 introduces: ["nn", "mlp"]
 ---
+A basic neural network applies a linear transformation, a nonlinear activation, and another linear transformation. The nonlinearity lets it represent patterns that a straight line cannot.
 
-A neural network is a linear model, then a squashing function, then another
-linear model.
-
-That's the whole idea, and it's worth having in one sentence before anyone
-shows you a diagram full of circles and arrows. The diagrams make it look
-mysterious. It isn't.
-
-Everything else you'll ever hear about — convolutions, attention, residual
-connections, normalisation layers — is a constraint bolted onto that sandwich.
-
-Today you build one out of nothing but <Py id="matmul">`@`</Py> and
-<Py id="ndarray">arrays</Py>.
-
-## First, the wall a linear model hits
+We will build a small network with NumPy and train it on a simple classification problem. The goal is to see what each part does.
+## A pattern a line cannot fit
 
 ```python run setup title="two crescents"
 import numpy as np, matplotlib.pyplot as plt
@@ -48,7 +37,7 @@ It's a **representation failure**. The function you need isn't in the family you
 chose. You asked for the best line, you got the best line, and the best line
 isn't good enough.
 
-## The obvious fix, and why it fails
+## Why stacking linear layers is not enough
 
 Fine — stack two linear layers. More layers, more power. Right?
 
@@ -80,7 +69,7 @@ depth is the most powerful idea in the field. That's a lot resting on one
 `max(0, z)`.
 </Aside>
 
-## One nonlinearity changes everything
+## Add a nonlinear activation
 
 ```python run title="ReLU"
 relu = lambda z: np.maximum(0, z)
@@ -157,7 +146,7 @@ shape error — and it will, today — this is the arithmetic to do on paper bef
 you touch the code.
 </Aside>
 
-## Training it, the honest slow way
+## Train the network step by step
 
 We have a model and <M id="cross-entropy">a loss</M>. We need gradients.
 
@@ -235,7 +224,7 @@ gap for a moment: from "five and a half hours per step" to "about twice a forwar
 pass," and it's the same answer, exactly.
 </Aside>
 
-## But it does work
+## Check the result
 
 Small enough network, patient enough, and brute force does train it:
 

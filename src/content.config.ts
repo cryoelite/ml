@@ -5,13 +5,10 @@ import { z } from "astro/zod";
 /**
  * Four collections, four jobs.
  *
- *  chapters — the linear spine. Read in order, one "day" at a time. This is the
- *             fortnight, and it is the one thing that must not grow.
- *  extras   — full-length pieces that are genuinely worth reading and genuinely
- *             not needed in a fortnight. Nothing in the spine ever depends on
- *             one, which is exactly what makes them safe to write.
- *  py       — Python-feature appendix. Hover targets, not a reading path.
- *  math     — mathematical appendix. Same: reached from the spine, never required.
+ *  chapters — the main learning path. Read in order or use the home page to choose a route.
+ *  extras   — optional articles for readers who want more detail. The main path does not depend on them.
+ *  py       — searchable Python reference entries used by the lessons.
+ *  math     — searchable maths references used by the lessons.
  *
  * Keeping the appendices as real collections (rather than inline asides) is what
  * lets one explanation be written once and referenced from six chapters.
@@ -23,7 +20,7 @@ const chapters = defineCollection({
     title: z.string(),
     // One line, shown under the title and in the concept map preview.
     blurb: z.string(),
-    // Position in the linear reading order. Also the "day" of the two-week plan.
+    // Position in the suggested reading order.
     order: z.number(),
     day: z.number(),
     part: z.enum(["orientation", "foundations", "deep-learning", "frontier", "practice"]),

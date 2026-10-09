@@ -12,7 +12,7 @@ interface Props {
 }
 const {
   title,
-  description = "A slow, friendly walk through how machines learn. Sixteen chapters, no programming experience needed, and nearly all the code runs in the page.",
+  description = "A practical, beginner-friendly guide to machine learning. Start with a model you can run in your browser, then choose where to go next.",
 } = Astro.props;
 const full = title === "Gradient" ? title : `${title} · Gradient`;
 import { withBase } from "../lib/base";
@@ -63,7 +63,7 @@ import { withBase } from "../lib/base";
         <span class="masthead__mark"><Doodle name="pip" decorative /></span>
         <span class="masthead__name">Gradient</span>
         <span class="masthead__version" title={`Version ${VERSION}`}>{VERSION_LABEL}</span>
-        <span class="masthead__tag">how machines learn, from the beginning</span>
+        <span class="masthead__tag">learn machine learning by doing</span>
       </a>
       <span class="masthead__spacer"></span>
       <nav class="masthead__links" aria-label="Sections">
@@ -81,8 +81,8 @@ import { withBase } from "../lib/base";
     <footer class="footer">
       <span class="footer__pip"><Doodle name="pip" decorative /></span>
       <p>
-        <strong>Gradient</strong> — how machines learn, from the beginning.
-        Written for people who are new to all of it.
+        <strong>Gradient</strong> — learn machine learning by doing.
+        Written for people who are new to machine learning.
       </p>
       <nav aria-label="More">
         <a href={withBase("/colophon/")}>How this was made</a>

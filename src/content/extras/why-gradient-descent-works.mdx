@@ -1,25 +1,13 @@
 ---
-title: "Why gradient descent works at all"
-blurb: "A neural network has an astronomical number of places where the search can get stuck, and the search is short-sighted. By every classical argument it should fail. It does not, and the reasons are surprising."
+title: "Why gradient descent works in deep learning"
+blurb: "Explore loss surfaces, saddle points, overparameterization, and the limits of common explanations."
 order: 12
 minutes: 15
 kind: "theory"
 after: "05-how-learning-happens"
 covers: ["gd"]
 ---
-
-Chapter 5 showed you a bowl. One minimum, smooth walls, roll to the bottom, done.
-
-That picture is *true* for linear least squares, and it is a fairy tale for
-neural networks. A real network's loss surface has an astronomical number of
-local minima, saddle points everywhere, and no convexity whatsoever.
-
-Gradient descent is a greedy local method with no memory and no global view. By
-every classical argument in optimisation, it should get stuck almost immediately.
-
-It doesn't. This page is about why not, and the answer turns out to be more
-interesting than "it's fine, don't worry."
-
+A bowl-shaped loss is a helpful picture for a simple linear model, but a neural network has a much more complex loss surface. This article looks at what researchers know about optimization in deep learning and where simple explanations stop.
 ## First, why the bowl was special
 
 ```python run setup title="convex and not"

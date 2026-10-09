@@ -1,21 +1,13 @@
 ---
-title: "Why the loss is called cross-entropy"
-blurb: "Entropy, KL divergence, and the fact that a language model is a compression algorithm. A short tour of the vocabulary that half of machine learning borrows without explaining."
+title: "Information theory and cross-entropy"
+blurb: "Connect surprise, entropy, cross-entropy, KL divergence, and perplexity."
 order: 13
 minutes: 12
 kind: "theory"
 after: "14-llms"
 covers: ["loss"]
 ---
-
-You've used cross-entropy since chapter 4 and it has worked perfectly well
-without you knowing where the name comes from. That's fine — but the underlying
-ideas are lovely, they take twenty minutes, and they explain a family
-of things that otherwise look unrelated.
-
-Including one that I think is the best single sentence in this whole book:
-**a language model is a compression algorithm.**
-
+Information theory gives a useful way to describe prediction: a good model assigns higher probability to events that occur. This guide introduces surprise, entropy, cross-entropy, KL divergence, and perplexity.
 ## Information is surprise
 
 Shannon's starting question, in 1948: how much information is in a message?
@@ -83,7 +75,7 @@ aesthetically.
 
 ## Cross-entropy: encoding with the wrong beliefs
 
-Now the one you've been minimising all fortnight.
+Now the cross-entropy loss from the earlier lessons.
 
 **Cross-entropy** is the average bits needed if you encode data that truly follows
 $p$, using a code optimised for a *different* distribution $q$:

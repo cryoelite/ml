@@ -1,19 +1,15 @@
 ---
-title: "Meeting Python"
-blurb: "The small slice of the language we actually need, the four things that surprise newcomers, and the number-crunching library that is really the point of the day."
+title: "Python for this course"
+blurb: "Learn the small amount of Python and NumPy needed to run and change the course examples."
 order: 2
 day: 2
 part: orientation
 minutes: 90
 ---
 
-Today is about the tools. Not the ideas — the ideas come back tomorrow — but
-the small amount of Python you need to read the rest of this site, and then a
-library called NumPy, which is what machine learning is actually written in.
+This chapter introduces the Python you will see in the lessons. We will use variables, functions, lists, NumPy arrays, and a little pandas to inspect data. You can run each example in the page and change it as you go.
 
-We are not going to learn all of Python. Python is large and most of it never
-comes up here. We need enough to read about forty lines of code, and after that
-almost everything is arrays of numbers.
+You do not need to learn all of Python before starting machine learning. Learn each new piece when it helps answer a question.
 
 <Aside type="key">
 If you take one thing from today: in ordinary programming you tell the computer
@@ -58,7 +54,7 @@ That really is enough to start. Everything else in this chapter is one of those
 four dressed up, or a shorter way of writing one of them.
 </SideQuest>
 
-## The language, briefly
+## Python basics
 
 Three things to know up front, which will make more sense as we go.
 
@@ -171,7 +167,7 @@ something up and reliably tidies it away afterwards, and
 <Py id="pathlib">`pathlib.Path`</Py>, where `/` joins the parts of a file path.
 Yes, division. They reused the symbol, and it reads better than it sounds.
 
-## NumPy, which is the real subject
+## Work with arrays in NumPy
 
 Everything from here is what the rest of the site is written in.
 
@@ -238,10 +234,7 @@ NumPy is how Python buys its way back into that world.
 
 ### Shape
 
-Worth saying plainly: almost everything that goes wrong for the next fortnight
-will be a shape problem. Not a mistake in the reasoning — a mismatch between how
-many rows and columns something has and how many the next line expected. Learn
-to read shapes and you will fix in ten seconds what otherwise eats an evening.
+Shape errors are common when working with arrays. They happen when a later operation expects a different number of rows or columns. Check the `.shape` of each array when an operation fails.
 
 ```python run
 a = np.arange(12)
@@ -349,7 +342,7 @@ the average of those is a percentage. One line, no `if` anywhere.
 Please use it every single time. The alternative is being unable to
 tell an improvement from luck, which is a bad place to spend a week.
 
-### The one that will actually bite you
+### A common shape error
 
 ```python run title="views alias, copies do not"
 a = np.arange(6)
@@ -394,7 +387,7 @@ reads the same memory over and over. There's no copy because there's nothing to
 copy — the array simply lies about how to move.
 </Stuck>
 
-## Ten minutes of pandas
+## Inspect data with pandas
 
 You need just enough to load a table and look at it honestly.
 

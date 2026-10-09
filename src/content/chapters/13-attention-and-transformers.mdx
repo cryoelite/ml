@@ -1,23 +1,16 @@
 ---
-title: "Attention, and the transformer"
-blurb: "One equation, built from scratch. Why the older approach lost, what 'query', 'key' and 'value' mean, and where the cost comes from."
+title: "Attention and transformers"
+blurb: "Use attention to let each part of a sequence draw information from other parts, then assemble a transformer block."
 order: 13
 day: 13
 part: frontier
 minutes: 110
 introduces: ["transformer", "encoder", "decoder", "encdec", "rnn", "lstm", "selfsup"]
 ---
+Text is a sequence: order matters, and length varies. Attention lets a model compare each token with other tokens and combine the information it needs.
 
-Sequences are different, and it's worth being precise about how.
-
-A photograph has a fixed size and no order. A sentence has neither property — it
-can be four words or four thousand, and rearranging it changes everything.
-
-The architecture that solved this is a single equation. Today you build it from
-nothing, in about four lines, and then we'll stack it into something that is
-recognisably GPT.
-
-## What came before, and why it lost
+We will build attention from its smaller operations, then put those operations into a transformer block.
+## From recurrent networks to attention
 
 A **recurrent** network processes a sequence one step at a time, carrying a
 hidden state forward.
@@ -66,7 +59,7 @@ single most instructive fact in this chapter about how this field actually moves
 the winning idea is very often the one that fits the machine.
 </Aside>
 
-## Attention, derived
+## Build attention
 
 Let's build it from the question rather than the formula.
 
@@ -319,7 +312,7 @@ training — that's largely RoPE frequency scaling, and it's a surprisingly smal
 change for the size of the effect.
 </Aside>
 
-## The full block
+## Assemble a transformer block
 
 ```python run title="a transformer block, assembled"
 def layer_norm(x, eps=1e-5):
@@ -369,7 +362,7 @@ Three pieces in that block earn their place, and each is worth a sentence:
   transformer's parameters live in these MLPs, and there's good evidence this is
   where factual knowledge gets stored.
 
-## The cost, and why everyone is fighting it
+## The cost of attention
 
 ```python run title="quadratic"
 print(f"{'sequence':>10s} {'attention matrix':>18s} {'float32 memory':>16s}")

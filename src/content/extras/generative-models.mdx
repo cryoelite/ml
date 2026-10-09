@@ -1,25 +1,13 @@
 ---
-title: "How machines generate things"
-blurb: "VAEs, GANs and diffusion — three answers to one hard question. The third one won, and the reason it won is a move worth stealing for problems that have nothing to do with images."
+title: "How generative models work"
+blurb: "Compare autoregressive models, variational autoencoders, and diffusion models."
 order: 21
 minutes: 13
 kind: "sibling"
 after: "15-unsupervised-and-the-rest"
 covers: ["gan", "diffusion"]
 ---
-
-Everything in the sixteen chapters was **discriminative**: given $x$, predict
-$y$. Even the language model, which feels creative, is predicting a next token.
-
-Generation asks something harder. Not "what label does this have" but **"produce a
-new thing that could plausibly have come from this distribution."**
-
-There's no target to compare against. There's no right answer. What does the loss
-function even say?
-
-Three families answered that question differently. Watching them is a good way to
-see how a field converges on an idea.
-
+A generative model learns patterns in examples and uses them to produce new samples. This guide compares three families—autoregressive models, variational autoencoders, and diffusion models—and explains their training goals and tradeoffs.
 ## Why it's hard
 
 ```python run setup title="the space of possible images"

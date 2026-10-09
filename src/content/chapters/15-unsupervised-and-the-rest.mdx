@@ -1,19 +1,15 @@
 ---
-title: "Without labels — and the branches not taken"
-blurb: "Clustering, PCA and autoencoders in practice, then a plain tour of everything this path skipped and what picking it up would cost."
+title: "Learning without labels and other paths"
+blurb: "Explore clustering, dimensionality reduction, autoencoders, and other branches of machine learning."
 order: 15
 day: 14
 part: practice
 minutes: 85
 introduces: ["unsupervised", "clustering", "dimred", "autoenc", "density", "gan", "diffusion", "gnn", "rl"]
 ---
+Many tasks do not come with a target label for every example. Clustering can group similar records, and dimensionality reduction can summarize many measurements with fewer numbers.
 
-Every model so far has been told the right answer.
-
-Today: what you can do when nobody will tell you — and then a deliberately quick
-tour of the entire field this fortnight has driven straight past, so that none of
-the names are strangers.
-
+This chapter introduces those methods and gives a short guide to other areas, including generative models, reinforcement learning, graphs, and time series.
 ## Clustering
 
 ```python run setup title="k-means, implemented"
@@ -218,10 +214,9 @@ you missing a technique — it is a genuine property of the problem. Bring domai
 knowledge, or bring a human, or reframe it as something supervised.
 </Stuck>
 
-## The branches this path did not take
+## Other areas of machine learning
 
-Everything below is real, in use somewhere today, and deliberately
-out of scope for a fortnight.
+The methods below are active areas of machine learning. This course only introduces them, but the extras provide more detail.
 
 This section exists so the names aren't strangers — because knowing **where a
 thing lives** is most of what it takes to pick it up later. Each of these has a
@@ -315,19 +310,10 @@ The critical discipline is the one from
 randomly. You already have that reflex.
 
 <Aside type="key">
-The reason all of these fit in one section rather than one chapter each is not
-that they're unimportant.
-
-It's that they share the machinery you have already built — a model, a loss,
-gradients, a validation strategy — and differ mainly in what they *assume about
-the data*.
-
-Which is the real payoff of the last fortnight. You now have the frame that all
-of them slot into. So picking any one of them up is learning a specific set of
-assumptions, rather than learning a field from scratch.
-
-That's the difference between a fortnight and a career, and you've just done the
-fortnight.
+These methods use many of the same tools as the earlier chapters: data, a model,
+a way to fit it, and checks on its results. They differ in the patterns they
+look for and in the feedback available. Use the field map to choose one topic
+and explore it in more depth.
 </Aside>
 
 <TryThis title="Three, and the third builds something real" reveal="Show solutions">

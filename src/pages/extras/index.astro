@@ -8,39 +8,36 @@ const extras = (await getCollection("extras", ({ data }) => !data.draft)).sort(
 );
 
 const KINDS = [
-  { id: "theory",  title: "The deeper why",   gist: "Places where the fortnight says “it just works like this” and you would rather know why it works like this." },
-  { id: "sibling", title: "The roads not taken", gist: "Methods that are perfectly good and simply did not fit. Worth recognising by name when a paper or a colleague reaches for one." },
-  { id: "craft",   title: "Things you learn by shipping", gist: "The unglamorous parts nobody writes a chapter about, and everybody eventually needs anyway." },
-  { id: "history", title: "How we got here",   gist: "The field has a memory, and knowing it makes the present far less arbitrary." },
-  { id: "culture", title: "The field as a human thing", gist: "Papers, people, incentives, and the harm this technology is capable of doing." },
+  { id: "theory", title: "Theory and explanations", gist: "Work through the ideas and mathematics behind common models and training methods." },
+  { id: "sibling", title: "Other methods", gist: "Explore useful approaches that need more time than the main course allows." },
+  { id: "craft", title: "Practical work", gist: "Prepare data, debug models, and improve speed before deployment." },
+  { id: "history", title: "History", gist: "See how earlier ideas and computing advances shaped modern machine learning." },
+  { id: "culture", title: "Research and effects", gist: "Learn how research is evaluated and how machine learning systems can affect people." },
 ];
 const total = extras.reduce((n, e) => n + e.data.minutes, 0);
 import { withBase } from "../../lib/base";
 ---
 
-<Doc title="Extras" description="Everything that is worth reading and did not fit in a fortnight.">
+<Doc title="Extras" description="Optional articles on machine learning theory, methods, practice, research, and social effects.">
   <div class="opener">
     <div>
       <h1>Extras</h1>
       <p class="lede">
-        Everything worth reading that simply does not fit in
-        a fortnight.
+        Optional guides for topics you want to explore in more depth.
       </p>
     </div>
     <div class="opener__art"><Doodle name="seedling" /></div>
   </div>
 
   <p>
-    The sixteen chapters are a promise: two weeks, and you come out able to
-    build things and read papers about them. Keeping that promise means leaving
-    things out, and quite a lot of what got left out is worth reading.
+    The main chapters introduce the core ideas and how to use them. These
+    additional articles explain related methods, practical skills, and questions
+    about research and impact. You can read one after the chapter it relates to,
+    or choose a topic from the list below. None is required to follow the course.
   </p>
   <p>
-    So it lives here instead. {extras.length} pieces, about {Math.round(total / 60)} hours
-    if you read every one. <strong>Nothing in the sixteen chapters depends on any
-    of this.</strong> That is the whole point — you can ignore this page entirely,
-    finish the path, and have missed nothing you needed. Come back when something
-    in a chapter made you curious and you want to pull on the thread.
+    There are {extras.length} articles, about {Math.round(total / 60)} hours in
+    total. Choose the subjects that match your questions.
   </p>
 
   {

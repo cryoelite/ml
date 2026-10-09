@@ -1,30 +1,21 @@
 ---
-title: "Doing well on things you have not seen"
-blurb: "How well a model does on questions it has already been shown tells you almost nothing. Setting aside a fair test, and what to do when the gap opens up."
+title: "Test on new data"
+blurb: "Separate training from evaluation, spot overfitting, and choose a test split that matches the real task."
 order: 6
 day: 6
 part: foundations
 minutes: 95
 introduces: ["generalise", "regular", "regularised"]
 ---
-
-Here's a model that gets 100% on its training data:
+A model can memorize every example it has seen and still make poor predictions on new examples. For example, a lookup table can return the right label for every training input, but it has no useful answer for an input it has not stored.
 
 ```
 def predict(x):
     return lookup_table[x]
 ```
 
-It's a dictionary. It has learned nothing, it will fail on the first new input it
-sees, and it is *perfect* by the measure we've been using so far.
-
-So we need a better measure. That's today.
-
-This is where most real projects fail, and the failures are
-boring, repetitive, and completely avoidable once you've seen them once. Which is
-what we're about to do.
-
-## Overfitting, demonstrated
+A training score measures how well the model fits its training examples. To estimate how it will do later, test it on separate data that was not used to fit it. This chapter shows how to make that test fair.
+## See overfitting
 
 ```python run setup title="a small, noisy dataset"
 import numpy as np, matplotlib.pyplot as plt
@@ -156,7 +147,7 @@ A test set you've consulted five times isn't a test set. It's a second validatio
 set with a misleading name and an inflated sense of its own honesty.
 </Aside>
 
-## Splitting randomly is often wrong
+## Choose a split that matches the task
 
 `train_test_split` shuffles. That's correct when your rows are independent — and
 they very frequently are not.
@@ -260,7 +251,7 @@ Use cross-validation when data is small and training is cheap. Skip it when
 training costs four GPU-hours. Nobody cross-validates a language model, and
 nobody expects you to.
 
-## Fighting overfitting
+## Reduce overfitting
 
 Five tools, roughly in the order you'll reach for them.
 
@@ -330,7 +321,7 @@ Regularisation is exactly that argument, applied to a fitted function instead of
 a written one.
 </Aside>
 
-## The gap, and what it tells you
+## Read the train–validation gap
 
 ```python run title="a diagnostic worth memorising"
 baseline = ((y_va - y_tr.mean()) ** 2).mean()      # predict the mean, always

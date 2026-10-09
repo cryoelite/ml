@@ -1,23 +1,16 @@
 ---
-title: "Embeddings: turning names into places"
-blurb: "How 'customer 84113' becomes something a model can work with — and why the same idea sits underneath word vectors, recommendations and search."
+title: "Embeddings and categories"
+blurb: "Represent categories as learned vectors, and use vector similarity for search and recommendations."
 order: 12
 day: 12
 part: frontier
 minutes: 90
 introduces: ["embed"]
 ---
+A table can contain categories such as a product, place, or user. Making one column for every possible value becomes unwieldy when there are many categories.
 
-[Chapter 3](/learn/03-the-shape-of-problems/) left a loose end, and today we
-pick it up.
-
-To feed a category — a district, a colour, a product — into a model, we turned it
-into one column per possible value. That's fine for three districts. It is absurd
-for fifty thousand product codes.
-
-Today we fix that, and the fix is one of the nicer ideas in the subject.
-
-## The problem, concretely
+An embedding maps each category to a short vector of learned numbers. We will see how a model can learn these representations and how similar vectors support search and recommendations.
+## Represent many categories
 
 ```python run setup title="one-hot does not scale"
 import numpy as np, matplotlib.pyplot as plt
@@ -49,7 +42,7 @@ Read that grid. Under one-hot, *cat* is exactly as similar to *kitten* as it is 
 We've encoded the categories perfectly and thrown away the only interesting thing
 about them, which is how they relate to one another.
 
-## An embedding is a learned lookup table
+## Learn an embedding table
 
 Here's the idea. Give each category a short vector of **learned** numbers.
 Instead of 50,000 columns of zeros, 32 columns of meaningful floats.
@@ -94,7 +87,7 @@ for n_categories in [500, 50_000, 30_000_000]:
           f"   embedding(dim 32) {n_categories * 32:>13,}")
 ```
 
-## What the numbers become
+## Inspect the learned vectors
 
 The compression is useful. It is not the interesting part.
 
@@ -166,7 +159,7 @@ becomes a *computation*. And every downstream trick — recommendation, retrieva
 analogy, clustering, semantic search — is geometry from there on.
 </Aside>
 
-## Word vectors, and the famous analogy
+## Word vectors and analogies
 
 The same procedure on text, at scale, was **word2vec** (2013) and **GloVe**
 (2014). Train a model to predict a word from its neighbours, then throw the model
@@ -315,7 +308,7 @@ declared. Usually a category that appeared in validation but not training. Reser
 index 0 for "unknown" and map unseen categories to it.
 </Stuck>
 
-## Where this goes: retrieval
+## Use embeddings for retrieval
 
 Embeddings, plus <M id="dot-product">cosine similarity</M>, plus an index, is a
 **vector database** — and that's most of what "semantic search" and the retrieval

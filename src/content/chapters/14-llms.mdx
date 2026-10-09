@@ -1,29 +1,21 @@
 ---
-title: "Large language models"
-blurb: "From guessing the next word to answering a question: tokens, scaling laws, the three stages of training, and what the temperature setting does."
+title: "How large language models work"
+blurb: "Follow text from tokens to next-token prediction, then learn how training and prompting shape language models."
 order: 14
 day: 14
 part: frontier
 minutes: 100
 introduces: ["rlhf", "scaling"]
 ---
+A causal language model is trained to predict the next token from the tokens before it. This objective gives the model a way to learn from large text collections. Later training and the surrounding software shape how it responds to instructions.
 
-A language model does exactly one thing: given some text, guess what comes
-next.
-
-That's the whole job description. Everything you have seen one do — answering,
-translating, summarising, rewriting, declining — comes out of that single
-operation, made very large and then shaped. That sounds like a simplification
-made for teaching. It isn't; by the end of today you'll have built each piece.
-
+We will follow the process from tokenization through training and generation, and look at what this design can and cannot tell us about a model’s answers.
 ## Tokens
 
-<Says who="wren">
-It is worth pausing on how strange this is before we take it apart. Everything a
-language model appears to know — history, arithmetic, the shape of an apology —
-it picked up as a side effect of getting better at guessing the next chunk of
-text. Nobody sat down and taught it any of those things directly.
-</Says>
+A model trained to predict text can learn patterns that help with tasks it was
+not given separate labels for. That does not mean it always knows whether a
+sentence is true or understands it as a person would. We will look at how the
+training objective shapes both its strengths and its limits.
 
 Models don't see letters, and they don't see words. They see **tokens** —
 chunks of text, some of them whole words, some of them fragments, worked out
@@ -111,7 +103,7 @@ area of work, not just a curiosity.
 English, and considerably worse for code and structured data.
 </Aside>
 
-## The objective
+## The training objective
 
 ```python run title="the entire training signal"
 words = "the cat sat on the mat and the cat purred".split()
@@ -151,7 +143,7 @@ hundred thousand tokens and a learned representation instead of a count table.
 The objective is identical. Character for character, the same idea. Everything
 between the bigram and GPT is capacity.
 
-## Sampling: what temperature actually does
+## How temperature changes sampling
 
 The model outputs a probability for every token in the vocabulary. Turning that
 distribution into actual text is a **separate decision** — and it's the one you
@@ -282,7 +274,7 @@ That reasoning — not a new architecture — is why small, heavily-overtrained 
 became the norm. An economics argument shaped the models you use every day.
 </Aside>
 
-## Three stages
+## Three stages of training
 
 Here's something that surprises people: a base model trained purely on next-token
 prediction **does not answer questions.**
@@ -376,7 +368,7 @@ Nobody put that there. It was the cheapest way to reduce next-token loss, and it
 happened to be one of the most useful capabilities the technology has.
 </Wonder>
 
-## What they cannot do
+## Limits and failure cases
 
 Worth being precise about, because these failure modes are **structural** rather
 than incidental. They're not bugs anybody forgot to fix.
